@@ -165,7 +165,7 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
         if (!Boolean(authority.Configuration, "anonymousChatEnabled", defaultValue: true))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_anonymous_chat_disabled");
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var bearerToken = NewSecret();
         var session = AnonymousAssistantSession.Create(
             Guid.NewGuid().ToString("N"),
@@ -194,7 +194,7 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
         ArgumentNullException.ThrowIfNull(command);
         var authority = await RequireAuthorityAsync(command.AssistantKey, cancellationToken);
         var session = await RequireSessionAsync(authority.Scope, sessionId, bearerToken, cancellationToken);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var conversation = AssistantConversation.Create(
             Guid.NewGuid().ToString("N"), authority.Scope.AssistantId, session.Id,
             authority.Scope.PublishedVersionId,
@@ -307,7 +307,7 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_turn_not_found");
         return await _tickets.ValidateAsync(
             ticket, transport, authority.Scope, sessionId, conversationId, turn.Id, run.Id,
-            DateTime.UtcNow, cancellationToken);
+            DateTime.Now, cancellationToken);
     }
 
     /// <summary>
@@ -329,7 +329,7 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
     {
         var session = await _runtime.GetSessionAsync(scope, sessionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_session_not_found");
-        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
+        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.Now);
         if (!string.Equals(session.SubjectHash, AnonymousAssistantSession.HashSubject(bearerToken), StringComparison.Ordinal))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_session_token_invalid");
         return session;

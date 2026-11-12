@@ -9,24 +9,19 @@ using SmartAssistant.Models.Knowledge;
 namespace SmartAssistant.Tests;
 
 /// <summary>
-/// 验证移除旧范围摘要后，远程向量适配器仍复用正确的已有集合。
+/// 验证远程向量适配器的集合隔离及查询、写入和回读协议。
 /// </summary>
-public sealed class AssistantVectorCollectionUpgradeTests
+public sealed class AssistantVectorIndexStoreTests
 {
     /// <summary>
-    /// 验证查询、写入和回读均使用同一个旧集合，已有新集合时优先使用新集合。
+    /// 验证查询、写入和回读均使用调用方指定的集合名称。
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Remote_vector_operations_preserve_existing_collections(bool hasCurrentCollection)
+    [Fact]
+    public async Task Remote_vector_operations_use_the_requested_collection()
     {
         var name = AssistantKnowledgeIndexNaming.Collection("knowledge", "profile");
-        var legacyName = "assistant_kb_0123456789ab_abcdef012345_" + name[13..];
         var client = DispatchProxy.Create<IQdrantClient, CollectionProxy>();
         var proxy = (CollectionProxy)(object)client;
-        proxy.Names = hasCurrentCollection ? [legacyName, name] : [legacyName];
-        var expectedName = hasCurrentCollection ? name : legacyName;
         var store = new QdrantAssistantVectorIndexStore(client);
 
         var hits = await store.SearchAsync(name, new float[] { 1, 0 }, 5, CancellationToken.None);
@@ -37,29 +32,7 @@ public sealed class AssistantVectorCollectionUpgradeTests
 
         Assert.Equal(new[] { "QueryAsync", "CreateCollectionAsync", "UpsertAsync", "RetrieveAsync" },
             proxy.Operations.Select(operation => operation.Method));
-        Assert.All(proxy.Operations, operation => Assert.Equal(expectedName, operation.Collection));
-        Assert.Equal(1, proxy.ListCalls);
-    }
-
-    /// <summary>
-    /// 验证多个旧集合映射到同一新名称时拒绝访问，避免任意选取其他集合的数据。
-    /// </summary>
-    [Fact]
-    public async Task Ambiguous_legacy_collections_are_rejected_before_querying_vectors()
-    {
-        var name = AssistantKnowledgeIndexNaming.Collection("knowledge", "profile");
-        var client = DispatchProxy.Create<IQdrantClient, CollectionProxy>();
-        var proxy = (CollectionProxy)(object)client;
-        proxy.Names =
-        [
-            "assistant_kb_0123456789ab_abcdef012345_" + name[13..],
-            "assistant_kb_111111111111_222222222222_" + name[13..]
-        ];
-
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new QdrantAssistantVectorIndexStore(client).SearchAsync(name, new float[] { 1, 0 }, 5, CancellationToken.None));
-        Assert.Equal("assistant_vector_collection_name_conflict", error.Message);
-        Assert.Empty(proxy.Operations);
+        Assert.All(proxy.Operations, operation => Assert.Equal(name, operation.Collection));
     }
 
     /// <summary>
@@ -68,32 +41,16 @@ public sealed class AssistantVectorCollectionUpgradeTests
     public class CollectionProxy : DispatchProxy
     {
         /// <summary>
-        /// 指定远程服务已经存在的集合名称。
-        /// </summary>
-        public string[] Names { get; set; } = [];
-
-        /// <summary>
         /// 记录实际向量操作及其目标集合。
         /// </summary>
         public List<(string Method, string Collection)> Operations { get; } = [];
 
         /// <summary>
-        /// 记录集合列表请求数，用于验证名称解析结果被复用。
-        /// </summary>
-        public int ListCalls { get; private set; }
-
-        /// <summary>
-        /// 模拟集合发现、已存在响应和向量查询，未预期的调用立即失败。
+        /// 模拟集合已存在响应和向量查询，未预期的调用立即失败。
         /// </summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
             var method = targetMethod ?? throw new InvalidOperationException();
-            if (method.Name == "ListCollectionsAsync")
-            {
-                ListCalls++;
-                return Completed(method, Names);
-            }
-
             Operations.Add((method.Name, (string)args![0]!));
             if (method.Name == "CreateCollectionAsync")
                 throw new RpcException(new Status(StatusCode.AlreadyExists, "existing collection"));

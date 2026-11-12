@@ -178,10 +178,7 @@ public sealed class AssistantRuntimeRepository : IAssistantRuntimeRepository
     /// <summary>
     /// 获取会话，并响应调用方的取消请求。
     /// </summary>
-    public async Task<AnonymousAssistantSession?> GetSessionAsync(
-        AssistantScopeSnapshot scope,
-        string sessionId,
-        CancellationToken cancellationToken)
+    public async Task<AnonymousAssistantSession?> GetSessionAsync(AssistantScopeSnapshot scope, string sessionId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var row = await _dbContext.GetSugarScope()
@@ -361,10 +358,7 @@ public sealed class AssistantRuntimeRepository : IAssistantRuntimeRepository
     /// <summary>
     /// 获取轮次，并响应调用方的取消请求。
     /// </summary>
-    public async Task<AssistantTurn?> GetTurnAsync(
-        AssistantScopeSnapshot scope,
-        string turnId,
-        CancellationToken cancellationToken)
+    public async Task<AssistantTurn?> GetTurnAsync(AssistantScopeSnapshot scope, string turnId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var row = await _dbContext.GetSugarScope()
@@ -415,11 +409,7 @@ public sealed class AssistantRuntimeRepository : IAssistantRuntimeRepository
     /// <summary>
     /// 获取轮次，并响应调用方的取消请求。
     /// </summary>
-    public async Task<AssistantTurn?> GetTurnByNumberAsync(
-        AssistantScopeSnapshot scope,
-        string conversationId,
-        long turnNo,
-        CancellationToken cancellationToken)
+    public async Task<AssistantTurn?> GetTurnByNumberAsync(AssistantScopeSnapshot scope, string conversationId, long turnNo, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var row = await _dbContext.GetSugarScope()
@@ -467,10 +457,7 @@ public sealed class AssistantRuntimeRepository : IAssistantRuntimeRepository
     /// <summary>
     /// 获取执行，并响应调用方的取消请求。
     /// </summary>
-    public async Task<AssistantRun?> GetRunAsync(
-        AssistantScopeSnapshot scope,
-        string runId,
-        CancellationToken cancellationToken)
+    public async Task<AssistantRun?> GetRunAsync(AssistantScopeSnapshot scope, string runId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var row = await _dbContext.GetSugarScope()
@@ -498,10 +485,7 @@ public sealed class AssistantRuntimeRepository : IAssistantRuntimeRepository
     /// <summary>
     /// 获取执行轮次，并响应调用方的取消请求。
     /// </summary>
-    public async Task<AssistantRun?> GetRunByTurnIdAsync(
-        AssistantScopeSnapshot scope,
-        string turnId,
-        CancellationToken cancellationToken)
+    public async Task<AssistantRun?> GetRunByTurnIdAsync(AssistantScopeSnapshot scope, string turnId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var row = await _dbContext.GetSugarScope()

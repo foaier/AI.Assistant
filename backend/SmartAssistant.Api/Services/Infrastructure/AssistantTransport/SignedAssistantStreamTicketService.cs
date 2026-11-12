@@ -58,8 +58,8 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
         if (allowedTransports.Count == 0)
             throw new BizResultException(BusinessCodes.BusinessException, "assistant_stream_transport_required");
 
-        var now = DateTime.UtcNow;
-        if (expiresAt <= now)
+        var now = DateTime.Now;
+        if (new DateTimeOffset(expiresAt) <= new DateTimeOffset(now))
             throw new BizResultException(BusinessCodes.BusinessException, "assistant_stream_ticket_expired");
 
         var payload = new AssistantStreamTicketPayload
@@ -74,7 +74,7 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
             RunId = Required(runId, "RunId"),
             ExecutionMode = scope.ExecutionMode,
             AllowedTransports = allowedTransports.OrderBy(item => item).ToArray(),
-            ExpiresAtUnixSeconds = new DateTimeOffset(expiresAt.ToUniversalTime()).ToUnixTimeSeconds(),
+            ExpiresAtUnixSeconds = new DateTimeOffset(expiresAt).ToUnixTimeSeconds(),
             Nonce = Base64Url(RandomNumberGenerator.GetBytes(24))
         };
 
@@ -92,7 +92,7 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
             payload.RunId,
             payload.ExecutionMode,
             new HashSet<AssistantTransportKind>(payload.AllowedTransports),
-            DateTimeOffset.FromUnixTimeSeconds(payload.ExpiresAtUnixSeconds).UtcDateTime));
+            DateTimeOffset.FromUnixTimeSeconds(payload.ExpiresAtUnixSeconds).LocalDateTime));
     }
 
     /// <summary>
@@ -112,11 +112,11 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(scope);
         var payload = DecodeAndVerify(ticket);
-        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(payload.ExpiresAtUnixSeconds).UtcDateTime;
+        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(payload.ExpiresAtUnixSeconds).LocalDateTime;
 
         if (payload.Version != 1 || !string.Equals(payload.Purpose, "assistant.run.stream", StringComparison.Ordinal))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_stream_ticket_invalid");
-        if (now.ToUniversalTime() >= expiresAt)
+        if (new DateTimeOffset(now).ToUnixTimeSeconds() >= payload.ExpiresAtUnixSeconds)
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_stream_ticket_expired");
         if (!payload.AllowedTransports.Contains(transport))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_stream_transport_not_allowed");

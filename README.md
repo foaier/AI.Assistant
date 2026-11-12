@@ -34,6 +34,8 @@ cd D:\MyCode\SmartAssistant
 
 模型和基础设施配置集中在 `backend/SmartAssistant.Api/appsettings.json`，运行时无需连接 Apollo。原业务数据库和会话数据独立保留在各自项目中。
 
+后端统一使用 `DateTime.Now` 获取当前时间，按服务器本地时间处理业务日期；接口返回的日期包含本地时区偏移。
+
 ## 目录
 
 ```text
@@ -43,7 +45,7 @@ backend/
     Models/           DTO、请求/响应、执行快照及其他数据容器，按用途分目录
     Services/         Assistant 业务、接口、仓储及 Domain/Entities 实体
     Platform/         本地事务、文件、凭据、向量存储适配
-    Migrations/       SQLite 版本迁移及校验
+    Migrations/       当前 SQLite 初始化结构及校验
     Program.cs        独立 ASP.NET Core 宿主
   SmartAssistant.Tests/    抽离的原测试及独立 HTTP/SQLite 集成测试
 frontend/
@@ -94,7 +96,7 @@ pnpm test:e2e
 
 模型服务中的 `config://AssistantSecrets:ModelKey` 引用本地配置对应键；`appsettings://` 同义，原有 `apollo://` 引用也只从本地对应键读取，不会请求 Apollo。`env://变量名` 继续支持显式环境变量凭据。
 
-备份整个 `data/` 目录，并同时保留本地配置。数据库内加密的凭据还需要 `keys.json` 才能解密。数据库仅通过版本化迁移初始化；后续结构变更需要新增迁移，不修改已应用的 SQL 或校验值。
+备份整个 `data/` 目录，并同时保留本地配置。数据库内加密的凭据还需要 `keys.json` 才能解密。开发阶段仅维护 `001_initial.sql` 中的当前结构及对应校验值，结构变更后重建开发数据库。
 
 ## 抽离边界
 

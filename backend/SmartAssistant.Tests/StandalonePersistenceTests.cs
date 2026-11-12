@@ -15,28 +15,29 @@ namespace SmartAssistant.Tests;
 public sealed class StandalonePersistenceTests
 {
     /// <summary>
-    /// 验证迁移增加注释后，已有数据库仍接受原始初始化脚本校验和。
+    /// 验证初始化记录与当前脚本校验值不一致时拒绝启动，不接收历史校验值。
     /// </summary>
     [Fact]
-    public void Existing_database_accepts_original_initial_migration_checksum_after_comments_are_added()
+    public void Initialization_rejects_a_database_with_a_different_schema_checksum()
     {
         var config = NewConfiguration();
         var directory = LocalDatabase.DataDirectory(config);
-        const string originalChecksum = "7a539c15b302e6f14dfd829dea61295de38de377bd687ccabd5d0cc8f4eeb148";
+        var mismatchedChecksum = new string('0', 64);
         LocalDatabase.Migrate(directory);
 
         using (var database = LocalDatabase.Open(directory))
         {
             database.Ado.ExecuteCommand(
                 "UPDATE assistant_schema_migration SET sha256 = @checksum WHERE version = @version",
-                new SqlSugar.SugarParameter("@checksum", originalChecksum),
+                new SqlSugar.SugarParameter("@checksum", mismatchedChecksum),
                 new SqlSugar.SugarParameter("@version", "001_initial.sql"));
         }
 
-        LocalDatabase.Migrate(directory);
+        var error = Assert.Throws<InvalidOperationException>(() => LocalDatabase.Migrate(directory));
+        Assert.Contains("Recreate the development database", error.Message);
 
         using var reopened = LocalDatabase.Open(directory);
-        Assert.Equal(originalChecksum, reopened.Ado.GetString(
+        Assert.Equal(mismatchedChecksum, reopened.Ado.GetString(
             "SELECT sha256 FROM assistant_schema_migration WHERE version = @version",
             new SqlSugar.SugarParameter("@version", "001_initial.sql")));
         Assert.Equal(1, reopened.Ado.GetInt("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'assistant_draft'"));

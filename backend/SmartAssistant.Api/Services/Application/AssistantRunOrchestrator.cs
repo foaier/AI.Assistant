@@ -151,7 +151,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var scope = authority.Scope;
         var session = await _runtime.GetSessionAsync(scope, sessionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_session_not_found");
-        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
+        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.Now);
         var conversation = await _runtime.GetConversationAsync(scope, command.ConversationId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_conversation_not_found");
         conversation.EnsureScope(scope, session.Id);
@@ -165,7 +165,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 ?? throw new BizResultException(BusinessCodes.Conflict, "assistant_turn_run_missing");
             var replayTicket = await _tickets.IssueAsync(
                 scope, session.Id, conversation.Id, existing.Id, existingRun.Id,
-                AllowedTransports, DateTime.UtcNow.AddMinutes(10), cancellationToken);
+                AllowedTransports, DateTime.Now.AddMinutes(10), cancellationToken);
             return new AssistantTurnAccepted(existing.Id, existingRun.Id, conversation.Id,
                 scope.PublishedVersionId, replayTicket.Value, existingRun.SequenceHead, replayTicket.ExpiresAt);
         }
@@ -188,7 +188,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 ? conversation
                 : await _runtime.GetConversationAsync(scope, conversation.Id, cancellationToken)
                     ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_conversation_not_found");
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var turnNo = conversation.LastTurnNo == long.MaxValue ? long.MaxValue : conversation.LastTurnNo + 1;
             turn = AssistantTurn.Create(
                 Guid.NewGuid().ToString("N"), conversation.Id, session.Id, scope.AssistantId,
@@ -227,7 +227,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             cancellationToken);
         var ticket = await _tickets.IssueAsync(
             scope, session.Id, conversation.Id, turn.Id, run.Id,
-            AllowedTransports, DateTime.UtcNow.AddMinutes(10), cancellationToken);
+            AllowedTransports, DateTime.Now.AddMinutes(10), cancellationToken);
 
         var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
         RunCancellation[run.Id] = linkedCancellation;
@@ -265,7 +265,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var scope = authority.Scope;
         var session = await _runtime.GetSessionAsync(scope, sessionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_session_not_found");
-        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
+        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.Now);
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var run = await _runtime.GetRunAsync(scope, runId, cancellationToken)
@@ -282,7 +282,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             var expectedRunStatus = run.Status;
             var expectedTurnStatus = turn.Status;
             var expectedMessageStatus = assistantMessage?.Status;
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             try
             {
                 /*
@@ -356,7 +356,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 return;
 
             stage = "start_run";
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             run.Start(now);
             turn.Start();
             await _runtime.TryStartRunBundleAsync(scope, run, turn, cancellationToken);
@@ -484,7 +484,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                     AssistantMessageRole.Assistant, string.Empty, ToolCalls: assistantCalls));
                 var assistantToolMessage = AssistantMessage.CreateAssistantToolCalls(
                     Guid.NewGuid().ToString("N"), turn.ConversationId, turn.Id, run.Id,
-                    assistantCalls, DateTime.UtcNow);
+                    assistantCalls, DateTime.Now);
                 await _runtime.AddMessageAsync(assistantToolMessage, cancellationToken);
                 await _dbContext.CommitAsync(cancellationToken);
                 foreach (var call in calls)
@@ -553,7 +553,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var expectedRunStatus = run.Status;
         var expectedTurnStatus = turn.Status;
         var expectedMessageStatus = assistantMessage.Status;
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         assistantMessage.Complete(JsonSerializer.Serialize(new
         {
             type = "text",
@@ -634,7 +634,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             definition.ToolId, definition.ContractVersion, cancellationToken);
         if (handler is null)
         {
-            toolCall.Deny("assistant_tool_handler_unavailable", DateTime.UtcNow);
+            toolCall.Deny("assistant_tool_handler_unavailable", DateTime.Now);
             toolCall.RecordDuration(toolTimer.Elapsed);
             await _runtime.SaveToolCallAsync(toolCall, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
@@ -648,14 +648,14 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             using var inputDocument = JsonDocument.Parse(call.ArgumentsJson);
             var output = await handler.ExecuteAsync(inputDocument.RootElement.Clone(), scope, cancellationToken);
             var outputJson = output.GetRawText();
-            toolCall.Complete(outputJson, DateTime.UtcNow);
+            toolCall.Complete(outputJson, DateTime.Now);
             toolCall.RecordDuration(toolTimer.Elapsed);
             await _runtime.SaveToolCallAsync(toolCall, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
             var toolMessage = AssistantMessage.CreateTool(
                 Guid.NewGuid().ToString("N"), turn.ConversationId, turn.Id, run.Id,
                 JsonSerializer.Serialize(new { type = "tool_result", toolCallId = call.ToolCallId, output }),
-                DateTime.UtcNow);
+                DateTime.Now);
             await _runtime.AddMessageAsync(toolMessage, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
             await PublishEventAsync(scope, run, AssistantRunEventTypes.ToolCallCompleted,
@@ -672,7 +672,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 ? SanitizeFailureCode(biz.BusinessMessage)
                 : "assistant_tool_execution_failed";
             if (toolCall.Status is AssistantToolCallStatus.Running)
-                toolCall.Fail(failureCode, DateTime.UtcNow);
+                toolCall.Fail(failureCode, DateTime.Now);
             toolCall.RecordDuration(toolTimer.Elapsed);
             await _runtime.SaveToolCallAsync(toolCall, CancellationToken.None);
             await _dbContext.CommitAsync(CancellationToken.None);
@@ -697,7 +697,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var expectedRunStatus = run.Status;
         var expectedTurnStatus = turn.Status;
         var expectedMessageStatus = assistantMessage.Status;
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         if (assistantMessage.Status == AssistantMessageStatus.Streaming)
             assistantMessage.Fail(now);
         if (run.Status is not (AssistantRunStatus.Completed or AssistantRunStatus.Failed or AssistantRunStatus.Cancelled or AssistantRunStatus.Expired))
@@ -748,7 +748,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         if (next is null)
             throw new BizResultException(BusinessCodes.Conflict, "assistant_run_sequence_conflict");
         var envelope = AssistantRunEventEnvelope.Create(
-            $"{run.Id}:{next.Value}:{type}", run.Id, run.TurnId, next.Value, type, DateTime.UtcNow, payload);
+            $"{run.Id}:{next.Value}:{type}", run.Id, run.TurnId, next.Value, type, DateTime.Now, payload);
         /*
          * 序号预留与事件发布构成同一个取消边界。
          * 已预留的事件不能丢弃，否则事件代理会因序号缺口拒绝后续事件。
@@ -790,7 +790,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var next = await _runtime.ReserveConversationTurnNoAsync(
-                scope, conversation.Id, conversation.LastTurnNo, DateTime.UtcNow, cancellationToken);
+                scope, conversation.Id, conversation.LastTurnNo, DateTime.Now, cancellationToken);
             if (next is not null) return next.Value;
             var latest = await _runtime.GetConversationAsync(scope, conversation.Id, cancellationToken)
                 ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_conversation_not_found");
@@ -890,10 +890,10 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             var expectedRunStatus = run.Status;
             var expectedTurnStatus = turn.Status;
             var expectedMessageStatus = assistantMessage?.Status;
-            run.Cancel(DateTime.UtcNow);
-            turn.Cancel(DateTime.UtcNow);
+            run.Cancel(DateTime.Now);
+            turn.Cancel(DateTime.Now);
             if (assistantMessage is not null && assistantMessage.Status == AssistantMessageStatus.Streaming)
-                assistantMessage.Fail(DateTime.UtcNow);
+                assistantMessage.Fail(DateTime.Now);
             await _runtime.TryPersistTerminalBundleAsync(scope, run, expectedRunStatus, turn, expectedTurnStatus,
                 assistantMessage, expectedMessageStatus, CancellationToken.None);
             await _dbContext.CommitAsync(CancellationToken.None);
@@ -961,7 +961,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var expectedRunStatus = run.Status;
         var expectedTurnStatus = turn.Status;
         var expectedMessageStatus = assistantMessage.Status;
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         assistantMessage.Complete(JsonSerializer.Serialize(new { type = "text", text = answer, source }), now);
         run.Complete(now);
         turn.Complete(now);

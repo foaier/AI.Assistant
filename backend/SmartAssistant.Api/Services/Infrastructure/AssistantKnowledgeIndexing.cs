@@ -298,11 +298,6 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
     private readonly IQdrantClient _client;
 
     /// <summary>
-    /// 缓存实际集合名，使移除旧范围摘要后仍能读取既有远程索引。
-    /// </summary>
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _collectionNames = new(StringComparer.Ordinal);
-
-    /// <summary>
     /// 接收并保存Qdrant助手向量索引执行所需的依赖，建立后续操作使用的运行状态。
     /// </summary>
     public QdrantAssistantVectorIndexStore(IQdrantClient client) => _client = client;
@@ -316,7 +311,6 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
         if (dimension < 1 || chunks.Any(chunk => !AssistantEmbeddingValidation.IsValid(chunk.Vector, dimension))
             || chunks.Select(chunk => chunk.ChunkId).Distinct(StringComparer.Ordinal).Count() != chunks.Count)
             throw new InvalidOperationException("assistant_embedding_dimension_mismatch");
-        collectionName = await ResolveCollectionNameAsync(collectionName, ct);
         try
         {
             await _client.CreateCollectionAsync(collectionName, new VectorParams
@@ -355,7 +349,6 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
         string collectionName, IReadOnlyList<AssistantVectorChunk> chunks, CancellationToken ct)
     {
         if (chunks.Count == 0) return Array.Empty<AssistantVectorPointReadback>();
-        collectionName = await ResolveCollectionNameAsync(collectionName, ct);
         var pointIds = chunks.Select(chunk => new PointId
         {
             Uuid = AssistantKnowledgeIndexNaming.PointId(chunk.ChunkId)
@@ -394,7 +387,6 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
                 return Array.Empty<AssistantVectorSearchHit>();
             filter = Conditions.Match("chunk_id", ids);
         }
-        collectionName = await ResolveCollectionNameAsync(collectionName, ct);
         var points = await _client.QueryAsync(
             collectionName,
             query: vector.ToArray(),
@@ -411,30 +403,6 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
                 GetInt32(point.Payload, "chunk_index")))
             .Where(hit => !string.IsNullOrWhiteSpace(hit.ChunkId))
             .ToArray();
-    }
-
-    /// <summary>
-    /// 优先使用新命名集合，缺少时复用唯一匹配的旧集合，不搬运远程向量数据。
-    /// </summary>
-    private async Task<string> ResolveCollectionNameAsync(string collectionName, CancellationToken ct)
-    {
-        const string prefix = "assistant_kb_";
-        if (!collectionName.StartsWith(prefix, StringComparison.Ordinal)) return collectionName;
-        if (_collectionNames.TryGetValue(collectionName, out var resolved)) return resolved;
-
-        var collections = await _client.ListCollectionsAsync(ct);
-        if (collections.Contains(collectionName, StringComparer.Ordinal))
-            return _collectionNames.GetOrAdd(collectionName, collectionName);
-
-        var pattern = "^assistant_kb_[0-9a-f]{12}_[0-9a-f]{12}_"
-            + System.Text.RegularExpressions.Regex.Escape(collectionName[prefix.Length..]) + "$";
-        var matches = collections.Where(name => System.Text.RegularExpressions.Regex.IsMatch(name, pattern)).ToArray();
-        if (matches.Length > 1)
-            throw new InvalidOperationException("assistant_vector_collection_name_conflict");
-
-        return matches.Length == 1
-            ? _collectionNames.GetOrAdd(collectionName, matches[0])
-            : collectionName;
     }
 
     /// <summary>

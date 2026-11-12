@@ -303,7 +303,7 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
             string.IsNullOrWhiteSpace(turnId) ? "replay-gap" : turnId,
             Math.Max(1, gap.CurrentSequence + 1),
             AssistantRunEventTypes.ReplayGap,
-            DateTime.UtcNow,
+            DateTime.Now,
             gap);
 
     /// <summary>

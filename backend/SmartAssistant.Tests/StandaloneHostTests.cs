@@ -119,7 +119,7 @@ public sealed class StandaloneHostTests
         var id = assistant.GetProperty("id").GetString();
         var preview = await Data(await client.PostAsJsonAsync($"/api/admin/assistants/{id}/previews", new { expectedDraftRevision = 1 }));
         var previewId = preview.GetProperty("id").GetString();
-        Assert.True(preview.GetProperty("expiresAt").GetDateTime() > DateTime.UtcNow);
+        Assert.True(preview.GetProperty("expiresAt").GetDateTime() > DateTime.Now);
         var previewMessages = await Data(await client.GetAsync($"/api/admin/assistants/{id}/previews/{previewId}/messages"));
         Assert.Empty(previewMessages.GetProperty("items").EnumerateArray());
         var otherAssistant = await Data(await client.PostAsJsonAsync("/api/admin/assistants", new { name = "其他助手", configuration }));
@@ -131,6 +131,14 @@ public sealed class StandaloneHostTests
         var version = publication.GetProperty("version");
         Assert.False(version.TryGetProperty("publishedBy", out _));
         Assert.False(version.TryGetProperty("revokedBy", out _));
+        var publishedAt = version.GetProperty("publishedAt").GetDateTime();
+        Assert.Equal(DateTimeKind.Local, publishedAt.Kind);
+        var publicationState = await Data(await client.GetAsync($"/api/admin/assistants/{id}/publication"));
+        var persistedPublishedAt = publicationState.GetProperty("publishedAt").GetDateTime();
+        Assert.Equal(DateTimeKind.Local, persistedPublishedAt.Kind);
+        Assert.Equal(new DateTimeOffset(publishedAt).Offset,
+            publicationState.GetProperty("publishedAt").GetDateTimeOffset().Offset);
+        Assert.InRange(Math.Abs((persistedPublishedAt - publishedAt).TotalSeconds), 0, 1);
 
         using var anonymous = host.CreateClient();
         var bootstrap = await Data(await anonymous.GetAsync($"/api/public/assistants/{id}/bootstrap"));

@@ -22,7 +22,7 @@ public sealed class AssistantPublicationTests
             "assistant-1", "客服", "说明",
             "{ \"enabled\": true, \"n\": 1 }", null);
 
-        var version = AssistantPublishedVersion.Create(draft, 1, DateTime.UtcNow, draft.DraftJson);
+        var version = AssistantPublishedVersion.Create(draft, 1, DateTime.Now, draft.DraftJson);
 
         Assert.Equal("assistant-1", version.AssistantKey);
         Assert.Equal("{\"enabled\":true,\"n\":1}", version.SnapshotJson);
@@ -36,7 +36,7 @@ public sealed class AssistantPublicationTests
     [Fact]
     public void Pointer_advance_requires_revision_and_rejects_cross_scope()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var firstDraft = AssistantDraft.Create("assistant-1", "客服", null, "{}", null);
         var pointer = AssistantPublicationPointer.Create(
             AssistantPublishedVersion.Create(firstDraft, 1, now, firstDraft.DraftJson));
@@ -54,7 +54,7 @@ public sealed class AssistantPublicationTests
     [Fact]
     public void Revoke_clears_pointer_and_marks_version_terminal()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var draft = AssistantDraft.Create("assistant-1", "客服", null, "{}", null);
         var version = AssistantPublishedVersion.Create(draft, 1, now, draft.DraftJson);
         var pointer = AssistantPublicationPointer.Create(version);

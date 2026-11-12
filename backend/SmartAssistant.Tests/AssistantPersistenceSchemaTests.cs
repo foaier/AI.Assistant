@@ -11,9 +11,9 @@ using SmartAssistant.Models.Runtime;
 namespace SmartAssistant.Tests;
 
 /// <summary>
-/// 验证通用字段移除后的结构升级、物理删除、消息顺序和工具耗时统计。
+/// 验证当前数据库结构、物理删除、消息顺序和工具耗时统计。
 /// </summary>
-public sealed class AssistantAuditRemovalTests
+public sealed class AssistantPersistenceSchemaTests
 {
     /// <summary>
     /// 验证新建数据库不包含审计、范围及用户身份字段，同时保留业务时间和乐观锁字段。
@@ -24,7 +24,11 @@ public sealed class AssistantAuditRemovalTests
         var config = Configuration();
         var directory = LocalDatabase.DataDirectory(config);
         LocalDatabase.Migrate(directory);
+        LocalDatabase.Migrate(directory);
         using var db = LocalDatabase.Open(directory);
+        Assert.Equal(1, db.Ado.GetInt("SELECT COUNT(*) FROM assistant_schema_migration"));
+        Assert.Equal("001_initial.sql", db.Ado.GetString("SELECT version FROM assistant_schema_migration"));
+        Assert.Equal(23, db.Ado.GetInt("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name <> 'assistant_schema_migration'"));
         var removed = new[]
         {
             "is_deleted", "deleted_at", "deleted_by", "created_at", "created_by",
@@ -40,180 +44,6 @@ public sealed class AssistantAuditRemovalTests
         Assert.Equal(1, db.Ado.GetInt("SELECT COUNT(*) FROM pragma_table_info('assistant_draft') WHERE name = 'draft_revision'"));
         Assert.Equal(2, db.Ado.GetInt("SELECT COUNT(*) FROM pragma_table_info('assistant_run') WHERE name IN ('started_at', 'completed_at')"));
         Assert.Empty(db.Ado.GetDataTable("PRAGMA foreign_key_check").Rows.Cast<DataRow>());
-    }
-
-    /// <summary>
-    /// 验证仅应用初始迁移的旧数据库可升级，软删除父记录的后代不重新出现。
-    /// </summary>
-    [Fact]
-    public async Task Upgrade_removes_deleted_families_and_preserves_live_data_preview_vectors_and_latency()
-    {
-        var config = Configuration();
-        var directory = LocalDatabase.DataDirectory(config);
-        var collection = AssistantKnowledgeIndexNaming.Collection("live-base", "profile", 2);
-        var legacyCollection = "assistant_kb_0123456789ab_abcdef012345_" + collection[13..];
-        using (var legacy = LocalDatabase.Open(directory))
-        {
-            var initial = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Migrations", "001_initial.sql"));
-            foreach (var command in initial.Split(';', StringSplitOptions.RemoveEmptyEntries))
-                if (!string.IsNullOrWhiteSpace(command)) legacy.Ado.ExecuteCommand(command);
-            legacy.Ado.ExecuteCommand("CREATE TABLE assistant_schema_migration (version TEXT PRIMARY KEY, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL)");
-            legacy.Ado.ExecuteCommand("""
-                INSERT INTO assistant_schema_migration VALUES (
-                    '001_initial.sql',
-                    '7a539c15b302e6f14dfd829dea61295de38de377bd687ccabd5d0cc8f4eeb148',
-                    '2026-11-01'
-                )
-                """);
-            Insert(legacy, "assistant_draft", "assistant");
-            Insert(legacy, "assistant_knowledge_base", "deleted-base", ("is_deleted", 1));
-            InsertKnowledgeChildren(legacy, "deleted-base");
-            Insert(legacy, "assistant_knowledge_base", "live-base", ("name", "保留知识库"));
-            Insert(legacy, "assistant_knowledge_qna", "live-qna", ("knowledge_base_id", "live-base"), ("answer", "保留回答"));
-            InsertRuntime(legacy);
-            Insert(legacy, "assistant_tool_call", "tool", ("run_id", "run"), ("status", 3),
-                ("created_at", "2026-11-01T00:00:00.000Z"), ("completed_at", "2026-11-01T00:00:00.250Z"));
-            Insert(legacy, "assistant_anonymous_session", "deleted-session", ("is_deleted", 1));
-            Insert(legacy, "assistant_conversation", "deleted-conversation", ("session_id", "deleted-session"));
-            Insert(legacy, "assistant_preview_snapshot", "preview",
-                ("expires_at", "2099-11-01T00:00:00Z"),
-                ("configuration_json", "{\"welcomeMessage\":\"保留预览\"}"),
-                ("session_id", "session"), ("conversation_id", "conversation"));
-            legacy.Ado.ExecuteCommand("INSERT INTO assistant_vector_collection VALUES (@name, 2)",
-                new SugarParameter("@name", legacyCollection));
-            legacy.Ado.ExecuteCommand("""
-                INSERT INTO assistant_vector_point
-                    (collection_name, chunk_id, content_hash, document_id, version_no, chunk_index, vector_json)
-                VALUES (@name, 'live-chunk', 'hash', 'live-document', 1, 0, '[1,0]')
-                """, new SugarParameter("@name", legacyCollection));
-        }
-
-        LocalDatabase.Migrate(directory);
-        LocalDatabase.Migrate(directory);
-        using var upgraded = LocalDatabase.Open(directory);
-        Assert.Equal("保留知识库", upgraded.Ado.GetString("SELECT name FROM assistant_knowledge_base WHERE id = 'live-base'"));
-        Assert.Equal("保留回答", upgraded.Ado.GetString("SELECT answer FROM assistant_knowledge_qna WHERE id = 'live-qna'"));
-        Assert.Equal(0, upgraded.Ado.GetInt("SELECT COUNT(*) FROM assistant_conversation WHERE id = 'deleted-conversation'"));
-        foreach (var table in KnowledgeChildren)
-            Assert.Equal(0, upgraded.Ado.GetInt($"SELECT COUNT(*) FROM {table}"));
-        Assert.InRange(Convert.ToDouble(upgraded.Ado.GetScalar("SELECT duration_ms FROM assistant_tool_call WHERE id = 'tool'")), 249, 251);
-        Assert.Equal("2099-11-01T00:00:00Z", upgraded.Ado.GetString("SELECT expires_at FROM assistant_preview_snapshot WHERE id = 'preview'"));
-        Assert.Equal("{\"welcomeMessage\":\"保留预览\"}", upgraded.Ado.GetString("SELECT configuration_json FROM assistant_preview_snapshot WHERE id = 'preview'"));
-        Assert.Equal("conversation", upgraded.Ado.GetString("SELECT conversation_id FROM assistant_preview_snapshot WHERE id = 'preview'"));
-        Assert.Equal(0, upgraded.Ado.GetInt("SELECT COUNT(*) FROM assistant_vector_collection WHERE name = @name",
-            new SugarParameter("@name", legacyCollection)));
-        var hits = await new LocalVectorIndex(config).SearchAsync(collection, new float[] { 1, 0 }, 5, CancellationToken.None);
-        Assert.Equal("live-chunk", Assert.Single(hits).ChunkId);
-        Assert.Empty(upgraded.Ado.GetDataTable("PRAGMA foreign_key_check").Rows.Cast<DataRow>());
-    }
-
-    /// <summary>
-    /// 验证审计迁移的新旧校验值均可升级，旧版本遗漏的预览过期列会自动补齐。
-    /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Upgrade_from_audit_migration_preserves_data_and_repairs_legacy_preview_schema(bool legacyPreviewSchema)
-    {
-        var directory = LocalDatabase.DataDirectory(Configuration());
-        using (var db = LocalDatabase.Open(directory))
-        {
-            ApplyThroughAuditMigration(db);
-            Insert(db, "assistant_draft", "assistant");
-            if (legacyPreviewSchema)
-            {
-                db.Ado.ExecuteCommand("ALTER TABLE assistant_preview_snapshot DROP COLUMN expires_at");
-                db.Ado.ExecuteCommand("""
-                    UPDATE assistant_schema_migration
-                    SET sha256 = '1dded6cb573d571245611f61b70321e97afabc8222a6357b4fefe6975361c836'
-                    WHERE version = '002_remove_audit_fields.sql'
-                    """);
-            }
-            else
-            {
-                Insert(db, "assistant_preview_snapshot", "preview", ("expires_at", "2099-01-01T00:00:00Z"));
-            }
-        }
-
-        LocalDatabase.Migrate(directory);
-        LocalDatabase.Migrate(directory);
-        using var upgraded = LocalDatabase.Open(directory);
-        Assert.Equal(1, upgraded.Ado.GetInt("SELECT COUNT(*) FROM assistant_draft WHERE id = 'assistant'"));
-        Assert.Equal(1, upgraded.Ado.GetInt("SELECT COUNT(*) FROM pragma_table_info('assistant_preview_snapshot') WHERE name = 'expires_at'"));
-        if (!legacyPreviewSchema)
-            Assert.Equal("2099-01-01T00:00:00Z", upgraded.Ado.GetString("SELECT expires_at FROM assistant_preview_snapshot WHERE id = 'preview'"));
-        Assert.Equal(0, upgraded.Ado.GetInt("SELECT COUNT(*) FROM pragma_table_info('assistant_draft') WHERE name IN ('tenant_id', 'org_id')"));
-        Assert.Empty(upgraded.Ado.GetDataTable("PRAGMA foreign_key_check").Rows.Cast<DataRow>());
-    }
-
-    /// <summary>
-    /// 验证已执行范围精简的数据库可移除剩余身份列，并保留发布、会话及预览数据。
-    /// </summary>
-    [Fact]
-    public async Task Identity_removal_preserves_publication_session_and_preview_business_data()
-    {
-        var config = Configuration();
-        var directory = LocalDatabase.DataDirectory(config);
-        using (var db = LocalDatabase.Open(directory))
-        {
-            ApplyThroughAuditMigration(db, includeScopeRemoval: true);
-            Insert(db, "assistant_draft", "assistant");
-            InsertRuntime(db);
-            Insert(db, "assistant_published_version", "published",
-                ("name", "保留发布"), ("snapshot_json", "{\"welcomeMessage\":\"欢迎\"}"),
-                ("published_at", "2026-11-01T00:00:00Z"),
-                ("revoked_at", "2026-11-02T00:00:00Z"),
-                ("published_by", "legacy-publisher"), ("revoked_by", "legacy-operator"));
-            db.Ado.ExecuteCommand("""
-                UPDATE assistant_anonymous_session
-                SET revoked_at = '2026-11-02T00:00:00Z', revoked_by = 'legacy-operator'
-                WHERE id = 'session'
-                """);
-            Insert(db, "assistant_preview_snapshot", "preview",
-                ("actor_id", "legacy-operator"), ("configuration_json", "{\"welcomeMessage\":\"预览\"}"),
-                ("session_id", "session"), ("conversation_id", "conversation"),
-                ("expires_at", "2099-01-01T00:00:00Z"));
-        }
-
-        LocalDatabase.Migrate(directory);
-        LocalDatabase.Migrate(directory);
-        using var upgraded = new LocalDbContext(config);
-        var client = upgraded.GetSugarScope();
-        Assert.Equal("保留发布", client.Ado.GetString("SELECT name FROM assistant_published_version WHERE id = 'published'"));
-        Assert.Equal("2026-11-01T00:00:00Z", client.Ado.GetString("SELECT published_at FROM assistant_published_version WHERE id = 'published'"));
-        Assert.Equal("2026-11-02T00:00:00Z", client.Ado.GetString("SELECT revoked_at FROM assistant_published_version WHERE id = 'published'"));
-        Assert.Equal("2026-11-02T00:00:00Z", client.Ado.GetString("SELECT revoked_at FROM assistant_anonymous_session WHERE id = 'session'"));
-        var previews = new AssistantPreviewRepository(upgraded);
-        var preview = await previews.GetAsync("assistant", "preview", CancellationToken.None);
-        Assert.NotNull(preview);
-        Assert.Equal("{\"welcomeMessage\":\"预览\"}", preview.ConfigurationJson);
-        Assert.Equal("conversation", preview.ConversationId);
-        Assert.Equal(2099, preview.ExpiresAt.Year);
-        Assert.Null(await previews.GetAsync("other-assistant", "preview", CancellationToken.None));
-        Assert.Empty(client.Ado.GetDataTable("PRAGMA foreign_key_check").Rows.Cast<DataRow>());
-    }
-
-    /// <summary>
-    /// 验证取消旧范围后若幂等键冲突，迁移完整回滚并保留原始数据和约束。
-    /// </summary>
-    [Fact]
-    public void Conflicting_legacy_idempotency_keys_roll_back_scope_removal_without_losing_data()
-    {
-        var directory = LocalDatabase.DataDirectory(Configuration());
-        using (var db = LocalDatabase.Open(directory))
-        {
-            ApplyThroughAuditMigration(db);
-            Insert(db, "assistant_draft", "one", ("tenant_id", "one"), ("creation_idempotency_key", "same-key"));
-            Insert(db, "assistant_draft", "two", ("tenant_id", "two"), ("creation_idempotency_key", "same-key"));
-        }
-
-        Assert.ThrowsAny<Exception>(() => LocalDatabase.Migrate(directory));
-        using var unchanged = LocalDatabase.Open(directory);
-        Assert.Equal(2, unchanged.Ado.GetInt("SELECT COUNT(*) FROM assistant_draft"));
-        Assert.Equal(2, unchanged.Ado.GetInt("SELECT COUNT(*) FROM pragma_table_info('assistant_draft') WHERE name IN ('tenant_id', 'org_id')"));
-        Assert.Equal(0, unchanged.Ado.GetInt("SELECT COUNT(*) FROM assistant_schema_migration WHERE version = '003_remove_tenant_org_fields.sql'"));
-        Assert.ThrowsAny<Exception>(() => Insert(unchanged, "assistant_draft", "duplicate",
-            ("tenant_id", "one"), ("creation_idempotency_key", "same-key")));
     }
 
     /// <summary>
@@ -322,7 +152,7 @@ public sealed class AssistantAuditRemovalTests
         var runtime = new AssistantRuntimeRepository(db);
         var tool = AssistantToolCall.Create("tool", "run", "search", "v1", "hash");
         tool.Start();
-        tool.Complete("{}", DateTime.UtcNow);
+        tool.Complete("{}", DateTime.Now);
         tool.RecordDuration(TimeSpan.FromMilliseconds(125));
         await runtime.AddToolCallAsync(tool, CancellationToken.None);
         await db.CommitAsync();
@@ -369,25 +199,6 @@ public sealed class AssistantAuditRemovalTests
     ];
 
     /// <summary>
-    /// 建立执行指定历史迁移的升级前数据库，并登记实际脚本校验值。
-    /// </summary>
-    private static void ApplyThroughAuditMigration(ISqlSugarClient db, bool includeScopeRemoval = false)
-    {
-        db.Ado.ExecuteCommand("CREATE TABLE assistant_schema_migration (version TEXT PRIMARY KEY, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL)");
-        var versions = new List<string> { "001_initial.sql", "002_remove_audit_fields.sql" };
-        if (includeScopeRemoval) versions.Add("003_remove_tenant_org_fields.sql");
-        foreach (var version in versions)
-        {
-            var bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Migrations", version));
-            foreach (var statement in System.Text.Encoding.UTF8.GetString(bytes).Split(';', StringSplitOptions.RemoveEmptyEntries))
-                if (!string.IsNullOrWhiteSpace(statement)) db.Ado.ExecuteCommand(statement);
-            db.Ado.ExecuteCommand("INSERT INTO assistant_schema_migration VALUES (@version, @hash, '2026-11-01')",
-                new SugarParameter("@version", version),
-                new SugarParameter("@hash", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant()));
-        }
-    }
-
-    /// <summary>
     /// 建立真实数据库查询所需的完整会话、对话、轮次和运行关联。
     /// </summary>
     private static void InsertRuntime(ISqlSugarClient db)
@@ -412,15 +223,13 @@ public sealed class AssistantAuditRemovalTests
     }
 
     /// <summary>
-    /// 根据数据库结构填充必填值，允许同一测试辅助方法同时创建升级前后的数据。
+    /// 根据当前数据库结构填充必填值，并允许测试覆盖指定字段。
     /// </summary>
     private static void Insert(ISqlSugarClient db, string table, string id, params (string Name, object Value)[] overrides)
     {
         var values = new Dictionary<string, object>
         {
             ["id"] = id,
-            ["tenant_id"] = "tenant",
-            ["org_id"] = "org",
             ["assistant_id"] = "assistant",
             ["published_version_id"] = "published",
             ["execution_mode"] = 1

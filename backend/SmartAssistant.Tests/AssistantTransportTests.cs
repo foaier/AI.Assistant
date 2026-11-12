@@ -31,7 +31,7 @@ public sealed class AssistantTransportTests
             "turn-1",
             7,
             AssistantRunEventTypes.MessageDelta,
-            DateTime.UtcNow,
+            DateTime.Now,
             new { messageId = "msg-1", delta = "hello" });
         var serializer = new AssistantRunEventTransportSerializer();
 
@@ -67,7 +67,7 @@ public sealed class AssistantTransportTests
                 "turn-1",
                 2,
                 AssistantRunEventTypes.MessageDelta,
-                DateTime.UtcNow,
+                DateTime.Now,
                 new { delta = "two" }),
             AssistantRunStatus.Running);
         replay.Append(
@@ -77,7 +77,7 @@ public sealed class AssistantTransportTests
                 "turn-1",
                 3,
                 AssistantRunEventTypes.RunCompleted,
-                DateTime.UtcNow,
+                DateTime.Now,
                 new { }),
             AssistantRunStatus.Completed);
 
@@ -107,7 +107,7 @@ public sealed class AssistantTransportTests
                     "turn-1",
                     1,
                     AssistantRunEventTypes.RunAccepted,
-                    DateTime.UtcNow,
+                    DateTime.Now,
                     new { }),
                 AssistantRunStatus.Accepted));
         Assert.Equal("assistant_event_scope_mismatch", scopeError.BusinessMessage);
@@ -120,7 +120,7 @@ public sealed class AssistantTransportTests
                     "turn-1",
                     2,
                     AssistantRunEventTypes.RunAccepted,
-                    DateTime.UtcNow,
+                    DateTime.Now,
                     new { }),
                 AssistantRunStatus.Accepted));
         Assert.Equal("assistant_event_sequence_gap", sequenceError.BusinessMessage);
@@ -138,6 +138,7 @@ public sealed class AssistantTransportTests
             "assistant-1",
             "published-1",
             AssistantExecutionMode.Public);
+        var expiresAt = DateTime.Now.AddMinutes(5);
         var ticket = await service.IssueAsync(
             scope,
             "session-1",
@@ -149,7 +150,7 @@ public sealed class AssistantTransportTests
                 AssistantTransportKind.Sse,
                 AssistantTransportKind.WebSocket
             },
-            DateTime.UtcNow.AddMinutes(5));
+            expiresAt);
 
         var validated = await service.ValidateAsync(
             ticket.Value,
@@ -159,11 +160,25 @@ public sealed class AssistantTransportTests
             "conversation-1",
             "turn-1",
             "run-1",
-            DateTime.UtcNow);
+            DateTime.Now);
 
         Assert.Equal(ticket.RunId, validated.RunId);
         Assert.Equal(ticket.ExpiresAt, validated.ExpiresAt);
+        Assert.Equal(DateTimeKind.Local, ticket.ExpiresAt.Kind);
+        Assert.Equal(DateTimeKind.Local, validated.ExpiresAt.Kind);
+        Assert.InRange((expiresAt - ticket.ExpiresAt).TotalSeconds, 0, 1);
         Assert.Contains(AssistantTransportKind.Sse, validated.AllowedTransports);
+
+        var beforeExpiry = await service.ValidateAsync(
+            ticket.Value,
+            AssistantTransportKind.Sse,
+            scope,
+            "session-1",
+            "conversation-1",
+            "turn-1",
+            "run-1",
+            ticket.ExpiresAt.AddTicks(-1));
+        Assert.Equal(ticket.ExpiresAt, beforeExpiry.ExpiresAt);
     }
 
     /// <summary>
@@ -185,7 +200,7 @@ public sealed class AssistantTransportTests
             "turn-1",
             "run-1",
             new HashSet<AssistantTransportKind> { AssistantTransportKind.Sse },
-            DateTime.UtcNow.AddMinutes(5));
+            DateTime.Now.AddMinutes(5));
 
         var tampered = ticket.Value[..^1] + (ticket.Value[^1] == 'a' ? "b" : "a");
         var tamperError = await Assert.ThrowsAsync<BizResultException>(() =>
@@ -197,7 +212,7 @@ public sealed class AssistantTransportTests
                 "conversation-1",
                 "turn-1",
                 "run-1",
-                DateTime.UtcNow));
+                DateTime.Now));
         Assert.Equal("assistant_stream_ticket_invalid", tamperError.BusinessMessage);
 
         var transportError = await Assert.ThrowsAsync<BizResultException>(() =>
@@ -209,7 +224,7 @@ public sealed class AssistantTransportTests
                 "conversation-1",
                 "turn-1",
                 "run-1",
-                DateTime.UtcNow));
+                DateTime.Now));
         Assert.Equal("assistant_stream_transport_not_allowed", transportError.BusinessMessage);
 
         var scopeError = await Assert.ThrowsAsync<BizResultException>(() =>
@@ -221,7 +236,7 @@ public sealed class AssistantTransportTests
                 "conversation-1",
                 "turn-1",
                 "run-1",
-                DateTime.UtcNow));
+                DateTime.Now));
         Assert.Equal("assistant_stream_ticket_scope_mismatch", scopeError.BusinessMessage);
 
         var expiryError = await Assert.ThrowsAsync<BizResultException>(() =>
@@ -233,7 +248,7 @@ public sealed class AssistantTransportTests
                 "conversation-1",
                 "turn-1",
                 "run-1",
-                DateTime.UtcNow.AddMinutes(6)));
+                ticket.ExpiresAt));
         Assert.Equal("assistant_stream_ticket_expired", expiryError.BusinessMessage);
     }
 }

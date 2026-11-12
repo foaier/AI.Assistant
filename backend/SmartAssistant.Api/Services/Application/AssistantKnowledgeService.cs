@@ -263,7 +263,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         var strategyChanged = policy.StrategyKey != previous.StrategyKey;
         if (current is not null && policy.StrategyKey == previous.StrategyKey)
             policy = previous; // An unchanged save is not a new processing strategy.
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var row = current ?? new AssistantKnowledgeChunkingPolicyEntity
         {
             Id = Guid.NewGuid().ToString("N"),
@@ -644,7 +644,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 && value.EmbeddingProviderRevision == embeddingProfile.ActiveProviderRevision
                 && value.EmbeddingModel == embeddingProfile.ActiveModel
                 && value.EmbeddingDimension == embeddingProfile.ActiveDimension);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         if (version.Status != "ready")
         {
             document.Status = "processing";
@@ -700,7 +700,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 version.ErrorCode = null;
                 job.Status = "needs_embedding_config";
                 job.ChunkCount = rows.Count;
-                job.CompletedAt = DateTime.UtcNow;
+                job.CompletedAt = DateTime.Now;
                 await _documentRepository.UpdateDocumentAsync(document, cancellationToken);
                 await _documentRepository.UpdateVersionAsync(version, cancellationToken);
                 await _documentRepository.UpdateIndexJobAsync(job, cancellationToken);
@@ -742,12 +742,12 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 row.PointId = AssistantKnowledgeIndexNaming.PointId(row.Id);
             await _documentRepository.UpdateChunkPointIdsAsync(rows, cancellationToken);
 
-            version.IndexedAt = DateTime.UtcNow;
+            version.IndexedAt = DateTime.Now;
             version.ErrorCode = null;
             version.IndexStatus = "ready";
             job.Status = "succeeded";
             job.ChunkCount = rows.Count;
-            job.CompletedAt = DateTime.UtcNow;
+            job.CompletedAt = DateTime.Now;
             await _documentRepository.UpdateDocumentAsync(document, cancellationToken);
             await _documentRepository.UpdateVersionAsync(version, cancellationToken);
             await _documentRepository.UpdateIndexJobAsync(job, cancellationToken);
@@ -777,7 +777,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             document.LastErrorCode = parsedChunks.Count > 0 ? null : errorCode;
             job.Status = "failed";
             job.ErrorCode = errorCode;
-            job.CompletedAt = DateTime.UtcNow;
+            job.CompletedAt = DateTime.Now;
             await _documentRepository.UpdateDocumentAsync(document, cancellationToken);
             await _documentRepository.UpdateVersionAsync(version, cancellationToken);
             await _documentRepository.UpdateIndexJobAsync(job, cancellationToken);

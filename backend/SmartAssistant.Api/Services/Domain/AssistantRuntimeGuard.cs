@@ -83,9 +83,9 @@ internal static class AssistantRuntimeGuard
     }
 
     /// <summary>
-    /// 校验时间范围使用 UTC 且起止顺序有效。
+    /// 校验时间范围的起止顺序，当前时间和失效时间统一使用本地时间。
     /// </summary>
-    public static void EnsureUtcWindow(DateTime now, DateTime expiresAt)
+    public static void EnsureTimeWindow(DateTime now, DateTime expiresAt)
     {
         if (expiresAt <= now)
             throw new BizResultException(BusinessCodes.BusinessException, "expires_at_must_be_after_now");

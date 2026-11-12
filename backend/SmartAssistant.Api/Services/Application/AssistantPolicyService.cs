@@ -247,8 +247,8 @@ public sealed class AssistantPolicyService : IAssistantPolicyService
                 if (missing.Length > 0)
                     return new(false,
                         $"连接成功，但服务未返回已配置模型：{string.Join("、", missing)}。请检查模型名称和服务地址。",
-                        DateTime.UtcNow);
-                return new(true, "连接成功，已确认模型服务和已配置模型。", DateTime.UtcNow);
+                        DateTime.Now);
+                return new(true, "连接成功，已确认模型服务和已配置模型。", DateTime.Now);
             }
 
             var message = response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden
@@ -256,10 +256,10 @@ public sealed class AssistantPolicyService : IAssistantPolicyService
                     : response.StatusCode == System.Net.HttpStatusCode.NotFound
                         ? "服务地址未提供 OpenAI 兼容的模型列表接口，请填写兼容地址（通常以 /v1 结尾）。"
                         : "模型服务未通过连接检查，请检查服务地址、访问凭据和服务状态。";
-            return new(response.IsSuccessStatusCode, message, DateTime.UtcNow);
+            return new(response.IsSuccessStatusCode, message, DateTime.Now);
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(false, "连接超时，请稍后重试。", DateTime.UtcNow); }
-        catch (HttpRequestException) { return new(false, "无法连接模型服务，请检查服务地址和服务器网络。", DateTime.UtcNow); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(false, "连接超时，请稍后重试。", DateTime.Now); }
+        catch (HttpRequestException) { return new(false, "无法连接模型服务，请检查服务地址和服务器网络。", DateTime.Now); }
         catch (BizResultException ex)
         {
             var message = ex.Message switch
@@ -270,7 +270,7 @@ public sealed class AssistantPolicyService : IAssistantPolicyService
                     => "服务端凭据未找到，请检查凭据引用、版本和本机环境变量配置。",
                 _ => "模型服务配置不可用，请检查 API Token 和服务版本。"
             };
-            return new(false, message, DateTime.UtcNow);
+            return new(false, message, DateTime.Now);
         }
     }
 

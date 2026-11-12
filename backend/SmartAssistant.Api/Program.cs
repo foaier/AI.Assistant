@@ -3,10 +3,15 @@ using SmartAssistant.Models.Common;
 using SmartAssistant.Persistence;
 using SmartAssistant.Platform;
 using SmartAssistant.Platform.Assets;
+using SmartAssistant.Platform.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true).AddEnvironmentVariables();
-builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.PropertyNameCaseInsensitive = true);
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    options.JsonSerializerOptions.Converters.Add(new LocalDateTimeJsonConverter());
+});
 builder.Services.AddAssistant(builder.Configuration);
 
 var app = builder.Build();

@@ -79,7 +79,7 @@ public sealed class AnonymousAssistantSession
     {
         AssistantRuntimeGuard.RequireScope(
             assistantId, publishedVersionId, executionMode);
-        AssistantRuntimeGuard.EnsureUtcWindow(now, expiresAt);
+        AssistantRuntimeGuard.EnsureTimeWindow(now, expiresAt);
 
         return new AnonymousAssistantSession
         {

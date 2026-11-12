@@ -178,7 +178,7 @@ public sealed class AssistantSseStreamAdapter
             messageCompletedEvent.TurnId,
             sequence,
             AssistantRunEventTypes.RunCompleted,
-            DateTime.UtcNow,
+            DateTime.Now,
             new { runId = messageCompletedEvent.RunId, turnId = messageCompletedEvent.TurnId });
         var bytes = Encoding.UTF8.GetBytes(_serializer.SerializeSse(runCompleted));
         await response.Body.WriteAsync(bytes, cancellationToken);

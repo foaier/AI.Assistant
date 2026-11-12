@@ -86,7 +86,7 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
                 throw new BizResultException(BusinessCodes.Conflict, "assistant_publication_pointer_revision_conflict");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var versionNo = (pointer?.CurrentVersionNo ?? 0) + 1;
         var snapshotJson = await _snapshots.FreezeAsync(draft, cancellationToken);
         var version = AssistantPublishedVersion.Create(draft, versionNo, now, snapshotJson);
@@ -141,7 +141,7 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
         var version = await _publications.GetVersionAsync(currentVersionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_publication_not_found");
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var revokedVersionId = pointer.Revoke(command.ExpectedPointerRevision);
         if (!string.Equals(revokedVersionId, version.Id, StringComparison.Ordinal))
             throw new BizResultException(BusinessCodes.Conflict, "assistant_publication_pointer_version_conflict");

@@ -30,25 +30,20 @@ namespace SmartAssistant.Extensions.DAL
 namespace SmartAssistant.Persistence
 {
     /// <summary>
-    /// 管理本地 SQLite 连接及带校验和的版本化数据库迁移。
+    /// 管理本地 SQLite 连接及当前开发结构的初始化和校验。
     /// </summary>
     public static class LocalDatabase
     {
         /// <summary>
-        /// 定义本地数据库使用的迁移配置值。
+        /// 串行化进程内数据库初始化，避免并发建表。
         /// </summary>
         private static readonly object MigrationLock = new();
         /// <summary>
-        /// 定义本地数据库使用的迁移配置值。
+        /// 登记当前初始化脚本及校验值。
         /// </summary>
-        private static readonly (string Version, string Sha256, string? PreviousSha256)[] Migrations =
+        private static readonly (string Version, string Sha256)[] Migrations =
         [
-            ("001_initial.sql", "26f2f121c55fa62deb4ee24225c8f401acc1dcf0fbfdd240142524461c3661e0",
-                "7a539c15b302e6f14dfd829dea61295de38de377bd687ccabd5d0cc8f4eeb148"),
-            ("002_remove_audit_fields.sql", "5928a9daf27eaec1fba3c95ad2bf752b54ba38e694f289dcf27749de089160f7",
-                "1dded6cb573d571245611f61b70321e97afabc8222a6357b4fefe6975361c836"),
-            ("003_remove_tenant_org_fields.sql", "ee67204be722480d70abf60066c876d993934a860254814413fb30abce00a8cf", null),
-            ("004_remove_user_identity.sql", "d4627837a4c616ad9c958bcec5fea888303898b785a7bcce7fd6fb87ab8bd62a", null)
+            ("001_initial.sql", "353b344c285e184536a118871ffbe8cac9a286c249048cb1665e2b663d65e925")
         ];
 
         /// <summary>
@@ -83,7 +78,7 @@ namespace SmartAssistant.Persistence
         }
 
         /// <summary>
-        /// 核对迁移文件及已应用迁移的校验和，按版本事务化执行尚未应用的 SQL。
+        /// 事务化创建当前数据库结构，重复启动时核对初始化脚本校验和。
         /// </summary>
         public static void Migrate(string dataDirectory)
         {
@@ -98,7 +93,7 @@ namespace SmartAssistant.Persistence
                         applied_at TEXT NOT NULL
                     );
                     """);
-                foreach (var (version, expectedChecksum, previousChecksum) in Migrations)
+                foreach (var (version, expectedChecksum) in Migrations)
                 {
                     var file = Path.Combine(AppContext.BaseDirectory, "Migrations", version);
                     var bytes = File.ReadAllBytes(file);
@@ -110,22 +105,14 @@ namespace SmartAssistant.Persistence
                         new SugarParameter("@version", version));
                     if (!string.IsNullOrEmpty(applied))
                     {
-                        /*
-                         * 仅兼容明确登记的旧校验值，包括初始脚本的注释版本，
-                         * 以及修复预览字段复制之前的审计字段迁移版本。
-                         */
-                        if (!string.Equals(applied, checksum, StringComparison.Ordinal)
-                            && !string.Equals(applied, previousChecksum, StringComparison.Ordinal))
-                            throw new InvalidOperationException($"Applied migration checksum mismatch: {version}");
+                        if (!string.Equals(applied, checksum, StringComparison.Ordinal))
+                            throw new InvalidOperationException($"Applied migration checksum mismatch: {version}. Recreate the development database.");
                         continue;
                     }
 
                     database.Ado.BeginTran();
                     try
                     {
-                        if (version == "003_remove_tenant_org_fields.sql")
-                            EnsurePreviewExpiryColumn(database);
-
                         /*
                          * 迁移文件限定为普通 DDL，不包含触发器或字符串内的分号，因此可按语句分隔执行。
                          */
@@ -137,7 +124,7 @@ namespace SmartAssistant.Persistence
                             "INSERT INTO assistant_schema_migration(version, sha256, applied_at) VALUES (@version, @sha256, @appliedAt)",
                             new SugarParameter("@version", version),
                             new SugarParameter("@sha256", checksum),
-                            new SugarParameter("@appliedAt", DateTime.UtcNow.ToString("O")));
+                            new SugarParameter("@appliedAt", DateTime.Now.ToString("O")));
                         database.Ado.CommitTran();
                     }
                     catch
@@ -147,24 +134,6 @@ namespace SmartAssistant.Persistence
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// 补齐旧审计迁移遗漏的预览过期时间，兼容已应用旧校验值的数据库。
-        /// </summary>
-        private static void EnsurePreviewExpiryColumn(ISqlSugarClient database)
-        {
-            if (database.Ado.GetInt("SELECT COUNT(*) FROM pragma_table_info('assistant_preview_snapshot') WHERE name = 'expires_at'") != 0)
-                return;
-
-            /*
-             * 旧脚本无法复制非空预览表，正常应用该版本后表内没有预览记录。
-             * 补列使用已过期的默认值，避免意外存在的残留快照继续执行。
-             */
-            database.Ado.ExecuteCommand("""
-                ALTER TABLE assistant_preview_snapshot
-                ADD COLUMN expires_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z'
-                """);
         }
     }
 

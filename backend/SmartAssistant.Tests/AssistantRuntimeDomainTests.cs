@@ -24,7 +24,7 @@ public sealed class AssistantRuntimeDomainTests
     [Fact]
     public void Anonymous_session_rejects_cross_scope_access_and_expiry()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var session = AnonymousAssistantSession.Create(
             "s1", "a1", "pub1", "subject-hash", "zh-CN",
             AssistantExecutionMode.Public, now, now.AddHours(1));
@@ -47,7 +47,7 @@ public sealed class AssistantRuntimeDomainTests
     [Fact]
     public void Turn_idempotency_replays_same_payload_and_conflicts_on_different_payload()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var turn = CreateTurn(now, "client-1", "same question");
 
         var replay = AssistantIdempotency.Evaluate(turn, "text", "same question", "zh-CN");
@@ -67,7 +67,7 @@ public sealed class AssistantRuntimeDomainTests
     [Fact]
     public void Run_terminal_state_and_final_message_can_only_be_written_once()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var turn = CreateTurn(now, "client-2", "hello");
         var run = AssistantRun.Create("run-1", turn, "provider-profile", "model-1");
         var message = AssistantMessage.CreateAssistant("msg-1", "conv-1", "turn-1", "run-1", now);
@@ -90,16 +90,16 @@ public sealed class AssistantRuntimeDomainTests
     public void Run_event_sequence_is_monotonic_and_terminal_is_unique()
     {
         var stream = AssistantRunEventSequence.Create("run-1", "turn-1");
-        var first = stream.Append("evt-1", AssistantRunEventTypes.RunAccepted, DateTime.UtcNow, new { });
+        var first = stream.Append("evt-1", AssistantRunEventTypes.RunAccepted, DateTime.Now, new { });
         var second = stream.Append(
             "evt-2",
             AssistantRunEventTypes.MessageDelta,
-            DateTime.UtcNow,
+            DateTime.Now,
             new { messageId = "msg-1", delta = "hi" });
         var terminal = stream.Append(
             "evt-3",
             AssistantRunEventTypes.RunCompleted,
-            DateTime.UtcNow,
+            DateTime.Now,
             new { });
 
         Assert.Equal(1, first.Sequence);
@@ -108,7 +108,7 @@ public sealed class AssistantRuntimeDomainTests
         Assert.True(stream.HasTerminalEvent);
 
         var error = Assert.Throws<BizResultException>(() =>
-            stream.Append("evt-4", AssistantRunEventTypes.Heartbeat, DateTime.UtcNow, new { }));
+            stream.Append("evt-4", AssistantRunEventTypes.Heartbeat, DateTime.Now, new { }));
         Assert.Equal("assistant_run_terminal_event_already_set", error.BusinessMessage);
     }
 
@@ -132,7 +132,7 @@ public sealed class AssistantRuntimeDomainTests
                 AssistantTransportKind.Sse,
                 AssistantTransportKind.WebSocket
             },
-            DateTime.UtcNow.AddMinutes(5));
+            DateTime.Now.AddMinutes(5));
 
         Assert.Contains(AssistantTransportKind.Sse, ticket.AllowedTransports);
         Assert.Contains(AssistantTransportKind.WebSocket, ticket.AllowedTransports);
@@ -172,7 +172,7 @@ public sealed class AssistantRuntimeDomainTests
             "turn-1",
             1,
             AssistantRunEventTypes.MessageDelta,
-            DateTime.UtcNow,
+            DateTime.Now,
             new { messageId = "msg-1", delta = "hello" });
 
         Assert.Equal("msg-1", envelope.Payload.GetProperty("messageId").GetString());

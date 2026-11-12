@@ -108,7 +108,7 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
             state.TurnId,
             Math.Max(1, gap.CurrentSequence + 1),
             AssistantRunEventTypes.ReplayGap,
-            DateTime.UtcNow,
+            DateTime.Now,
             gap);
 
     /// <summary>

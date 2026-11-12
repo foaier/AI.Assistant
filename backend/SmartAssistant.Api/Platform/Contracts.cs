@@ -9,12 +9,18 @@ namespace SmartAssistant.Extensions.Common
         /// 校验引用不为空；缺失时抛出参数错误。
         /// </summary>
         public static void NotNull(object? value, string name = "", string message = "")
-        { if (value is null) throw new ArgumentException(message, name); }
+        {
+            if (value is null)
+                throw new ArgumentException(message, name);
+        }
         /// <summary>
         /// 校验集合或文本不为空；缺失时抛出参数错误。
         /// </summary>
         public static void NotNullOrEmpty(string? value, string name = "", string message = "")
-        { if (string.IsNullOrEmpty(value)) throw new ArgumentException(message, name); }
+        {
+            if (string.IsNullOrEmpty(value))
+                throw new ArgumentException(message, name);
+        }
     }
 }
 namespace SmartAssistant.Platform

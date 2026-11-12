@@ -73,8 +73,7 @@ public sealed class AssistantKnowledgeRuntimeRetriever : IAssistantKnowledgeRunt
         if (await _knowledge.GetBaseAsync(snapshot.KnowledgeBaseId, cancellationToken) is null)
             return Array.Empty<AssistantKnowledgeRuntimeMatch>();
 
-        var candidates = new Dictionary<string, (AssistantKnowledgeChunkEntity Chunk,
-            string DocumentId, string DocumentName)>();
+        var candidates = new Dictionary<string, (AssistantKnowledgeChunkEntity Chunk, string DocumentId, string DocumentName)>();
         foreach (var frozen in snapshot.Documents)
         {
             var document = await _documents.GetDocumentAsync(

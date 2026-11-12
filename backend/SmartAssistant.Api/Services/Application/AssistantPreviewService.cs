@@ -27,7 +27,7 @@ public sealed class AssistantPreviewService(IAssistantDraftRepository drafts, As
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_not_found");
         if (draft.DraftRevision != revision) throw new BizResultException(BusinessCodes.Conflict, "assistant_draft_revision_conflict");
         var json = await snapshots.FreezeAsync(draft, ct);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var record = new AssistantPreviewEntity
         {
             Id = Guid.NewGuid().ToString("N"),
@@ -66,8 +66,7 @@ public sealed class AssistantPreviewService(IAssistantDraftRepository drafts, As
     /// <summary>
     /// 读取预览对话消息并返回运行中状态及失败信息。
     /// </summary>
-    public async Task<AssistantPreviewMessages> MessagesAsync(string assistant,
-        string preview, CancellationToken ct)
+    public async Task<AssistantPreviewMessages> MessagesAsync(string assistant, string preview, CancellationToken ct)
     {
         var record = await RequireAsync(assistant, preview, ct);
         var scope = Scope(record);
@@ -97,7 +96,7 @@ public sealed class AssistantPreviewService(IAssistantDraftRepository drafts, As
         if (await drafts.GetAsync(assistant, ct) is null)
             throw new BizResultException(BusinessCodes.NotFound, "assistant_not_found");
         var record = await previews.GetAsync(assistant, id, ct);
-        if (record is null || record.ExpiresAt <= DateTime.UtcNow)
+        if (record is null || record.ExpiresAt <= DateTime.Now)
             throw new BizResultException(BusinessCodes.NotFound, "assistant_preview_expired");
         return record;
     }

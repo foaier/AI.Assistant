@@ -107,20 +107,20 @@ public sealed class AssistantRunCancellationTests
     public async Task Stop_rechecks_a_terminal_turn_read_after_an_active_run(bool completed)
     {
         var fixture = new Fixture();
-        fixture.Run.Start(DateTime.UtcNow);
+        fixture.Run.Start(DateTime.Now);
         fixture.Turn.Start();
         fixture.BeforeReadTurn = () =>
         {
             fixture.BeforeReadTurn = null;
             if (completed)
             {
-                fixture.Run.Complete(DateTime.UtcNow);
-                fixture.Turn.Complete(DateTime.UtcNow);
+                fixture.Run.Complete(DateTime.Now);
+                fixture.Turn.Complete(DateTime.Now);
             }
             else
             {
-                fixture.Run.Cancel(DateTime.UtcNow);
-                fixture.Turn.Cancel(DateTime.UtcNow);
+                fixture.Run.Cancel(DateTime.Now);
+                fixture.Turn.Cancel(DateTime.Now);
             }
         };
 
@@ -242,7 +242,7 @@ public sealed class AssistantRunCancellationTests
         });
         var repository = new AssistantRuntimeRepository(context);
         var fixture = new Fixture();
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         fixture.Run.Start(now);
         fixture.Turn.Start();
         fixture.Message.AppendAssistantText("earlier snapshot");
@@ -341,7 +341,7 @@ public sealed class AssistantRunCancellationTests
         /// </summary>
         public Fixture()
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             Turn = AssistantTurn.Create(Guid.NewGuid().ToString("N"), "conversation", "session", "assistant", "published", "request", "text", "question", "zh-cn", 1, AssistantExecutionMode.Public);
             Run = AssistantRun.Create(Guid.NewGuid().ToString("N"), Turn, "provider", "model");
             Message = AssistantMessage.CreateAssistant("message", "conversation", Turn.Id, Run.Id, now);
@@ -473,7 +473,7 @@ public sealed class AssistantRunCancellationTests
             if (StartDuringFirstCancel)
             {
                 StartDuringFirstCancel = false;
-                Run.Start(DateTime.UtcNow); Turn.Start();
+                Run.Start(DateTime.Now); Turn.Start();
                 throw new AssistantRuntimeConcurrencyException();
             }
             if (Run.Status != (AssistantRunStatus)args[2]! || Turn.Status != (AssistantTurnStatus)args[4]!

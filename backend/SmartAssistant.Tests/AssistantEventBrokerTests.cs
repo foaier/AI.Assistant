@@ -135,6 +135,6 @@ public sealed class AssistantEventBrokerTests
             turnId,
             sequence,
             type,
-            DateTime.UtcNow,
+            DateTime.Now,
             new { text = "ok" });
 }

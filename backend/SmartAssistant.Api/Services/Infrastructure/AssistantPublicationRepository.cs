@@ -74,9 +74,7 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
     /// <summary>
     /// 获取指针，并响应调用方的取消请求。
     /// </summary>
-    public async Task<AssistantPublicationPointer?> GetPointerAsync(
-        string assistantId,
-        CancellationToken cancellationToken)
+    public async Task<AssistantPublicationPointer?> GetPointerAsync(string assistantId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var row = await _dbContext.GetSugarScope()
@@ -104,8 +102,7 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
     /// <summary>
     /// 获取当前助手密钥，并响应调用方的取消请求。
     /// </summary>
-    public async Task<(AssistantPublicationPointer Pointer, AssistantPublishedVersion Version)?>
-        GetCurrentByAssistantKeyAsync(string assistantKey, CancellationToken cancellationToken)
+    public async Task<(AssistantPublicationPointer Pointer, AssistantPublishedVersion Version)?> GetCurrentByAssistantKeyAsync(string assistantKey, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var scope = _dbContext.GetSugarScope();
@@ -152,10 +149,7 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
     /// <summary>
     /// 保存指针，并响应调用方的取消请求。
     /// </summary>
-    public Task SavePointerAsync(
-        AssistantPublicationPointer pointer,
-        long expectedRevision,
-        CancellationToken cancellationToken)
+    public Task SavePointerAsync(AssistantPublicationPointer pointer, long expectedRevision, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         _dbContext.AddCommand(async client =>
