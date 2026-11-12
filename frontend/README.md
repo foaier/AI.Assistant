@@ -1,4 +1,4 @@
-# SmartAssistant 前端
+# AI.Assistant 前端
 
 独立 React 18 / TypeScript / Vite 前端，助手页面、聊天、知识库、发布、模型服务和策略界面均提取自原项目。所有源码、组件、翻译、字体与时区工具都存放在本目录内，构建不引用 Glevent。
 

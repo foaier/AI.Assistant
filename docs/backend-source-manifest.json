@@ -3,362 +3,362 @@
   "files": [
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantAnalyticsService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantAnalyticsService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantAnalyticsService.cs",
       "sha256": "cd9f5b189a1e58d957ae0e5d53c8d57b4dc42fb61b065857bcacccc597604060"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantDraftService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantDraftService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantDraftService.cs",
       "sha256": "add9eae6f943e51c5dc942bfd393bab4780c605a7b37cf35a54f5272bae510c1"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantExecutionSnapshotService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantExecutionSnapshotService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantExecutionSnapshotService.cs",
       "sha256": "8b5e9bae7449a88d535b9e6edffeccc408633ba568517681fcb7b523d905eece"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantKnowledgeRuntimeRetriever.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantKnowledgeRuntimeRetriever.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantKnowledgeRuntimeRetriever.cs",
       "sha256": "39aa516f1ac194a9da46549e0fd4b210598015646ea828a95b1adcda17bb2e32"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantKnowledgeService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantKnowledgeService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantKnowledgeService.cs",
       "sha256": "a937e620272738ce293dc3628064ef07c964992faff2192d4c352614860b5ec7"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantPolicyService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantPolicyService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantPolicyService.cs",
       "sha256": "4740047bcf2336bc5ca17851b1fcf0979c53326c6733edb98309c77aba94cb9a"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantPresentation.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantPresentation.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantPresentation.cs",
       "sha256": "f5ce674094568f09b0d57904f17e5f75cc72674e48932abe7cba1aeb46a20d57"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantPreviewService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantPreviewService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantPreviewService.cs",
       "sha256": "51d7fb0f572660950cce8625b8271aaa00a9c09514afe342739748970c8ae862"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantPublicationService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantPublicationService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantPublicationService.cs",
       "sha256": "5beabb6fb21dbb820ca41dc60cfdce59c029b81c5356c5979319861a002d55a7"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantPublicAuthorityResolver.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantPublicAuthorityResolver.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantPublicAuthorityResolver.cs",
       "sha256": "5a8b34dddc95a431cb199052c1866d1f9a8523aefd7e7cdc75f15a15df03ffa7"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantPublicRuntimeService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantPublicRuntimeService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantPublicRuntimeService.cs",
       "sha256": "1c4278b9cfb4d5c7506b433d0af6108d1adfa30d7b50d21b84aee6d175b4f06c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantRunInstructionComposer.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantRunInstructionComposer.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantRunInstructionComposer.cs",
       "sha256": "0b9f426a3053907251cd9d67195c18162f762396393a7a3a66d2e4b9a73e0642"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantRunOrchestrator.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantRunOrchestrator.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantRunOrchestrator.cs",
       "sha256": "43558891ad0cb94dd6cbc29e8ddc773a85e1505a228bb0f4db5c528dcfe07156"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantToolCatalog.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantToolCatalog.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantToolCatalog.cs",
       "sha256": "1136565d3fc0cb80a4061f3a0a4327c7fc3d975d88b977d65a90eb50f83fbc59"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Application/AssistantWebSearchConfigurationService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Application/AssistantWebSearchConfigurationService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Application/AssistantWebSearchConfigurationService.cs",
       "sha256": "73bb3da5d41f6dc43bf53f3b59e8b401623b6dbb27ecb9c833accdb0cc31b295"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/AssistantAnalyticsController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/AssistantAnalyticsController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/AssistantAnalyticsController.cs",
       "sha256": "3973d4c671777a99c34441d2216bb1492e36a999e7c24b0dbf50371fce06bcca"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/AssistantKnowledgeController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/AssistantKnowledgeController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/AssistantKnowledgeController.cs",
       "sha256": "5d2597a42038d5156ba9ee22ff635be65628059efe70bd45053a150cec067c86"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/AssistantPoliciesController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/AssistantPoliciesController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/AssistantPoliciesController.cs",
       "sha256": "684f5c7fd726080bdf27c29ab5472dc74e5565a6cb65d25fe269b1ed878f58a6"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/AssistantPreviewController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/AssistantPreviewController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/AssistantPreviewController.cs",
       "sha256": "694778e9c91ad745626e95000331954f732815efff949460b2402ebc744f6651"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/AssistantsController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/AssistantsController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/AssistantsController.cs",
       "sha256": "a949018d9327e5846b15b75d7ef094463105301cb46de8e36913d2045b675fc9"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/PublicAssistantsController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/PublicAssistantsController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/PublicAssistantsController.cs",
       "sha256": "bc270dfd1dd07114a70198cf9cddbf183ccf323e3d88aef82dc285c551474a8c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Controllers/SystemAssistantModelsController.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Controllers/SystemAssistantModelsController.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Controllers/SystemAssistantModelsController.cs",
       "sha256": "31830713207156e38bdb0122460181c12881c82c8694ed968b073d26926f4865"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AnonymousAssistantSession.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AnonymousAssistantSession.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AnonymousAssistantSession.cs",
       "sha256": "aa5161707892ff21b3b45a08a89e47eb6520f66ab90307c5161f8a4c8cefcaef"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantConversation.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantConversation.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantConversation.cs",
       "sha256": "e112fc199b409787d3071ee7780ae2f899136e708ed4176adce2cab2a37beea7"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantDraft.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantDraft.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantDraft.cs",
       "sha256": "beac38ed4dd4f2fe3e41b76a717d31b95d2fe67a7de9fa3ff6663d722c1ebfd8"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantDraftSavedEvent.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantDraftSavedEvent.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantDraftSavedEvent.cs",
       "sha256": "9cffdb38beed89d0c7c147dda4a4eb00872934ff016f2572a408e17ccf034f05"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantIdempotency.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantIdempotency.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantIdempotency.cs",
       "sha256": "f07f5021d7233496708db47cc6ff107e4eff2491a7309921f6d6050147181cd4"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantMessage.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantMessage.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantMessage.cs",
       "sha256": "9d73982b923543a69911c0a443c3f495982a1eac9e31dad11d952ffe9f033525"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantPolicyValidation.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantPolicyValidation.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantPolicyValidation.cs",
       "sha256": "56ea3d097171cfd8260490faeb41b5e4ddb928ff6682c870b1542c05f95cd34b"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantPublicationPointer.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantPublicationPointer.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantPublicationPointer.cs",
       "sha256": "bd170855d96627900c1ca669c78597816b8de8e49b7fbf8c5d6dd3446eeba352"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantPublicationRevokedEvent.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantPublicationRevokedEvent.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantPublicationRevokedEvent.cs",
       "sha256": "eb94739cffeea70a48aad92cf3e847396c9a1e7ed6bfbaea52f07a097ea5eaa9"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantPublishedEvent.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantPublishedEvent.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantPublishedEvent.cs",
       "sha256": "66c3b356adb971d767eb48bcefdd2e4a9b8e3745f5b2c09d28521132f1ca4402"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantPublishedVersion.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantPublishedVersion.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantPublishedVersion.cs",
       "sha256": "992d4edc28f0191ee4951873e1e535326e132694676623ad26a7ff46990d0ccb"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantRun.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantRun.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantRun.cs",
       "sha256": "21dd3e382627d8b5f328781903e1bfcb22b6fb3a07c23159627dcc58e61d7ea8"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantRunEventSequence.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantRunEventSequence.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantRunEventSequence.cs",
       "sha256": "5a46366c36fab62c937b0a603a21ba3e31fda303456614d2c0dc5faab69b5a0c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantRuntimeGuard.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantRuntimeGuard.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantRuntimeGuard.cs",
       "sha256": "eb315b56373aca30a18e7c108f715a498bd56fd3ecc7ed97e8ced913415521c3"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantToolCall.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantToolCall.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantToolCall.cs",
       "sha256": "aa1e5bab24c0d8ceb70e4cfc43216d9165696e0a168ce7eedde88da8ecb16c11"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Domain/AssistantTurn.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Domain/AssistantTurn.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Domain/AssistantTurn.cs",
       "sha256": "f5769e822527abae1c0318d59342b46791cb09d0345bf3484662dd86851643c9"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AI/AssistantProviderToolCallAssembler.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AI/AssistantProviderToolCallAssembler.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AI/AssistantProviderToolCallAssembler.cs",
       "sha256": "d68f6e1f91ff0781b0d2c0a7308726db3b44e7f29aa58d2cc0d8dd52c23aadb7"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AI/OpenAiCompatibleChatModelProvider.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AI/OpenAiCompatibleChatModelProvider.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AI/OpenAiCompatibleChatModelProvider.cs",
       "sha256": "0f52b3828867069aff53743fc7463e010eb45d41571d2b8925e70a6886c0223c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AI/VolcengineAssistantWebSearchClient.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AI/VolcengineAssistantWebSearchClient.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AI/VolcengineAssistantWebSearchClient.cs",
       "sha256": "022593b39221322376cd94a89a8edec4b4461780f34118d30361659066d6a6cc"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantAnalyticsRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantAnalyticsRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantAnalyticsRepository.cs",
       "sha256": "54538c8ce2de96fe6c99b72c2918aa61ac61a1fcc84901899161075377cf9e4a"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantDraftRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantDraftRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantDraftRepository.cs",
       "sha256": "98d727d186bfa140f7701b5ae7d8aae1871a0a9ed239eac5074daa040b76d20c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantKnowledgeChunking.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantKnowledgeChunking.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantKnowledgeChunking.cs",
       "sha256": "f0b2a4466ac2038fa2cb1f046c05fea86e3f24ff12882b4e70c35b6d1076eb36"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantKnowledgeDocumentRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantKnowledgeDocumentRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantKnowledgeDocumentRepository.cs",
       "sha256": "d70852c9f0a1936195d5c42fdb500880664c1714107e6f4d5a062f52f77a7c0c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantKnowledgeEmbeddingProfileRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantKnowledgeEmbeddingProfileRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantKnowledgeEmbeddingProfileRepository.cs",
       "sha256": "d4de00e86bc4f92ebd95f0d0fa6f3d085262041527f80d767cecd043f4bbc971"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantKnowledgeIndexing.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantKnowledgeIndexing.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantKnowledgeIndexing.cs",
       "sha256": "3387449ca4e402440279684a280b46b252f02d6617ac94bc694a98322057a614"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantKnowledgeRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantKnowledgeRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantKnowledgeRepository.cs",
       "sha256": "b012975c72367ae5e84e21f088128bbee90c44aa38ccddcb5170fd2d64e17b1a"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantModelSecret.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantModelSecret.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantModelSecret.cs",
       "sha256": "f8e7f9cebcb7c229fcab85d66c562315ba47f39d6e49ac2b7cf3d6b05daef056"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantPolicyRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantPolicyRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantPolicyRepository.cs",
       "sha256": "c3ad9c8ba13d7cd304790cc6e632e8884014f816d857edd7d315fde59b9e709b"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantPreviewRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantPreviewRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantPreviewRepository.cs",
       "sha256": "8d6a397b944e1ccf5e646ce3aec838d2ad68da25754251462c08891a4106ba42"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantProviderCredentialResolver.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantProviderCredentialResolver.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantProviderCredentialResolver.cs",
       "sha256": "ed6c4f551500964850837e5ccab54eaa3bcba4b17fad8403a72e65748ccc84a4"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantProviderSecretProtector.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantProviderSecretProtector.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantProviderSecretProtector.cs",
       "sha256": "4156c1df59202cd0283613e5a0b4d8b315ed1ac85caa9b6ab360b4331757f9d1"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantPublicationRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantPublicationRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantPublicationRepository.cs",
       "sha256": "212388161f3ed14ce38c7f4fe28fbe7f6b642dd0e58454d15ece76528b88801c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantPublicFactToolHandlers.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantPublicFactToolHandlers.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantPublicFactToolHandlers.cs",
       "sha256": "4e1cfe17f31124f2178cac25171033ff5a8570ef91057938d57a72f3d873eff1"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantRuntimeRepository.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantRuntimeRepository.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantRuntimeRepository.cs",
       "sha256": "65c3b73afe8aea50850ae87b0cafca95d45257ba87d374e8d4fa0ed55447837c"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/AssistantRunEventReplay.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/AssistantRunEventReplay.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/AssistantRunEventReplay.cs",
       "sha256": "07299bf61660d86852de3a69e093783ce5e1e67fd404e8f5c17aa2c99bfbb98f"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/AssistantRunEventTransportSerializer.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/AssistantRunEventTransportSerializer.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/AssistantRunEventTransportSerializer.cs",
       "sha256": "982e420cb7a371bde73e712ef4f3436a75ed5b0239716158679245e0298bf031"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/AssistantSseStreamAdapter.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/AssistantSseStreamAdapter.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/AssistantSseStreamAdapter.cs",
       "sha256": "92eb83f041e61f8203c8e4cba626661062668c4b1f70409bc3d4739ae61c5c95"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/AssistantStreamTicketSigningKey.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/AssistantStreamTicketSigningKey.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/AssistantStreamTicketSigningKey.cs",
       "sha256": "1f0e0892461cc0d6814685749767042c16badc1486c1da3bf73ca7f8abeaaf24"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/AssistantWebSocketStreamAdapter.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/AssistantWebSocketStreamAdapter.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/AssistantWebSocketStreamAdapter.cs",
       "sha256": "d9d0e249b927d1217eceee410e0258ddd2e43bb73146a6c744bb0abe632ea9b1"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/InMemoryAssistantRunEventBroker.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/InMemoryAssistantRunEventBroker.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/InMemoryAssistantRunEventBroker.cs",
       "sha256": "f740c29804fab508fd44f38f8bdfdbe179f513eea738be7840231c1883661f39"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/RedisAssistantRunEventBroker.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/RedisAssistantRunEventBroker.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/RedisAssistantRunEventBroker.cs",
       "sha256": "fd89de0ef743685faf0a4bbd0eecfb048e950a4766dc3f686d4b7013cb5d0606"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant/Infrastructure/AssistantTransport/SignedAssistantStreamTicketService.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Infrastructure/AssistantTransport/SignedAssistantStreamTicketService.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Infrastructure/AssistantTransport/SignedAssistantStreamTicketService.cs",
       "sha256": "d7c6d2e12e78f316a1762b331ca2900fe007f09d8fc58844285478b069529058"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant.public/Contracts/AssistantDraftContracts.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Contracts/AssistantDraftContracts.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Contracts/AssistantDraftContracts.cs",
       "sha256": "66f9c39d4d677684b8159964c38d420987238485a5f9de3a59e904238c6d052d"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant.public/Contracts/AssistantPolicyContracts.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Contracts/AssistantPolicyContracts.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Contracts/AssistantPolicyContracts.cs",
       "sha256": "2b647c7a4319005c063cf393b36bfba606e7efb11a424989eed0e8128c3a96ce"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant.public/Contracts/AssistantPreviewContracts.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Contracts/AssistantPreviewContracts.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Contracts/AssistantPreviewContracts.cs",
       "sha256": "7b0e0238299b7fa163193b81e8ccd1d99c49d35829aec2191e0d4175ea4f31fa"
     },
     {
       "source": "byt.srv.glevent/src/modules/assistant/byt.srv.glevent.modules.assistant.public/Contracts/AssistantRuntimeContracts.cs",
-      "target": "backend/SmartAssistant.Api/Modules/Contracts/AssistantRuntimeContracts.cs",
+      "target": "backend/AI.Assistant.Api/Modules/Contracts/AssistantRuntimeContracts.cs",
       "sha256": "981e17710b064157579f7b5dc83235ee69fabb22e083515c0443ca58834f7a97"
     },
     {
       "source": "byt.srv.glevent/src/byt.srv.glevent.platform/IDomainEventPublisher.cs",
-      "target": "backend/SmartAssistant.Api/Platform/IDomainEventPublisher.cs",
+      "target": "backend/AI.Assistant.Api/Platform/IDomainEventPublisher.cs",
       "sha256": "d1ec50e9d6c04c564a6aac99bd0c4416f7226c1cc548e1339ab1b812b3a5e6fa"
     },
     {
       "source": "byt.srv.glevent/src/byt.srv.glevent.platform/Events/IDeterministicOutboxIdEvent.cs",
-      "target": "backend/SmartAssistant.Api/Platform/Events/IDeterministicOutboxIdEvent.cs",
+      "target": "backend/AI.Assistant.Api/Platform/Events/IDeterministicOutboxIdEvent.cs",
       "sha256": "52786569f88f929870efa155dd82b353dd94fc7f1c4526d4a9604ee6116bc041"
     },
     {
       "source": "byt.srv.glevent/src/byt.srv.glevent.platform/Security/ICredentialMaterialResolver.cs",
-      "target": "backend/SmartAssistant.Api/Platform/Security/ICredentialMaterialResolver.cs",
+      "target": "backend/AI.Assistant.Api/Platform/Security/ICredentialMaterialResolver.cs",
       "sha256": "befd093c011b0320c84ba8f485a78509d2cde7439b99406950de220069c72a29"
     },
     {
       "source": "byt.srv.glevent/src/byt.srv.glevent.platform/Security/JwtKeyResolver.cs",
-      "target": "backend/SmartAssistant.Api/Platform/Security/JwtKeyResolver.cs",
+      "target": "backend/AI.Assistant.Api/Platform/Security/JwtKeyResolver.cs",
       "sha256": "7c7cdbc0ad8a5806f18a4a6b03c4400e8d011e2d5b0ad72621fc4a81395fbed8"
     }
   ]

@@ -24,11 +24,11 @@ function AdminShell() {
   ];
   return <div className="assistant-shell">
     <aside className="assistant-sidebar">
-      <div className="assistant-brand"><span className="rounded-xl bg-blue-600 p-2.5 text-white"><Bot size={24} /></span><div><div className="text-lg font-semibold">SmartAssistant</div><p className="mt-0.5 text-xs text-muted-foreground">{english ? 'Your intelligent workspace' : '智能助手工作台'}</p></div></div>
+      <div className="assistant-brand"><span className="rounded-xl bg-blue-600 p-2.5 text-white"><Bot size={24} /></span><div><div className="text-lg font-semibold">AI.Assistant</div><p className="mt-0.5 text-xs text-muted-foreground">{english ? 'Your intelligent workspace' : '智能助手工作台'}</p></div></div>
       <nav aria-label={english ? 'Main navigation' : '主导航'} className="assistant-nav">{links.map(({ to, icon: Icon, label }) => <NavLink key={to} to={to}><Icon size={18} />{label}</NavLink>)}</nav>
     </aside>
     <div className="assistant-main">
-      <header className="assistant-header"><span className="text-sm text-muted-foreground">{english ? 'SmartAssistant workspace' : 'SmartAssistant 工作台'}</span><Button variant="ghost" size="sm" onClick={() => setLocale(english ? 'zhCN' : 'enUS')}>{english ? '中文' : 'English'}</Button></header>
+      <header className="assistant-header"><span className="text-sm text-muted-foreground">{english ? 'AI.Assistant workspace' : 'AI.Assistant 工作台'}</span><Button variant="ghost" size="sm" onClick={() => setLocale(english ? 'zhCN' : 'enUS')}>{english ? '中文' : 'English'}</Button></header>
       <main className="assistant-content"><Outlet /></main>
     </div>
   </div>;

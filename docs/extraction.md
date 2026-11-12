@@ -1,10 +1,10 @@
 # 抽离记录
 
-2026-11-11 从 `D:\WorkCode\3_Coordination\Glevent\byt.srv.glevent` 的 main 工作树复制；来源提交 `bdd620d568890db1398c42a531a5c6f8950c38cb`。源工作树只读，所有构建和验证在 `D:\MyCode\Assistant` 下运行；项目现已重命名并位于 `D:\MyCode\SmartAssistant`。
+2026-11-11 从 `D:\WorkCode\3_Coordination\Glevent\byt.srv.glevent` 的 main 工作树复制；来源提交 `bdd620d568890db1398c42a531a5c6f8950c38cb`。源工作树只读，所有构建和验证在 `D:\MyCode\Assistant` 下运行；项目现已重命名并位于 `D:\MyCode\AI.Assistant`。
 
 前端保留 `public-assistant` 页面及组件，提取所需 UI、样式和 i18n；独立入口只包含助手、知识库、模型策略、模型服务和公开聊天路由。按用户后续要求已移除登录及用户身份，页面直接打开；不设租户或组织，实体不再保存通用审计字段。
 
-后端保留 Assistant 的业务领域、应用服务、控制器、仓储和运行协议；移除对原完整宿主、私有包源、活动与日程模块的编译依赖。命名空间现统一以 `SmartAssistant` 开头，原 `Bayantu.Extensions.Common/DAL` 的本地薄适配位于 `SmartAssistant.Extensions.Common/DAL`，不依赖原私有 NuGet 包。
+后端保留 Assistant 的业务领域、应用服务、控制器、仓储和运行协议；移除对原完整宿主、私有包源、活动与日程模块的编译依赖。命名空间现统一以 `AI.Assistant` 开头，原 `Bayantu.Extensions.Common/DAL` 的本地薄适配位于 `AI.Assistant.Extensions.Common/DAL`，不依赖原私有 NuGet 包。
 
 默认存储由原 MySQL 改为独立 SQLite，使用 `001_initial.sql` 直接创建当前完整表结构、索引和删除级联约束。开发阶段不保留历史升级脚本。文件资产和加密密钥独立保存；不再生成管理员密码或登录 Cookie。未执行原项目数据库迁移，未搬运原业务数据。公开聊天依然校验自己的匿名会话 Bearer 和签名 stream ticket。
 

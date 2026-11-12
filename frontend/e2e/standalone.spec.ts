@@ -99,12 +99,12 @@ test('published fixed answers stream through real anonymous sessions, survive re
   });
   const knowledge = await post('/api/admin/knowledge-bases', { name: `公开问答验收知识-${stamp}` });
   const question = '这个助手已经独立出来了吗？';
-  const answer = '已经独立，前后端与会话数据都属于 SmartAssistant 项目。';
+  const answer = '已经独立，前后端与会话数据都属于 AI.Assistant 项目。';
   const qnaResponse = await api.put(`/api/admin/knowledge-bases/${knowledge.id}/qna`, { data: { question, answer, enabled: true, sortOrder: 0, showAsSuggestion: true } });
   expect(qnaResponse.ok()).toBe(true);
   const assistant = await post('/api/admin/assistants', {
     name: `固定问答验收助手-${stamp}`,
-    configuration: { ...DEFAULT_ASSISTANT_CONFIGURATION, welcomeMessage: '欢迎使用独立 SmartAssistant', suggestedQuestions: [question], historyEnabled: true, businessPolicyId: policy.id, knowledgeBaseId: knowledge.id, capabilities: { knowledgeQa: false, webSearch: false, customQa: true } },
+    configuration: { ...DEFAULT_ASSISTANT_CONFIGURATION, welcomeMessage: '欢迎使用独立 AI.Assistant', suggestedQuestions: [question], historyEnabled: true, businessPolicyId: policy.id, knowledgeBaseId: knowledge.id, capabilities: { knowledgeQa: false, webSearch: false, customQa: true } },
   });
   const publication = await post(`/api/admin/assistants/${assistant.id}/publish`, { expectedDraftRevision: assistant.draftRevision, expectedPointerRevision: 0 });
   const stateResponse = await api.get(`/api/admin/assistants/${assistant.id}/publication`);

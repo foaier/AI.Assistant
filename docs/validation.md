@@ -12,7 +12,7 @@
 
 ## 后端
 
-139 项测试通过、0 跳过，报告 `backend/SmartAssistant.Tests/TestResults/standalone-tests-final.trx`。
+139 项测试通过、0 跳过，报告 `backend/AI.Assistant.Tests/TestResults/standalone-tests-final.trx`。
 
 其中 121 项来自原 Assistant 纯单元及协议测试；独立测试覆盖：
 
@@ -62,3 +62,9 @@ Vite 开发服务忽略浏览器报告与截图目录，避免测试产物触发
 ## 2026-11-12 模型目录整理验证
 
 后端 159 个模型及配套类型集中到 `Models` 的 158 个文件中，命名空间、服务和测试引用同步更新。编译及 XML 注释检查通过，153 项后端测试全部通过。搬迁前后语法树核对确认模型成员、中文注释及字面量保留，服务、控制器、领域和测试逻辑不变。
+
+## 2026-11-12 项目重命名验证
+
+解决方案统一为 `AI.Assistant.slnx`，后端项目为 `AI.Assistant.Api` 和 `AI.Assistant.Tests`，命名空间统一以 `AI.Assistant` 开头。同步更新项目引用、启动配置、构建与测试脚本、前端名称、页面标题和文档路径。
+
+后端 146 项、前端 155 项测试全部通过，XML 注释编译检查、TypeScript 检查、前端生产构建及后端 Release 发布通过。使用独立测试数据目录运行启动和停止脚本，健康接口返回 `AI.Assistant`，页面标题及管理接口正常。

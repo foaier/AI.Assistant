@@ -8,7 +8,7 @@ try {
         & pnpm build
         if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
     } finally { Pop-Location }
-    & dotnet publish backend/SmartAssistant.Api/SmartAssistant.Api.csproj -c Release -o .run/publish --nologo
+    & dotnet publish backend/AI.Assistant.Api/AI.Assistant.Api.csproj -c Release -o .run/publish --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Backend publish failed.' }
     Write-Host 'Built frontend/dist and .run/publish. See README.md for running the built application.'
 } finally { Pop-Location }
