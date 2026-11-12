@@ -16,6 +16,7 @@ using SmartAssistant.Platform;
 using SmartAssistant.Platform.Assets;
 using Grpc.Core;
 using Microsoft.AspNetCore.Http;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Modules.Application;
 
@@ -25,16 +26,46 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
 {
+    /// <summary>
+    /// 保存助手知识仓储依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeRepository _repository;
+    /// <summary>
+    /// 保存助手知识嵌入配置仓储依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeEmbeddingProfileRepository _embeddingProfiles;
+    /// <summary>
+    /// 保存助手知识文档仓储依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeDocumentRepository _documentRepository;
+    /// <summary>
+    /// 保存助手策略服务依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantPolicyService _policies;
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
+    /// <summary>
+    /// 保存资源服务依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly AssetApplicationService _assetService;
+    /// <summary>
+    /// 保存助手文档解析器依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantDocumentParser _documentParser;
+    /// <summary>
+    /// 保存助手嵌入模型供应商依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantEmbeddingProvider _embeddingProvider;
+    /// <summary>
+    /// 保存助手向量索引依赖，供助手知识服务执行相关操作。
+    /// </summary>
     private readonly IAssistantVectorIndexStore _vectorIndexStore;
 
+    /// <summary>
+    /// 接收并保存助手知识服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantKnowledgeService(
         IAssistantKnowledgeRepository repository,
         IAssistantKnowledgeEmbeddingProfileRepository embeddingProfiles,
@@ -58,18 +89,18 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     }
 
     /// <summary>
-    /// 列出当前租户和组织范围内的知识库及问答、文档数量。
+    /// 列出知识库及其问答、文档数量。
     /// </summary>
     public async Task<IReadOnlyList<AssistantKnowledgeBaseDto>> ListKnowledgeBasesAsync(
-        string actorUserId, string tenantId, string orgId, CancellationToken cancellationToken = default)
+        string actorUserId, CancellationToken cancellationToken = default)
     {
-        var rows = await _repository.ListBasesAsync(tenantId, orgId, cancellationToken);
+        var rows = await _repository.ListBasesAsync(cancellationToken);
         var result = new List<AssistantKnowledgeBaseDto>(rows.Count);
         foreach (var row in rows)
         {
-            var qna = await _repository.ListQnaAsync(tenantId, orgId, row.Id, cancellationToken);
-            var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, row.Id, cancellationToken);
-            result.Add(new AssistantKnowledgeBaseDto(row.Id, row.Name, row.Description, qna.Count, documents.Count, row.UpdatedAt));
+            var qna = await _repository.ListQnaAsync(row.Id, cancellationToken);
+            var documents = await _documentRepository.ListDocumentsAsync(row.Id, cancellationToken);
+            result.Add(new AssistantKnowledgeBaseDto(row.Id, row.Name, row.Description, qna.Count, documents.Count));
         }
         return result;
     }
@@ -78,36 +109,35 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 校验名称与范围后创建知识库。
     /// </summary>
     public async Task<AssistantKnowledgeBaseDto> CreateKnowledgeBaseAsync(
-        string actorUserId, string tenantId, string orgId, CreateAssistantKnowledgeBaseCommand command,
+        string actorUserId, CreateAssistantKnowledgeBaseCommand command,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command.Name))
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_base_name_required");
-        var now = DateTime.UtcNow;
-        var row = new AssistantKnowledgeRepository.AssistantKnowledgeBaseRow
+        var row = new AssistantKnowledgeBaseEntity
         {
-            Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId,
-            Name = command.Name.Trim(), Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim(),
-            CreatedAt = now, UpdatedAt = now, CreatedBy = actorUserId, UpdatedBy = actorUserId
+            Id = Guid.NewGuid().ToString("N"),
+            Name = command.Name.Trim(),
+            Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim()
         };
         await _repository.AddBaseAsync(row, cancellationToken);
         await _dbContext.CommitAsync(cancellationToken);
-        return new AssistantKnowledgeBaseDto(row.Id, row.Name, row.Description, 0, 0, row.UpdatedAt);
+        return new AssistantKnowledgeBaseDto(row.Id, row.Name, row.Description, 0, 0);
     }
 
     /// <summary>
     /// 检查草稿和有效发布的知识库引用后执行删除，避免破坏已绑定的助手。
     /// </summary>
     public async Task DeleteKnowledgeBaseAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(actorUserId))
             throw new BizResultException(BusinessCodes.Forbidden, "knowledge_scope_required");
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        if (await _repository.HasAssistantReferenceAsync(tenantId, orgId, knowledgeBaseId, cancellationToken))
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        if (await _repository.HasAssistantReferenceAsync(knowledgeBaseId, cancellationToken))
             throw new BizResultException(BusinessCodes.Conflict, "knowledge_base_in_use_remove_assistant_binding");
-        await _repository.DeleteBaseAsync(tenantId, orgId, knowledgeBaseId, actorUserId, DateTime.UtcNow, cancellationToken);
+        await _repository.DeleteBaseAsync(knowledgeBaseId, cancellationToken);
         await _dbContext.CommitAsync(cancellationToken);
     }
 
@@ -115,13 +145,13 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 读取知识库当前分块策略与是否存在待重处理文档的信息。
     /// </summary>
     public async Task<AssistantKnowledgeChunkingPolicyDto> GetChunkingPolicyAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, CancellationToken cancellationToken = default)
+        string actorUserId, string knowledgeBaseId, CancellationToken cancellationToken = default)
     {
         _ = actorUserId;
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var row = await _repository.GetChunkingPolicyAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var row = await _repository.GetChunkingPolicyAsync(knowledgeBaseId, cancellationToken);
         var policy = row is null ? AssistantKnowledgeChunkingPolicy.Default : FromRow(row);
-        var pending = await HasPendingDocumentsAsync(tenantId, orgId, knowledgeBaseId, policy, cancellationToken);
+        var pending = await HasPendingDocumentsAsync(knowledgeBaseId, policy, cancellationToken);
         return ToDto(policy, pending);
     }
 
@@ -129,35 +159,37 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 读取目标与生效嵌入配置、文档完成进度和可选模型。
     /// </summary>
     public async Task<AssistantKnowledgeEmbeddingProfileDto> GetEmbeddingProfileAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, CancellationToken cancellationToken = default)
+        string actorUserId, string knowledgeBaseId, CancellationToken cancellationToken = default)
     {
         _ = actorUserId;
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var row = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var row = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
+        var documents = await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken);
         var jobs = row is null
-            ? Array.Empty<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow>()
-            : (await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken)).ToArray();
+            ? Array.Empty<AssistantKnowledgeIndexJobEntity>()
+            : (await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken)).ToArray();
         var readyCount = 0;
         if (row is not null)
         {
-            foreach (var document in documents.Where(value => !value.IsDeleted))
+            foreach (var document in documents)
             {
-                var version = await _documentRepository.GetVersionAsync(tenantId, orgId, document.Id, document.CurrentVersionNo, cancellationToken);
+                var version = await _documentRepository.GetVersionAsync(document.Id, document.CurrentVersionNo, cancellationToken);
                 if (version is not null && HasSuccessfulJob(jobs, version.Id, row, row.TargetGeneration)) readyCount++;
             }
         }
         var targetAvailable = row is not null && await IsEmbeddingAvailableAsync(
-            tenantId, orgId, ToExecutionProfile(row, row.TargetGeneration), cancellationToken);
+            ToExecutionProfile(row, row.TargetGeneration), cancellationToken);
         var activeAvailable = row?.ActiveGeneration > 0 && await IsEmbeddingAvailableAsync(
-            tenantId, orgId, ToActiveExecutionProfile(row), cancellationToken);
+            ToActiveExecutionProfile(row), cancellationToken);
         return ToEmbeddingProfileDto(row, documents.Count, readyCount,
-            await ListAvailableEmbeddingModelsAsync(tenantId, orgId, cancellationToken), jobs,
+            await ListAvailableEmbeddingModelsAsync(cancellationToken), jobs,
             targetAvailable, activeAvailable);
     }
 
-    private async Task<bool> IsEmbeddingAvailableAsync(string tenantId, string orgId,
-        AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
+    /// <summary>
+    /// 判断是否满足嵌入可用，并响应调用方的取消请求。
+    /// </summary>
+    private async Task<bool> IsEmbeddingAvailableAsync(AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
     {
         try
         {
@@ -174,35 +206,34 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 校验嵌入模型与预期修订号后保存目标配置，并维护相应索引代次。
     /// </summary>
     public async Task<AssistantKnowledgeEmbeddingProfileDto> SaveEmbeddingProfileAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         SaveAssistantKnowledgeEmbeddingProfileCommand command, CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
         if (command.ExpectedRevision < 0 || command.ExpectedRevision == long.MaxValue
             || command.ProviderRevision < 1 || command.Dimension is < 1 or > 32768
             || string.IsNullOrWhiteSpace(command.Model))
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_embedding_profile_invalid");
 
-        var options = await ListAvailableEmbeddingModelsAsync(tenantId, orgId, cancellationToken);
+        var options = await ListAvailableEmbeddingModelsAsync(cancellationToken);
         var option = options.FirstOrDefault(value => value.ProviderId == command.ProviderId
             && value.ProviderRevision == command.ProviderRevision && value.Model == command.Model
             && value.Dimension == command.Dimension);
         if (option is null)
             throw new BizResultException(BusinessCodes.Forbidden, "knowledge_embedding_model_unavailable");
 
-        var current = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var current = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
         if (current is null ? command.ExpectedRevision != 0 : current.Revision != command.ExpectedRevision)
             throw new BizResultException(BusinessCodes.Conflict, "knowledge_embedding_profile_revision_conflict");
         if (current is not null && current.ProviderId == command.ProviderId && current.ProviderRevision == command.ProviderRevision
             && current.Model == command.Model && current.Dimension == command.Dimension)
-            return await GetEmbeddingProfileAsync(actorUserId, tenantId, orgId, knowledgeBaseId, cancellationToken);
+            return await GetEmbeddingProfileAsync(actorUserId, knowledgeBaseId, cancellationToken);
 
-        var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var now = DateTime.UtcNow;
-        var row = current ?? new AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow
+        var documents = await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken);
+        var row = current ?? new AssistantKnowledgeEmbeddingProfileEntity
         {
-            Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, KnowledgeBaseId = knowledgeBaseId,
-            CreatedAt = now, CreatedBy = actorUserId
+            Id = Guid.NewGuid().ToString("N"),
+            KnowledgeBaseId = knowledgeBaseId
         };
         row.ProviderId = command.ProviderId;
         row.ProviderRevision = command.ProviderRevision;
@@ -212,8 +243,6 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         row.Revision = command.ExpectedRevision + 1;
         row.Status = documents.Count == 0 ? "ready" : "pending_rebuild";
         row.LastErrorCode = null;
-        row.UpdatedAt = now;
-        row.UpdatedBy = actorUserId;
         if (documents.Count == 0)
         {
             row.ActiveProviderId = row.ProviderId;
@@ -227,18 +256,18 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         if (current is null) await _embeddingProfiles.AddAsync(row, cancellationToken);
         else await _embeddingProfiles.SaveAsync(row, command.ExpectedRevision, cancellationToken);
         await _dbContext.CommitAsync(cancellationToken);
-        return await GetEmbeddingProfileAsync(actorUserId, tenantId, orgId, knowledgeBaseId, cancellationToken);
+        return await GetEmbeddingProfileAsync(actorUserId, knowledgeBaseId, cancellationToken);
     }
 
     /// <summary>
     /// 校验并保存分块参数，按请求决定是否为现有文档启动重新处理。
     /// </summary>
     public async Task<AssistantKnowledgeChunkingPolicyDto> SaveChunkingPolicyAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         SaveAssistantKnowledgeChunkingPolicyCommand command, CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var current = await _repository.GetChunkingPolicyAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var current = await _repository.GetChunkingPolicyAsync(knowledgeBaseId, cancellationToken);
         var previous = current is null ? AssistantKnowledgeChunkingPolicy.Default : FromRow(current);
         var policy = ToPolicy(command, previous.Revision + 1);
         ValidatePolicy(policy);
@@ -246,17 +275,17 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         if (current is not null && policy.StrategyKey == previous.StrategyKey)
             policy = previous; // An unchanged save is not a new processing strategy.
         var now = DateTime.UtcNow;
-        var row = current ?? new AssistantKnowledgeRepository.AssistantKnowledgeChunkingPolicyRow
+        var row = current ?? new AssistantKnowledgeChunkingPolicyEntity
         {
-            Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, KnowledgeBaseId = knowledgeBaseId,
-            CreatedAt = now, CreatedBy = actorUserId
+            Id = Guid.NewGuid().ToString("N"),
+            KnowledgeBaseId = knowledgeBaseId
         };
-        Apply(row, policy, actorUserId, now);
+        Apply(row, policy);
         if (current is null) await _repository.AddChunkingPolicyAsync(row, cancellationToken);
         else await _repository.SaveChunkingPolicyAsync(row, cancellationToken);
         if (strategyChanged)
         {
-            var embeddingProfile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+            var embeddingProfile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
             if (embeddingProfile is not null)
             {
                 var expectedRevision = embeddingProfile.Revision;
@@ -264,9 +293,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 embeddingProfile.TargetGeneration = checked(embeddingProfile.TargetGeneration + 1);
                 embeddingProfile.Status = "pending_rebuild";
                 embeddingProfile.LastErrorCode = null;
-                embeddingProfile.UpdatedAt = now;
-                embeddingProfile.UpdatedBy = actorUserId;
-                if ((await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken)).Count == 0)
+                if ((await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken)).Count == 0)
                 {
                     embeddingProfile.ActiveProviderId = embeddingProfile.ProviderId;
                     embeddingProfile.ActiveProviderRevision = embeddingProfile.ProviderRevision;
@@ -282,11 +309,11 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         await _dbContext.CommitAsync(cancellationToken);
         if (command.ReprocessDocuments)
         {
-            var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-            foreach (var document in documents.Where(x => !x.IsDeleted))
-                await ProcessDocumentAsync(actorUserId, tenantId, orgId, knowledgeBaseId, document.Id, cancellationToken);
+            var documents = await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken);
+            foreach (var document in documents)
+                await ProcessDocumentAsync(actorUserId, knowledgeBaseId, document.Id, cancellationToken);
         }
-        var pending = await HasPendingDocumentsAsync(tenantId, orgId, knowledgeBaseId, policy, cancellationToken);
+        var pending = await HasPendingDocumentsAsync(knowledgeBaseId, policy, cancellationToken);
         return ToDto(policy, pending);
     }
 
@@ -294,13 +321,13 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 按当前分块策略预览文档切分结果。
     /// </summary>
     public async Task<AssistantKnowledgeChunkPreviewDto> PreviewChunkingAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string documentId,
+        string actorUserId, string knowledgeBaseId, string documentId,
         SaveAssistantKnowledgeChunkingPolicyCommand command, CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var document = await _documentRepository.GetDocumentAsync(tenantId, orgId, knowledgeBaseId, documentId, cancellationToken)
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var document = await _documentRepository.GetDocumentAsync(knowledgeBaseId, documentId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_document_not_found");
-        var asset = await _assetService.GetContentAsync(document.AssetId, tenantId, orgId, new AssetAclContext(true, actorUserId, orgId, null), cancellationToken);
+        var asset = await _assetService.GetContentAsync(document.AssetId, new AssetAclContext(true, actorUserId, null), cancellationToken);
         await using var content = asset.Content;
         var parsed = await _documentParser.ParseAsync(asset.ContentType, document.FileName, content, cancellationToken);
         var policy = ToPolicy(command, 1);
@@ -315,10 +342,10 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 读取知识库固定问答列表。
     /// </summary>
     public async Task<IReadOnlyList<AssistantKnowledgeQnaDto>> ListQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, CancellationToken cancellationToken = default)
+        string actorUserId, string knowledgeBaseId, CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        return (await _repository.ListQnaAsync(tenantId, orgId, knowledgeBaseId, cancellationToken))
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        return (await _repository.ListQnaAsync(knowledgeBaseId, cancellationToken))
             .Select(Map).ToArray();
     }
 
@@ -326,43 +353,42 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 标准化问题并保存问答内容、排序、启用状态和推荐设置。
     /// </summary>
     public async Task<AssistantKnowledgeQnaDto> SaveQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         SaveAssistantKnowledgeQnaCommand command, CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
         var question = command.Question?.Trim() ?? string.Empty;
         if (question.Length == 0)
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_qna_question_required");
         if (question.Length > 500)
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_qna_question_too_long");
         var normalized = NormalizeQuestion(question);
-        var duplicate = await _repository.GetQnaByNormalizedQuestionAsync(tenantId, orgId, knowledgeBaseId, normalized, command.Id, cancellationToken);
+        var duplicate = await _repository.GetQnaByNormalizedQuestionAsync(knowledgeBaseId, normalized, command.Id, cancellationToken);
         if (duplicate is not null)
             throw new BizResultException(BusinessCodes.Conflict, "knowledge_qna_question_duplicate");
-
-        var now = DateTime.UtcNow;
-        AssistantKnowledgeRepository.AssistantKnowledgeQnaRow row;
+        AssistantKnowledgeQnaEntity row;
         if (!string.IsNullOrWhiteSpace(command.Id))
         {
-            row = await _repository.GetQnaAsync(tenantId, orgId, knowledgeBaseId, command.Id, cancellationToken)
+            row = await _repository.GetQnaAsync(knowledgeBaseId, command.Id, cancellationToken)
                 ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_qna_not_found");
             row.Question = question; row.NormalizedQuestion = normalized;
             row.Answer = string.IsNullOrWhiteSpace(command.Answer) ? null : command.Answer.Trim();
             row.Enabled = command.Enabled; row.SortOrder = Math.Max(0, command.SortOrder);
             row.ShowAsSuggestion = command.ShowAsSuggestion;
-            row.UpdatedAt = now; row.UpdatedBy = actorUserId;
             await _repository.SaveQnaAsync(row, cancellationToken);
         }
         else
         {
-            row = new AssistantKnowledgeRepository.AssistantKnowledgeQnaRow
+            row = new AssistantKnowledgeQnaEntity
             {
-                Id = Guid.NewGuid().ToString("N"), KnowledgeBaseId = knowledgeBaseId, TenantId = tenantId, OrgId = orgId,
-                Question = question, NormalizedQuestion = normalized,
+                Id = Guid.NewGuid().ToString("N"),
+                KnowledgeBaseId = knowledgeBaseId,
+                Question = question,
+                NormalizedQuestion = normalized,
                 Answer = string.IsNullOrWhiteSpace(command.Answer) ? null : command.Answer.Trim(),
-                Enabled = command.Enabled, SortOrder = Math.Max(0, command.SortOrder),
-                ShowAsSuggestion = command.ShowAsSuggestion,
-                CreatedAt = now, UpdatedAt = now, CreatedBy = actorUserId, UpdatedBy = actorUserId
+                Enabled = command.Enabled,
+                SortOrder = Math.Max(0, command.SortOrder),
+                ShowAsSuggestion = command.ShowAsSuggestion
             };
             await _repository.AddQnaAsync(row, cancellationToken);
         }
@@ -374,15 +400,15 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 在所属知识库范围内删除指定固定问答。
     /// </summary>
     public async Task DeleteQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string qnaId,
+        string actorUserId, string knowledgeBaseId, string qnaId,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(actorUserId))
             throw new BizResultException(BusinessCodes.Forbidden, "knowledge_scope_required");
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        _ = await _repository.GetQnaAsync(tenantId, orgId, knowledgeBaseId, qnaId, cancellationToken)
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        _ = await _repository.GetQnaAsync(knowledgeBaseId, qnaId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_qna_not_found");
-        await _repository.DeleteQnaAsync(tenantId, orgId, knowledgeBaseId, qnaId, actorUserId, DateTime.UtcNow, cancellationToken);
+        await _repository.DeleteQnaAsync(knowledgeBaseId, qnaId, cancellationToken);
         await _dbContext.CommitAsync(cancellationToken);
     }
 
@@ -390,12 +416,12 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 按固定问答匹配规则验证问题是否命中，返回直接回答结果。
     /// </summary>
     public async Task<AssistantKnowledgeQnaTestResult> TestQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string qnaId,
+        string actorUserId, string knowledgeBaseId, string qnaId,
         TestAssistantKnowledgeQnaCommand command, CancellationToken cancellationToken = default)
     {
         _ = actorUserId;
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var row = await _repository.GetQnaAsync(tenantId, orgId, knowledgeBaseId, qnaId, cancellationToken)
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var row = await _repository.GetQnaAsync(knowledgeBaseId, qnaId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_qna_not_found");
         var question = command.Question?.Trim() ?? string.Empty;
         if (question.Length == 0 || question.Length > 500)
@@ -410,26 +436,26 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 列出知识库文档及其处理状态。
     /// </summary>
     public async Task<IReadOnlyList<AssistantKnowledgeDocumentDto>> ListDocumentsAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var jobs = await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var profile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var documents = await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken);
+        var jobs = await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken);
+        var profile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
         var result = new List<AssistantKnowledgeDocumentDto>(documents.Count);
         foreach (var document in documents)
         {
             var version = await _documentRepository.GetVersionAsync(
-                tenantId, orgId, document.Id, document.CurrentVersionNo, cancellationToken);
+                document.Id, document.CurrentVersionNo, cancellationToken);
             var documentJobs = jobs.Where(job => job.DocumentId == document.Id
                 && (version is null || job.DocumentVersionId == version.Id)).ToArray();
             var relevant = profile is null
-                ? documentJobs.OrderByDescending(job => job.CreatedAt).FirstOrDefault()
+                ? documentJobs.OrderByDescending(job => job.VersionNo).FirstOrDefault()
                 : documentJobs.Where(job => MatchesTargetProfile(job, profile))
-                    .OrderByDescending(job => job.CreatedAt).FirstOrDefault()
+                    .OrderByDescending(job => job.VersionNo).FirstOrDefault()
                     ?? documentJobs.Where(job => MatchesActiveProfile(job, profile))
-                        .OrderByDescending(job => job.CreatedAt).FirstOrDefault();
+                        .OrderByDescending(job => job.VersionNo).FirstOrDefault();
             result.Add(Map(document, relevant, profile));
         }
         return result;
@@ -439,10 +465,10 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 将文档保存为私有资产，并创建知识文档记录。
     /// </summary>
     public async Task<AssistantKnowledgeDocumentDto> UploadDocumentAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         AssistantKnowledgeDocumentUpload file, CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
         if (file.SizeBytes <= 0 || file.SizeBytes > 50 * 1024 * 1024)
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_document_size_invalid");
         if (string.IsNullOrWhiteSpace(file.FileName))
@@ -463,18 +489,21 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         };
         formFile.ContentType = file.ContentType;
         var asset = await _assetService.UploadAsync(
-            formFile, tenantId, orgId, null, "assistant-document", actorUserId, AssetCategoryRegistry.VisibilityPrivate, cancellationToken);
-
-        var now = DateTime.UtcNow;
-        var document = new AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow
+            formFile, null, "assistant-document", actorUserId, AssetCategoryRegistry.VisibilityPrivate, cancellationToken);
+        var document = new AssistantKnowledgeDocumentEntity
         {
-            Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, KnowledgeBaseId = knowledgeBaseId,
-            AssetId = asset.AssetId, FileName = asset.FileName, ContentType = asset.ContentType, SizeBytes = asset.SizeBytes,
-            CurrentVersionNo = 1, Status = "uploaded", CreatedAt = now, CreatedBy = actorUserId, UpdatedAt = now, UpdatedBy = actorUserId
+            Id = Guid.NewGuid().ToString("N"),
+            KnowledgeBaseId = knowledgeBaseId,
+            AssetId = asset.AssetId,
+            FileName = asset.FileName,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            CurrentVersionNo = 1,
+            Status = "uploaded"
         };
-        var policyRow = await _repository.GetChunkingPolicyAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var policyRow = await _repository.GetChunkingPolicyAsync(knowledgeBaseId, cancellationToken);
         var uploadPolicy = policyRow is null ? AssistantKnowledgeChunkingPolicy.Default : FromRow(policyRow);
-        var embeddingProfile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var embeddingProfile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
         if (embeddingProfile is not null)
         {
             var expectedRevision = embeddingProfile.Revision;
@@ -483,24 +512,33 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 embeddingProfile.TargetGeneration = checked(embeddingProfile.TargetGeneration + 1);
             embeddingProfile.Status = "pending_rebuild";
             embeddingProfile.LastErrorCode = null;
-            embeddingProfile.UpdatedAt = now;
-            embeddingProfile.UpdatedBy = actorUserId;
             await _embeddingProfiles.SaveAsync(embeddingProfile, expectedRevision, cancellationToken);
         }
-        var version = new AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentVersionRow
+        var version = new AssistantKnowledgeDocumentVersionEntity
         {
-            Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, DocumentId = document.Id,
-            VersionNo = 1, ParserVersion = "pending", ChunkStrategy = uploadPolicy.StrategyKey,
+            Id = Guid.NewGuid().ToString("N"),
+            DocumentId = document.Id,
+            VersionNo = 1,
+            ParserVersion = "pending",
+            ChunkStrategy = uploadPolicy.StrategyKey,
             ChunkPolicyJson = JsonSerializer.Serialize(uploadPolicy),
-            Status = "uploaded", IndexStatus = "queued", CreatedAt = now, CreatedBy = actorUserId
+            Status = "uploaded",
+            IndexStatus = "queued"
         };
-        var job = new AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow
+        var job = new AssistantKnowledgeIndexJobEntity
         {
-            Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, KnowledgeBaseId = knowledgeBaseId,
-            DocumentId = document.Id, DocumentVersionId = version.Id, VersionNo = 1, Status = "queued", CreatedAt = now,
-            Generation = embeddingProfile?.TargetGeneration, EmbeddingProviderId = embeddingProfile?.ProviderId,
-            EmbeddingProviderRevision = embeddingProfile?.ProviderRevision, EmbeddingModel = embeddingProfile?.Model,
-            EmbeddingDimension = embeddingProfile?.Dimension, ChunkPolicyRevision = uploadPolicy.Revision,
+            Id = Guid.NewGuid().ToString("N"),
+            KnowledgeBaseId = knowledgeBaseId,
+            DocumentId = document.Id,
+            DocumentVersionId = version.Id,
+            VersionNo = 1,
+            Status = "queued",
+            Generation = embeddingProfile?.TargetGeneration,
+            EmbeddingProviderId = embeddingProfile?.ProviderId,
+            EmbeddingProviderRevision = embeddingProfile?.ProviderRevision,
+            EmbeddingModel = embeddingProfile?.Model,
+            EmbeddingDimension = embeddingProfile?.Dimension,
+            ChunkPolicyRevision = uploadPolicy.Revision,
             ChunkPolicyJson = JsonSerializer.Serialize(uploadPolicy)
         };
         await _documentRepository.AddDocumentAsync(document, cancellationToken);
@@ -514,39 +552,49 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 为指定文档执行解析、分块和向量索引流程，保存版本及任务状态。
     /// </summary>
     public async Task<AssistantKnowledgeDocumentProcessResult> ProcessDocumentAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string documentId,
+        string actorUserId, string knowledgeBaseId, string documentId,
         CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var document = await _documentRepository.GetDocumentAsync(tenantId, orgId, knowledgeBaseId, documentId, cancellationToken)
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var document = await _documentRepository.GetDocumentAsync(knowledgeBaseId, documentId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_document_not_found");
-        var version = await _documentRepository.GetVersionAsync(tenantId, orgId, documentId, document.CurrentVersionNo, cancellationToken)
+        var version = await _documentRepository.GetVersionAsync(documentId, document.CurrentVersionNo, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_document_version_not_found");
-        var policyRow = await _repository.GetChunkingPolicyAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var policyRow = await _repository.GetChunkingPolicyAsync(knowledgeBaseId, cancellationToken);
         var policy = policyRow is null ? AssistantKnowledgeChunkingPolicy.Default : FromRow(policyRow);
         ValidatePolicy(policy);
-        var jobs = await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var embeddingProfile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var storedChunks = await _documentRepository.ListChunksAsync(tenantId, orgId, version.Id, cancellationToken);
+        var jobs = await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken);
+        var embeddingProfile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
+        var storedChunks = await _documentRepository.ListChunksAsync(version.Id, cancellationToken);
         if ((version.Status == "ready" || storedChunks.Count > 0)
             && !string.Equals(version.ChunkStrategy, policy.StrategyKey, StringComparison.Ordinal))
         {
-            var nowVersion = DateTime.UtcNow;
-            var nextVersion = new AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentVersionRow
+            var nextVersion = new AssistantKnowledgeDocumentVersionEntity
             {
-                Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, DocumentId = documentId,
-                VersionNo = version.VersionNo + 1, ParserVersion = "pending", ChunkStrategy = policy.StrategyKey,
-                ChunkPolicyJson = JsonSerializer.Serialize(policy), Status = "uploaded", IndexStatus = "queued",
-                CreatedAt = nowVersion, CreatedBy = actorUserId
+                Id = Guid.NewGuid().ToString("N"),
+                DocumentId = documentId,
+                VersionNo = version.VersionNo + 1,
+                ParserVersion = "pending",
+                ChunkStrategy = policy.StrategyKey,
+                ChunkPolicyJson = JsonSerializer.Serialize(policy),
+                Status = "uploaded",
+                IndexStatus = "queued"
             };
-            var nextJob = new AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow
+            var nextJob = new AssistantKnowledgeIndexJobEntity
             {
-                Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, KnowledgeBaseId = knowledgeBaseId,
-                DocumentId = documentId, DocumentVersionId = nextVersion.Id, VersionNo = nextVersion.VersionNo,
-                Status = "queued", CreatedAt = nowVersion, Generation = embeddingProfile?.TargetGeneration,
-                EmbeddingProviderId = embeddingProfile?.ProviderId, EmbeddingProviderRevision = embeddingProfile?.ProviderRevision,
-                EmbeddingModel = embeddingProfile?.Model, EmbeddingDimension = embeddingProfile?.Dimension,
-                ChunkPolicyRevision = policyRow?.Revision ?? policy.Revision, ChunkPolicyJson = JsonSerializer.Serialize(policy)
+                Id = Guid.NewGuid().ToString("N"),
+                KnowledgeBaseId = knowledgeBaseId,
+                DocumentId = documentId,
+                DocumentVersionId = nextVersion.Id,
+                VersionNo = nextVersion.VersionNo,
+                Status = "queued",
+                Generation = embeddingProfile?.TargetGeneration,
+                EmbeddingProviderId = embeddingProfile?.ProviderId,
+                EmbeddingProviderRevision = embeddingProfile?.ProviderRevision,
+                EmbeddingModel = embeddingProfile?.Model,
+                EmbeddingDimension = embeddingProfile?.Dimension,
+                ChunkPolicyRevision = policyRow?.Revision ?? policy.Revision,
+                ChunkPolicyJson = JsonSerializer.Serialize(policy)
             };
             document.CurrentVersionNo = nextVersion.VersionNo;
             await _documentRepository.AddVersionAsync(nextVersion, cancellationToken);
@@ -554,7 +602,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             await _documentRepository.UpdateDocumentAsync(document, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
             version = nextVersion;
-            jobs = jobs.Append(nextJob).ToArray();
+            jobs = jobs.Prepend(nextJob).ToArray();
         }
 
         var generation = embeddingProfile?.TargetGeneration;
@@ -568,29 +616,37 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             && value.EmbeddingProviderRevision == providerRevision
             && value.EmbeddingModel == model
             && value.EmbeddingDimension == dimension)
-            .OrderByDescending(value => value.CreatedAt).ToArray();
+            .ToArray();
         var job = matchingJobs.FirstOrDefault();
         if (embeddingProfile is null && version.Status == "ready" && version.IndexStatus == "needs_embedding_config"
             && version.ChunkStrategy == policy.StrategyKey && job?.Status == "needs_embedding_config")
             return new AssistantKnowledgeDocumentProcessResult(Map(document, job), Map(job));
         if (job?.Status == "succeeded")
         {
-            await TryPromoteGenerationAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-            var latestProfile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+            await TryPromoteGenerationAsync(knowledgeBaseId, cancellationToken);
+            var latestProfile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
             return new AssistantKnowledgeDocumentProcessResult(Map(document, job, latestProfile), Map(job));
         }
         if (job?.Status == "processing")
             return new AssistantKnowledgeDocumentProcessResult(Map(document, job), Map(job));
         if (job is null || job.Status is "failed" or "needs_embedding_config" or "succeeded")
         {
-            job = new AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow
+            job = new AssistantKnowledgeIndexJobEntity
             {
-                Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId, KnowledgeBaseId = knowledgeBaseId,
-                DocumentId = documentId, DocumentVersionId = version.Id, VersionNo = version.VersionNo,
-                Status = "queued", AttemptCount = matchingJobs.Select(value => value.AttemptCount).DefaultIfEmpty(0).Max(),
-                CreatedAt = DateTime.UtcNow, Generation = generation, EmbeddingProviderId = providerId,
-                EmbeddingProviderRevision = providerRevision, EmbeddingModel = model, EmbeddingDimension = dimension,
-                ChunkPolicyRevision = policyRow?.Revision ?? policy.Revision, ChunkPolicyJson = JsonSerializer.Serialize(policy)
+                Id = Guid.NewGuid().ToString("N"),
+                KnowledgeBaseId = knowledgeBaseId,
+                DocumentId = documentId,
+                DocumentVersionId = version.Id,
+                VersionNo = version.VersionNo,
+                Status = "queued",
+                AttemptCount = matchingJobs.Select(value => value.AttemptCount).DefaultIfEmpty(0).Max(),
+                Generation = generation,
+                EmbeddingProviderId = providerId,
+                EmbeddingProviderRevision = providerRevision,
+                EmbeddingModel = model,
+                EmbeddingDimension = dimension,
+                ChunkPolicyRevision = policyRow?.Revision ?? policy.Revision,
+                ChunkPolicyJson = JsonSerializer.Serialize(policy)
             };
             await _documentRepository.AddIndexJobAsync(job, cancellationToken);
         }
@@ -611,8 +667,6 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         if (!hasActiveGeneration)
             version.IndexStatus = embeddingProfile is null ? "needs_embedding_config" : "processing";
         document.LastErrorCode = null;
-        document.UpdatedAt = now;
-        document.UpdatedBy = actorUserId;
         job.Status = "processing";
         job.ChunkPolicyRevision = policy.Revision;
         job.ChunkPolicyJson = JsonSerializer.Serialize(policy);
@@ -629,15 +683,14 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         try
         {
             var assetContent = await _assetService.GetContentAsync(
-                document.AssetId, tenantId, orgId,
-                new AssetAclContext(true, actorUserId, orgId, null), cancellationToken);
+                document.AssetId, new AssetAclContext(true, actorUserId, null), cancellationToken);
             await using var content = assetContent.Content;
             var parsed = await _documentParser.ParseAsync(assetContent.ContentType, document.FileName, content, cancellationToken);
             version.ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(parsed.Text))).ToLowerInvariant();
-            var chunks = BuildChunks(parsed.Text, tenantId, orgId, version.Id, actorUserId, policy);
+            var chunks = BuildChunks(parsed.Text, version.Id, actorUserId, policy);
             version.ChunkStrategy = policy.StrategyKey;
             version.ChunkPolicyJson = JsonSerializer.Serialize(policy);
-            var existing = await _documentRepository.ListChunksAsync(tenantId, orgId, version.Id, cancellationToken);
+            var existing = await _documentRepository.ListChunksAsync(version.Id, cancellationToken);
             if (existing.Count == 0)
             {
                 await _documentRepository.AddChunksAsync(chunks, cancellationToken);
@@ -662,8 +715,6 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 job.Status = "needs_embedding_config";
                 job.ChunkCount = rows.Count;
                 job.CompletedAt = DateTime.UtcNow;
-                document.UpdatedAt = DateTime.UtcNow;
-                document.UpdatedBy = actorUserId;
                 await _documentRepository.UpdateDocumentAsync(document, cancellationToken);
                 await _documentRepository.UpdateVersionAsync(version, cancellationToken);
                 await _documentRepository.UpdateIndexJobAsync(job, cancellationToken);
@@ -673,7 +724,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
 
             var executionProfile = ToExecutionProfile(embeddingProfile, generation!.Value);
             await _policies.EnsureEmbeddingAvailableAsync(executionProfile, cancellationToken);
-            var latestProfile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+            var latestProfile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
             if (latestProfile is null || latestProfile.Revision != executionProfile.ProfileRevision
                 || latestProfile.TargetGeneration != executionProfile.Generation
                 || latestProfile.ProviderId != executionProfile.ProviderId
@@ -681,14 +732,14 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 || latestProfile.Model != executionProfile.Model || latestProfile.Dimension != executionProfile.Dimension)
                 throw new InvalidOperationException("assistant_embedding_profile_changed");
             var embeddings = await _embeddingProvider.EmbedAsync(
-                rows.Select(x => x.Content).ToArray(), tenantId, orgId, executionProfile, cancellationToken);
+                rows.Select(x => x.Content).ToArray(), executionProfile, cancellationToken);
             if (embeddings.ProfileId != executionProfile.ProviderProfileRef || embeddings.Dimension != executionProfile.Dimension
                 || embeddings.Vectors.Count != rows.Count
                 || embeddings.Vectors.Any(vector => !AssistantEmbeddingValidation.IsValid(vector, executionProfile.Dimension)))
                 throw new InvalidOperationException("assistant_embedding_response_invalid");
             var vectorChunks = rows.Zip(embeddings.Vectors, (chunk, vector) => new AssistantVectorChunk(
                 chunk.Id, chunk.ContentHash, document.Id, version.VersionNo, chunk.ChunkIndex, chunk.Content, vector)).ToArray();
-            var collection = AssistantKnowledgeIndexNaming.Collection(tenantId, orgId, knowledgeBaseId,
+            var collection = AssistantKnowledgeIndexNaming.Collection(knowledgeBaseId,
                 EmbeddingCollectionProfileId(executionProfile), executionProfile.Generation);
             await _vectorIndexStore.UpsertAsync(collection, executionProfile.Dimension, vectorChunks, cancellationToken);
             var readback = await _vectorIndexStore.ReadBackAsync(collection, vectorChunks, cancellationToken);
@@ -708,8 +759,6 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             version.IndexedAt = DateTime.UtcNow;
             version.ErrorCode = null;
             version.IndexStatus = "ready";
-            document.UpdatedAt = DateTime.UtcNow;
-            document.UpdatedBy = actorUserId;
             job.Status = "succeeded";
             job.ChunkCount = rows.Count;
             job.CompletedAt = DateTime.UtcNow;
@@ -718,10 +767,10 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             await _documentRepository.UpdateIndexJobAsync(job, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
             indexCommitted = true;
-            await TryPromoteGenerationAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-            latestProfile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+            await TryPromoteGenerationAsync(knowledgeBaseId, cancellationToken);
+            latestProfile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
             if (latestProfile is not null && HasSuccessfulActiveJob(
-                await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken), version.Id, latestProfile))
+                await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken), version.Id, latestProfile))
             {
                 version.IndexStatus = "ready";
                 await _documentRepository.UpdateVersionAsync(version, cancellationToken);
@@ -731,7 +780,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         catch (Exception ex) when (ex is not OperationCanceledException && !indexCommitted)
         {
             var errorCode = ClassifyIndexError(ex);
-            var parsedChunks = await _documentRepository.ListChunksAsync(tenantId, orgId, version.Id, cancellationToken);
+            var parsedChunks = await _documentRepository.ListChunksAsync(version.Id, cancellationToken);
             if (!hasActiveGeneration)
             {
                 document.Status = parsedChunks.Count > 0 ? "ready" : "failed";
@@ -740,8 +789,6 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 version.ErrorCode = errorCode;
             }
             document.LastErrorCode = parsedChunks.Count > 0 ? null : errorCode;
-            document.UpdatedAt = DateTime.UtcNow;
-            document.UpdatedBy = actorUserId;
             job.Status = "failed";
             job.ErrorCode = errorCode;
             job.CompletedAt = DateTime.UtcNow;
@@ -752,27 +799,26 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         }
 
         return new AssistantKnowledgeDocumentProcessResult(Map(document, job,
-            await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken)), Map(job));
+            await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken)), Map(job));
     }
 
     /// <summary>
     /// 读取文档原文、结构和片段，供管理端预览。
     /// </summary>
     public async Task<AssistantKnowledgeDocumentPreviewDto> GetDocumentPreviewAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string documentId,
+        string actorUserId, string knowledgeBaseId, string documentId,
         CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var document = await _documentRepository.GetDocumentAsync(tenantId, orgId, knowledgeBaseId, documentId, cancellationToken)
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        var document = await _documentRepository.GetDocumentAsync(knowledgeBaseId, documentId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_document_not_found");
         var status = ParseDocumentStatus(document.Status);
-        var version = await _documentRepository.GetVersionAsync(tenantId, orgId, documentId, document.CurrentVersionNo, cancellationToken);
+        var version = await _documentRepository.GetVersionAsync(documentId, document.CurrentVersionNo, cancellationToken);
         if (version is null)
             throw new BizResultException(BusinessCodes.NotFound, "knowledge_document_version_not_found");
 
-        var chunks = await _documentRepository.ListChunksAsync(tenantId, orgId, version.Id, cancellationToken);
-        var assetContent = await _assetService.GetContentAsync(document.AssetId, tenantId, orgId,
-            new AssetAclContext(true, actorUserId, orgId, null), cancellationToken);
+        var chunks = await _documentRepository.ListChunksAsync(version.Id, cancellationToken);
+        var assetContent = await _assetService.GetContentAsync(document.AssetId, new AssetAclContext(true, actorUserId, null), cancellationToken);
         await using var content = assetContent.Content;
         var parsed = await _documentParser.ParseAsync(assetContent.ContentType, document.FileName, content, cancellationToken);
         var originalText = parsed.Text;
@@ -783,8 +829,8 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             .Select(line => new AssistantKnowledgeDocumentPreviewBlock(
                 line.StartsWith('#') ? "heading" : "paragraph", line.TrimStart('#', ' ').Trim(), line.StartsWith('#') ? Math.Min(6, line.TakeWhile(c => c == '#').Count()) : 0))
             .ToArray();
-        var profile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var jobs = await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var profile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
+        var jobs = await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken);
         var available = profile is not null && version.Status == "ready"
             && HasSuccessfulActiveJob(jobs, version.Id, profile);
         var segments = chunks.Select(chunk => new AssistantKnowledgeDocumentPreviewSegment(
@@ -797,25 +843,25 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 在知识库生效的索引代次上执行检索测试，返回命中片段及来源。
     /// </summary>
     public async Task<AssistantKnowledgeRetrievalTestResult> TestRetrievalAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         TestAssistantKnowledgeRetrievalCommand command, CancellationToken cancellationToken = default)
     {
         _ = actorUserId;
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
         var query = (command.Question ?? string.Empty).Trim();
         if (query.Length == 0 || query.Length > 500)
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_qna_question_invalid");
 
-        var profile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var profile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
         if (profile is null || profile.ActiveGeneration < 1 || profile.ActiveProviderId is null
             || profile.ActiveProviderRevision is null || profile.ActiveModel is null || profile.ActiveDimension is null)
             throw new BizResultException(BusinessCodes.Conflict, "knowledge_embedding_not_ready");
         var activeProfile = ToActiveExecutionProfile(profile);
-        var jobs = await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var candidates = new Dictionary<string, (AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow Chunk,
-            AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow Document)>();
-        foreach (var document in documents.Where(x => !x.IsDeleted))
+        var jobs = await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken);
+        var documents = await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken);
+        var candidates = new Dictionary<string, (AssistantKnowledgeChunkEntity Chunk,
+            AssistantKnowledgeDocumentEntity Document)>();
+        foreach (var document in documents)
         {
             /*
              * 重新分块或切换模型时，当前文档版本可能早于目标代次就绪而先递增。
@@ -824,14 +870,14 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             var activeJob = jobs.Where(job => job.DocumentId == document.Id
                     && job.Status == "succeeded" && MatchesActiveProfile(job, profile))
                 .OrderByDescending(job => job.VersionNo)
-                .ThenByDescending(job => job.CompletedAt ?? job.CreatedAt)
+                .ThenByDescending(job => job.CompletedAt)
                 .FirstOrDefault();
             if (activeJob is null) continue;
             var version = await _documentRepository.GetVersionAsync(
-                tenantId, orgId, document.Id, activeJob.VersionNo, cancellationToken);
+                document.Id, activeJob.VersionNo, cancellationToken);
             if (version is null || version.Id != activeJob.DocumentVersionId
                 || version.Status != "ready" || version.IndexStatus != "ready") continue;
-            var chunks = await _documentRepository.ListChunksAsync(tenantId, orgId, version.Id, cancellationToken);
+            var chunks = await _documentRepository.ListChunksAsync(version.Id, cancellationToken);
             foreach (var chunk in chunks)
                 candidates[chunk.Id] = (chunk, document);
         }
@@ -839,8 +885,8 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         if (candidates.Count == 0)
             return new AssistantKnowledgeRetrievalTestResult(query, Array.Empty<AssistantKnowledgeRetrievalMatch>());
 
-        var embedding = await _embeddingProvider.EmbedAsync(new[] { query }, tenantId, orgId, activeProfile, cancellationToken);
-        var collection = AssistantKnowledgeIndexNaming.Collection(tenantId, orgId, knowledgeBaseId,
+        var embedding = await _embeddingProvider.EmbedAsync(new[] { query }, activeProfile, cancellationToken);
+        var collection = AssistantKnowledgeIndexNaming.Collection(knowledgeBaseId,
             EmbeddingCollectionProfileId(activeProfile), activeProfile.Generation);
         IReadOnlyList<AssistantVectorSearchHit> vectorHits;
         try
@@ -883,20 +929,26 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
     /// 读取知识库索引任务及进度、失败信息。
     /// </summary>
     public async Task<IReadOnlyList<AssistantKnowledgeIndexJobDto>> ListIndexJobsAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default)
     {
-        _ = await RequireBaseAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        return (await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken))
+        _ = await RequireBaseAsync(knowledgeBaseId, cancellationToken);
+        return (await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken))
             .Select(Map).ToArray();
     }
 
-    private async Task<AssistantKnowledgeRepository.AssistantKnowledgeBaseRow> RequireBaseAsync(string tenantId, string orgId, string id, CancellationToken cancellationToken)
-        => await _repository.GetBaseAsync(tenantId, orgId, id, cancellationToken)
+    /// <summary>
+    /// 按标识读取知识库；不存在时返回明确的业务错误。
+    /// </summary>
+    private async Task<AssistantKnowledgeBaseEntity> RequireBaseAsync(string id, CancellationToken cancellationToken)
+        => await _repository.GetBaseAsync(id, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "knowledge_base_not_found");
 
+    /// <summary>
+    /// 从已启用且支持嵌入任务的供应商中汇总可选择的模型。
+    /// </summary>
     private async Task<IReadOnlyList<AssistantKnowledgeEmbeddingModelOptionDto>> ListAvailableEmbeddingModelsAsync(
-        string tenantId, string orgId, CancellationToken cancellationToken)
+CancellationToken cancellationToken)
     {
         var providers = await _policies.ListProvidersAsync(includeSettings: false, cancellationToken);
         return providers.Where(provider => provider.Enabled)
@@ -909,12 +961,15 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             .ToArray();
     }
 
+    /// <summary>
+    /// 合并配置、索引任务和可用模型信息，生成管理端嵌入配置视图。
+    /// </summary>
     private static AssistantKnowledgeEmbeddingProfileDto ToEmbeddingProfileDto(
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow? row,
+        AssistantKnowledgeEmbeddingProfileEntity? row,
         int documentCount,
         int targetReadyCount,
         IReadOnlyList<AssistantKnowledgeEmbeddingModelOptionDto> availableModels,
-        IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow>? jobs = null,
+        IReadOnlyList<AssistantKnowledgeIndexJobEntity>? jobs = null,
         bool targetAvailable = true,
         bool activeAvailable = false)
     {
@@ -930,14 +985,14 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             && job.EmbeddingModel == row.Model
             && job.EmbeddingDimension == row.Dimension)
             .GroupBy(job => job.DocumentId)
-            .Select(group => group.OrderByDescending(job => job.VersionNo).ThenByDescending(job => job.CreatedAt).First())
-            .ToArray() ?? Array.Empty<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow>();
+            .Select(group => group.OrderByDescending(job => job.VersionNo).ThenByDescending(job => job.VersionNo).First())
+            .ToArray() ?? Array.Empty<AssistantKnowledgeIndexJobEntity>();
         if (targetReadyCount < documentCount && status == "ready") status = "pending_rebuild";
         if (status != "ready" && targetJobs.Any(job => job.Status == "failed"))
         {
             status = "failed";
             lastError = targetJobs.Where(job => job.Status == "failed")
-                .OrderByDescending(job => job.CreatedAt).Select(job => job.ErrorCode).FirstOrDefault();
+                .OrderByDescending(job => job.VersionNo).Select(job => job.ErrorCode).FirstOrDefault();
         }
         else if (status != "ready" && targetJobs.Any(job => job.Status == "processing"))
             status = "rebuilding";
@@ -954,61 +1009,85 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             documentCount, targetReadyCount, lastError, availableModels, activeAvailable);
     }
 
+    /// <summary>
+    /// 把正在重建的目标配置冻结为带有预期代次的执行描述。
+    /// </summary>
     private static AssistantKnowledgeEmbeddingExecutionProfile ToExecutionProfile(
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow row, long generation)
+        AssistantKnowledgeEmbeddingProfileEntity row, long generation)
         => new(row.ProviderId, row.ProviderRevision, row.Model, row.Dimension, row.Revision, generation);
 
+    /// <summary>
+    /// 把已经可用的嵌入配置映射为当前生效的执行描述。
+    /// </summary>
     private static AssistantKnowledgeEmbeddingExecutionProfile ToActiveExecutionProfile(
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow row)
+        AssistantKnowledgeEmbeddingProfileEntity row)
         => new(row.ActiveProviderId!, row.ActiveProviderRevision!.Value, row.ActiveModel!,
             row.ActiveDimension!.Value, row.ActiveProfileRevision ?? row.Revision, row.ActiveGeneration);
 
+    /// <summary>
+    /// 读取嵌入执行配置绑定的向量集合配置标识，供索引与检索保持一致。
+    /// </summary>
     private static string EmbeddingCollectionProfileId(AssistantKnowledgeEmbeddingExecutionProfile profile)
         => AssistantKnowledgeIndexNaming.ProfileId(profile);
 
-    private static bool MatchesTargetProfile(AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow job,
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow profile)
+    /// <summary>
+    /// 比较索引任务与当前目标模型、修订、维度和代次是否一致。
+    /// </summary>
+    private static bool MatchesTargetProfile(AssistantKnowledgeIndexJobEntity job,
+        AssistantKnowledgeEmbeddingProfileEntity profile)
         => job.Generation == profile.TargetGeneration && job.EmbeddingProviderId == profile.ProviderId
             && job.EmbeddingProviderRevision == profile.ProviderRevision && job.EmbeddingModel == profile.Model
             && job.EmbeddingDimension == profile.Dimension;
 
-    private static bool MatchesActiveProfile(AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow job,
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow profile)
+    /// <summary>
+    /// 比较已完成索引任务与当前生效的嵌入配置是否一致。
+    /// </summary>
+    private static bool MatchesActiveProfile(AssistantKnowledgeIndexJobEntity job,
+        AssistantKnowledgeEmbeddingProfileEntity profile)
         => profile.ActiveGeneration > 0 && job.Generation == profile.ActiveGeneration
             && job.EmbeddingProviderId == profile.ActiveProviderId
             && job.EmbeddingProviderRevision == profile.ActiveProviderRevision && job.EmbeddingModel == profile.ActiveModel
             && job.EmbeddingDimension == profile.ActiveDimension;
 
+    /// <summary>
+    /// 判断指定文档是否具有匹配当前生效配置的成功索引任务。
+    /// </summary>
     private static bool HasSuccessfulActiveJob(
-        IEnumerable<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow> jobs, string documentVersionId,
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow profile)
+        IEnumerable<AssistantKnowledgeIndexJobEntity> jobs, string documentVersionId,
+        AssistantKnowledgeEmbeddingProfileEntity profile)
         => jobs.Any(job => job.DocumentVersionId == documentVersionId && job.Status == "succeeded" && MatchesActiveProfile(job, profile));
 
+    /// <summary>
+    /// 判断指定文档和代次是否已经存在匹配配置的成功索引任务。
+    /// </summary>
     private static bool HasSuccessfulJob(
-        IEnumerable<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow> jobs,
+        IEnumerable<AssistantKnowledgeIndexJobEntity> jobs,
         string documentVersionId,
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow profile,
+        AssistantKnowledgeEmbeddingProfileEntity profile,
         long generation)
         => jobs.Any(job => job.DocumentVersionId == documentVersionId && job.Status == "succeeded"
             && job.Generation == generation && job.EmbeddingProviderId == profile.ProviderId
             && job.EmbeddingProviderRevision == profile.ProviderRevision && job.EmbeddingModel == profile.Model
             && job.EmbeddingDimension == profile.Dimension);
 
+    /// <summary>
+    /// 复核目标代次的全部文档均已建索引后，尝试将其原子提升为生效代次。
+    /// </summary>
     private async Task TryPromoteGenerationAsync(
-        string tenantId, string orgId, string knowledgeBaseId, CancellationToken cancellationToken)
+string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var profile = await _embeddingProfiles.GetAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var profile = await _embeddingProfiles.GetAsync(knowledgeBaseId, cancellationToken);
         if (profile is null || profile.Status == "ready" && profile.ActiveGeneration == profile.TargetGeneration)
             return;
         await _policies.EnsureEmbeddingAvailableAsync(ToExecutionProfile(profile, profile.TargetGeneration), cancellationToken);
-        var policyRow = await _repository.GetChunkingPolicyAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var policyRow = await _repository.GetChunkingPolicyAsync(knowledgeBaseId, cancellationToken);
         var policy = policyRow is null ? AssistantKnowledgeChunkingPolicy.Default : FromRow(policyRow);
-        var documents = await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
-        var jobs = await _documentRepository.ListIndexJobsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken);
+        var documents = await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken);
+        var jobs = await _documentRepository.ListIndexJobsAsync(knowledgeBaseId, cancellationToken);
         foreach (var document in documents)
         {
             var version = await _documentRepository.GetVersionAsync(
-                tenantId, orgId, document.Id, document.CurrentVersionNo, cancellationToken);
+                document.Id, document.CurrentVersionNo, cancellationToken);
             if (version is null || version.Status != "ready"
                 || !string.Equals(version.ChunkStrategy, policy.StrategyKey, StringComparison.Ordinal)
                 || !HasSuccessfulJob(jobs, version.Id, profile, profile.TargetGeneration))
@@ -1024,7 +1103,6 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         profile.ActiveGeneration = profile.TargetGeneration;
         profile.Status = "ready";
         profile.LastErrorCode = null;
-        profile.UpdatedAt = DateTime.UtcNow;
         try
         {
             await _embeddingProfiles.TryPromoteAsync(profile, expectedRevision, profile.TargetGeneration, cancellationToken);
@@ -1039,27 +1117,38 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         }
     }
 
-    private static AssistantKnowledgeQnaDto Map(AssistantKnowledgeRepository.AssistantKnowledgeQnaRow row)
-        => new(row.Id, row.KnowledgeBaseId, row.Question, row.Answer, row.Enabled, row.SortOrder, row.ShowAsSuggestion, row.UpdatedAt);
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
+    private static AssistantKnowledgeQnaDto Map(AssistantKnowledgeQnaEntity row)
+        => new(row.Id, row.KnowledgeBaseId, row.Question, row.Answer, row.Enabled, row.SortOrder, row.ShowAsSuggestion);
 
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
     private static AssistantKnowledgeDocumentDto Map(
-        AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow document,
-        AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow? job,
-        AssistantKnowledgeEmbeddingProfileRepository.AssistantKnowledgeEmbeddingProfileRow? profile = null)
+        AssistantKnowledgeDocumentEntity document,
+        AssistantKnowledgeIndexJobEntity? job,
+        AssistantKnowledgeEmbeddingProfileEntity? profile = null)
         => new(document.Id, document.KnowledgeBaseId, document.AssetId, document.FileName, document.ContentType,
             document.SizeBytes, document.CurrentVersionNo, ParseDocumentStatus(document.Status),
-            job?.ChunkCount ?? 0, job is null ? null : ParseJobStatus(job.Status), document.LastErrorCode, document.UpdatedAt,
-            job?.Status == "needs_embedding_config" ? "needs_embedding_config"
+            job?.ChunkCount ?? 0, job is null ? null : ParseJobStatus(job.Status), document.LastErrorCode, job?.Status == "needs_embedding_config" ? "needs_embedding_config"
                 : job?.Status == "succeeded"
                     ? profile is not null && MatchesActiveProfile(job, profile) ? "ready" : "pending_rebuild"
                     : job?.Status ?? "queued",
             job?.Generation);
 
-    private static AssistantKnowledgeIndexJobDto Map(AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow job)
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
+    private static AssistantKnowledgeIndexJobDto Map(AssistantKnowledgeIndexJobEntity job)
         => new(job.Id, job.DocumentId, job.VersionNo, ParseJobStatus(job.Status), job.AttemptCount,
-            job.ChunkCount, job.ErrorCode, job.CreatedAt, job.CompletedAt,
+            job.ChunkCount, job.ErrorCode, job.CompletedAt,
             job.Generation, job.EmbeddingModel, job.EmbeddingDimension);
 
+    /// <summary>
+    /// 把数据库保存的文档状态文本转换为公开契约中的枚举值。
+    /// </summary>
     private static AssistantKnowledgeDocumentStatus ParseDocumentStatus(string value)
         => value switch
         {
@@ -1070,6 +1159,9 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             _ => AssistantKnowledgeDocumentStatus.Uploaded
         };
 
+    /// <summary>
+    /// 把数据库保存的索引任务状态转换为公开契约中的枚举值。
+    /// </summary>
     private static AssistantKnowledgeIndexJobStatus ParseJobStatus(string value)
         => value switch
         {
@@ -1080,6 +1172,9 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             _ => AssistantKnowledgeIndexJobStatus.Queued
         };
 
+    /// <summary>
+    /// 将索引异常映射为稳定的内部错误码，避免将供应商响应泄漏给调用方。
+    /// </summary>
     private static string ClassifyIndexError(Exception error) => error switch
     {
         BizResultException => "knowledge_embedding_model_unavailable",
@@ -1091,29 +1186,40 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         _ => "knowledge_document_index_failed"
     };
 
-    private static IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow> BuildChunks(
-        string text, string tenantId, string orgId, string versionId, string actorUserId, AssistantKnowledgeChunkingPolicy policy)
+    /// <summary>
+    /// 按已校验的分块策略处理正文，并为片段分配顺序、摘要和文档版本标识。
+    /// </summary>
+    private static IReadOnlyList<AssistantKnowledgeChunkEntity> BuildChunks(
+        string text, string versionId, string actorUserId, AssistantKnowledgeChunkingPolicy policy)
     {
         var pieces = AssistantKnowledgeChunker.Split(text, policy);
-        var result = new List<AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow>();
+        var result = new List<AssistantKnowledgeChunkEntity>();
         for (var index = 0; index < pieces.Count; index++)
         {
             var content = pieces[index];
-            result.Add(new AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow
+            result.Add(new AssistantKnowledgeChunkEntity
             {
-                Id = Guid.NewGuid().ToString("N"), TenantId = tenantId, OrgId = orgId,
-                DocumentVersionId = versionId, ChunkIndex = index, Content = content,
+                Id = Guid.NewGuid().ToString("N"),
+                DocumentVersionId = versionId,
+                ChunkIndex = index,
+                Content = content,
                 ContentHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant(),
-                TokenCount = content.Length, CreatedAt = DateTime.UtcNow, CreatedBy = actorUserId
+                TokenCount = content.Length
             });
         }
         return result;
     }
 
+    /// <summary>
+    /// 将管理端保存请求转换为带有新修订号的分块策略值对象。
+    /// </summary>
     private static AssistantKnowledgeChunkingPolicy ToPolicy(SaveAssistantKnowledgeChunkingPolicyCommand command, long revision)
         => new(command.Mode, command.MaxChunkSize, command.MinChunkSize, command.OverlapSize, command.MaxHeadingLevel,
             command.PreserveHeadingPath, command.MergeShortChunks, revision);
 
+    /// <summary>
+    /// 检查分块策略中的片段大小、重叠区间和标题层级约束。
+    /// </summary>
     private static void ValidatePolicy(AssistantKnowledgeChunkingPolicy policy)
     {
         try { policy.Validate(); }
@@ -1123,31 +1229,43 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
         }
     }
 
-    private static AssistantKnowledgeChunkingPolicy FromRow(AssistantKnowledgeRepository.AssistantKnowledgeChunkingPolicyRow row)
+    /// <summary>
+    /// 将数据库策略行还原为分块策略领域值对象。
+    /// </summary>
+    private static AssistantKnowledgeChunkingPolicy FromRow(AssistantKnowledgeChunkingPolicyEntity row)
         => new(Enum.TryParse<AssistantKnowledgeChunkingMode>(row.Mode, true, out var mode) ? mode : AssistantKnowledgeChunkingMode.Hybrid,
             row.MaxChunkSize, row.MinChunkSize, row.OverlapSize, row.MaxHeadingLevel, row.PreserveHeadingPath, row.MergeShortChunks, row.Revision);
 
+    /// <summary>
+    /// 把应用层策略或状态映射为供管理界面读取的数据传输对象。
+    /// </summary>
     private static AssistantKnowledgeChunkingPolicyDto ToDto(AssistantKnowledgeChunkingPolicy policy, bool pending)
         => new(policy.Mode, policy.MaxChunkSize, policy.MinChunkSize, policy.OverlapSize, policy.MaxHeadingLevel,
             policy.PreserveHeadingPath, policy.MergeShortChunks, policy.Revision, pending);
 
-    private async Task<bool> HasPendingDocumentsAsync(string tenantId, string orgId, string knowledgeBaseId,
+    /// <summary>
+    /// 检查当前知识库是否还有等待按新策略重新处理的文档。
+    /// </summary>
+    private async Task<bool> HasPendingDocumentsAsync(string knowledgeBaseId,
         AssistantKnowledgeChunkingPolicy policy, CancellationToken cancellationToken)
     {
-        foreach (var document in await _documentRepository.ListDocumentsAsync(tenantId, orgId, knowledgeBaseId, cancellationToken))
+        foreach (var document in await _documentRepository.ListDocumentsAsync(knowledgeBaseId, cancellationToken))
         {
             if (document.Status != "ready") return true;
-            var version = await _documentRepository.GetVersionAsync(tenantId, orgId, document.Id, document.CurrentVersionNo, cancellationToken);
+            var version = await _documentRepository.GetVersionAsync(document.Id, document.CurrentVersionNo, cancellationToken);
             if (version is null || !string.Equals(version.ChunkStrategy, policy.StrategyKey, StringComparison.Ordinal)) return true;
         }
         return false;
     }
 
-    private static void Apply(AssistantKnowledgeRepository.AssistantKnowledgeChunkingPolicyRow row, AssistantKnowledgeChunkingPolicy policy, string actor, DateTime now)
+    /// <summary>
+    /// 将已校验的分块策略及修订号写入数据库行模型。
+    /// </summary>
+    private static void Apply(AssistantKnowledgeChunkingPolicyEntity row, AssistantKnowledgeChunkingPolicy policy)
     {
         row.Mode = policy.Mode.ToString().ToLowerInvariant(); row.MaxChunkSize = policy.MaxChunkSize; row.MinChunkSize = policy.MinChunkSize;
         row.OverlapSize = policy.OverlapSize; row.MaxHeadingLevel = policy.MaxHeadingLevel; row.PreserveHeadingPath = policy.PreserveHeadingPath;
-        row.MergeShortChunks = policy.MergeShortChunks; row.Revision = policy.Revision; row.UpdatedAt = now; row.UpdatedBy = actor;
+        row.MergeShortChunks = policy.MergeShortChunks; row.Revision = policy.Revision;
     }
 
     /// <summary>

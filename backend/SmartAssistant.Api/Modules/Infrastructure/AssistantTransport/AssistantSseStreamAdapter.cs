@@ -16,12 +16,27 @@ namespace SmartAssistant.Modules.Infrastructure.AssistantTransport;
 /// </summary>
 public sealed class AssistantSseStreamAdapter
 {
+    /// <summary>
+    /// 定义助手SSE流式输出适配器使用的执行终态配置值。
+    /// </summary>
     private static readonly TimeSpan RunTerminalGracePeriod = TimeSpan.FromMilliseconds(500);
+    /// <summary>
+    /// 定义助手SSE流式输出适配器使用的帧配置值。
+    /// </summary>
     private static readonly byte[] DoneFrame = Encoding.UTF8.GetBytes("data: [DONE]\n\n");
 
+    /// <summary>
+    /// 保存用于助手SSE流式输出适配器事件编解码的序列化器。
+    /// </summary>
     private readonly AssistantRunEventTransportSerializer _serializer;
+    /// <summary>
+    /// 保存相关内容依赖，供助手SSE流式输出适配器执行相关操作。
+    /// </summary>
     private readonly TimeSpan _heartbeatInterval;
 
+    /// <summary>
+    /// 接收并保存助手SSE流式输出适配器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantSseStreamAdapter(AssistantRunEventTransportSerializer serializer, TimeSpan? heartbeatInterval = null)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
@@ -115,6 +130,9 @@ public sealed class AssistantSseStreamAdapter
         }
     }
 
+    /// <summary>
+    /// 根据运行终态时间计算等待间隔，确保终态宽限期结束后及时关闭输出。
+    /// </summary>
     private TimeSpan GetWaitInterval(long? messageCompletedAt)
     {
         if (messageCompletedAt is null)
@@ -126,26 +144,35 @@ public sealed class AssistantSseStreamAdapter
             : _heartbeatInterval;
     }
 
+    /// <summary>
+    /// 判断运行终态后的等待宽限期是否已经结束。
+    /// </summary>
     private static bool HasTerminalGraceElapsed(long? messageCompletedAt)
         => messageCompletedAt is not null
             && Stopwatch.GetElapsedTime(messageCompletedAt.Value) >= RunTerminalGracePeriod;
 
+    /// <summary>
+    /// 判断是否满足执行终态。
+    /// </summary>
     private static bool IsRunTerminal(string type)
         => type is AssistantRunEventTypes.RunCompleted
             or AssistantRunEventTypes.RunFailed
             or AssistantRunEventTypes.RunCancelled
             or AssistantRunEventTypes.RunExpired;
 
+    /// <summary>
+    /// 向 SSE 响应写入结束帧并刷新缓冲区。
+    /// </summary>
     private static async Task WriteDoneAsync(HttpResponse response, CancellationToken cancellationToken)
     {
         await response.Body.WriteAsync(DoneFrame, cancellationToken);
         await response.Body.FlushAsync(cancellationToken);
     }
 
-    private async Task WriteRunCompletedFallbackAsync(
-        HttpResponse response,
-        AssistantRunEventEnvelope messageCompletedEvent,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// 在需要时写入运行完成的回退事件，使客户端能够识别流已结束。
+    /// </summary>
+    private async Task WriteRunCompletedFallbackAsync(HttpResponse response, AssistantRunEventEnvelope messageCompletedEvent, CancellationToken cancellationToken)
     {
         var sequence = checked(messageCompletedEvent.Sequence + 1);
         var runCompleted = AssistantRunEventEnvelope.Create(

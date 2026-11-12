@@ -13,10 +13,19 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证打开兼容嵌入模型供应商行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class OpenAiCompatibleEmbeddingProviderTests
 {
+    /// <summary>
+    /// 定义打开兼容嵌入模型供应商测试使用的配置配置值。
+    /// </summary>
     private static readonly AssistantKnowledgeEmbeddingExecutionProfile Profile = new("provider", 3, "embedding", 3, 2, 1);
 
+    /// <summary>
+    /// 验证嵌入输入按供应商上限分批，返回向量保持文档原顺序。
+    /// </summary>
     [Theory]
     [InlineData(1)]
     [InlineData(20)]
@@ -31,7 +40,7 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         var provider = new OpenAiCompatibleEmbeddingProvider(fixture, resolver);
         var inputs = Enumerable.Range(0, count).Select(i => $"document chunk {i}").ToArray();
 
-        var result = await provider.EmbedAsync(inputs, "tenant", "org", Profile, CancellationToken.None);
+        var result = await provider.EmbedAsync(inputs, Profile, CancellationToken.None);
 
         Assert.Equal(Profile.ProviderProfileRef, result.ProfileId);
         Assert.Equal(3, result.Dimension);
@@ -40,9 +49,12 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         Assert.Equal((count + 19) / 20, fixture.Batches.Count);
         Assert.All(fixture.Batches, batch => Assert.InRange(batch.Length, 1, 20));
         for (var i = 0; i < count; i++) Assert.Equal(VectorFor(inputs[i]), result.Vectors[i]);
-        Assert.Equal(new AssistantProviderAccess("provider@3", "tenant", "org", "embedding", "embedding", 3), Assert.Single(resolver.Accesses));
+        Assert.Equal(new AssistantProviderAccess("provider@3", "embedding", "embedding", 3), Assert.Single(resolver.Accesses));
     }
 
+    /// <summary>
+    /// 验证包含二十四个章节的 Markdown 能完成解析、分块和嵌入。
+    /// </summary>
     [Fact]
     public async Task Markdown_with_24_sections_is_parsed_chunked_and_embedded()
     {
@@ -54,13 +66,16 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         using var fixture = new SupplierFixture();
         var provider = new OpenAiCompatibleEmbeddingProvider(fixture, new CredentialResolver());
 
-        var result = await provider.EmbedAsync(chunks, "tenant", "org", Profile, CancellationToken.None);
+        var result = await provider.EmbedAsync(chunks, Profile, CancellationToken.None);
 
         Assert.Equal(new[] { 20, 4 }, fixture.Batches.Select(batch => batch.Length));
         Assert.Equal(chunks.Count, result.Vectors.Count);
         for (var i = 0; i < chunks.Count; i++) Assert.Equal(VectorFor(chunks[i]), result.Vectors[i]);
     }
 
+    /// <summary>
+    /// 验证后续批次失败会中止处理，不返回部分结果或继续发送请求。
+    /// </summary>
     [Theory]
     [InlineData("http", "assistant_embedding_provider_failed")]
     [InlineData("timeout", "assistant_embedding_provider_failed")]
@@ -74,13 +89,16 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         var provider = new OpenAiCompatibleEmbeddingProvider(fixture, new CredentialResolver());
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.EmbedAsync(
-            Enumerable.Range(0, 41).Select(i => $"chunk {i}").ToArray(), "tenant", "org", Profile, CancellationToken.None));
+            Enumerable.Range(0, 41).Select(i => $"chunk {i}").ToArray(), Profile, CancellationToken.None));
 
         Assert.Equal(code, error.Message);
         Assert.Equal(2, fixture.Batches.Count);
         Assert.DoesNotContain("supplier-private-detail", error.ToString());
     }
 
+    /// <summary>
+    /// 验证调用方取消后不再发送剩余批次，也不将取消误报为供应商失败。
+    /// </summary>
     [Fact]
     public async Task Caller_cancellation_does_not_send_remaining_batches_or_become_provider_failure()
     {
@@ -89,11 +107,14 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         var provider = new OpenAiCompatibleEmbeddingProvider(fixture, new CredentialResolver());
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provider.EmbedAsync(
-            Enumerable.Repeat("chunk", 41).ToArray(), "tenant", "org", Profile, cancellation.Token));
+            Enumerable.Repeat("chunk", 41).ToArray(), Profile, cancellation.Token));
 
         Assert.Single(fixture.Batches);
     }
 
+    /// <summary>
+    /// 验证空输入在解析凭据及发送请求之前被拒绝。
+    /// </summary>
     [Fact]
     public async Task Empty_input_is_rejected_before_resolving_credentials_or_sending_requests()
     {
@@ -101,18 +122,30 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         var resolver = new CredentialResolver();
         var provider = new OpenAiCompatibleEmbeddingProvider(fixture, resolver);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.EmbedAsync(
-            Array.Empty<string>(), "tenant", "org", Profile, CancellationToken.None));
+            Array.Empty<string>(), Profile, CancellationToken.None));
         Assert.Equal("assistant_embedding_request_invalid", error.Message);
         Assert.Empty(fixture.Batches);
         Assert.Empty(resolver.Accesses);
     }
 
+    /// <summary>
+    /// 验证向量相关行为、预期结果及错误边界。
+    /// </summary>
     private static float[] VectorFor(string input)
         => SHA256.HashData(Encoding.UTF8.GetBytes(input)).Take(3).Select(value => (float)value + 1).ToArray();
 
+    /// <summary>
+    /// 测试用解析器，为凭据或配置提供确定的固定结果。
+    /// </summary>
     private sealed class CredentialResolver : IAssistantProviderCredentialResolver
     {
+        /// <summary>
+        /// 记录测试中凭据解析器的访问次数。
+        /// </summary>
         public List<AssistantProviderAccess> Accesses { get; } = new();
+        /// <summary>
+        /// 验证解析相关行为、预期结果及错误边界。
+        /// </summary>
         public ValueTask<OpenAiCompatibleProviderCredential> ResolveAsync(AssistantProviderAccess access, CancellationToken cancellationToken = default)
         {
             Accesses.Add(access);
@@ -120,11 +153,23 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         }
     }
 
+    /// <summary>
+    /// 为打开兼容嵌入模型供应商测试相关测试提供隔离数据、受控依赖或固定 HTTP 响应。
+    /// </summary>
     private sealed class SupplierFixture(string? failure = null, Action? afterResponse = null) : HttpMessageHandler, IHttpClientFactory
     {
+        /// <summary>
+        /// 表示供应商测试夹具的批次信息。
+        /// </summary>
         public List<string[]> Batches { get; } = new();
+        /// <summary>
+        /// 验证创建客户端相关行为、预期结果及错误边界。
+        /// </summary>
         public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 
+        /// <summary>
+        /// 验证发送相关行为、预期结果及错误边界。
+        /// </summary>
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

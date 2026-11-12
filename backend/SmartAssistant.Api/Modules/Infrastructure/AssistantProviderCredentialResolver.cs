@@ -18,10 +18,22 @@ namespace SmartAssistant.Modules.Infrastructure;
 /// </summary>
 public sealed class AssistantProviderCredentialResolver : IAssistantProviderCredentialResolver
 {
+    /// <summary>
+    /// 保存助手策略仓储依赖，供助手模型供应商凭据解析器执行相关操作。
+    /// </summary>
     private readonly IAssistantPolicyRepository _repository;
+    /// <summary>
+    /// 保存凭据材料解析器依赖，供助手模型供应商凭据解析器执行相关操作。
+    /// </summary>
     private readonly ICredentialMaterialResolver _credentialMaterialResolver;
+    /// <summary>
+    /// 保存助手模型供应商密钥依赖，供助手模型供应商凭据解析器执行相关操作。
+    /// </summary>
     private readonly AssistantProviderSecretProtector _secretProtector;
 
+    /// <summary>
+    /// 接收并保存助手模型供应商凭据解析器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantProviderCredentialResolver(
         IAssistantPolicyRepository repository,
         ICredentialMaterialResolver credentialMaterialResolver,
@@ -41,17 +53,13 @@ public sealed class AssistantProviderCredentialResolver : IAssistantProviderCred
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(access.TenantId) || string.IsNullOrWhiteSpace(access.OrgId))
-            throw Unavailable();
         var parts = access.ProviderProfileRef.Split('@');
         if (parts.Length != 2 || !Guid.TryParseExact(parts[0], "N", out _)
             || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var revision) || revision < 1)
             throw Unavailable();
-        var current = await _repository.GetAsync(AssistantPolicyService.PlatformScope,
-            AssistantPolicyService.PlatformScope, "provider", parts[0], cancellationToken);
+        var current = await _repository.GetAsync("provider", parts[0], cancellationToken);
         if (current is null || !current.Enabled) throw Unavailable();
-        var version = await _repository.GetRevisionAsync(AssistantPolicyService.PlatformScope,
-            AssistantPolicyService.PlatformScope, "provider", parts[0], revision, cancellationToken);
+        var version = await _repository.GetRevisionAsync("provider", parts[0], revision, cancellationToken);
         if (version is null || !version.Enabled) throw Unavailable();
         var settings = AssistantPolicyValidation.Provider(
             AssistantPolicyService.Read<AssistantModelServiceSettings>(version.SettingsJson));
@@ -73,6 +81,9 @@ public sealed class AssistantProviderCredentialResolver : IAssistantProviderCred
             Timeout: TimeSpan.FromSeconds(settings.TimeoutSeconds));
     }
 
+    /// <summary>
+    /// 构造助手模型供应商凭据当前不可用时返回的稳定状态或错误结果。
+    /// </summary>
     private static BizResultException Unavailable()
         => new(BusinessCodes.Forbidden, "assistant_provider_profile_unavailable");
 }

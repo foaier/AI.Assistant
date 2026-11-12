@@ -12,11 +12,23 @@ namespace SmartAssistant.Modules.Infrastructure;
 /// </summary>
 public sealed class AssistantProviderSecretProtector(IConfiguration configuration)
 {
+    /// <summary>
+    /// 定义助手模型供应商密钥使用的前缀配置值。
+    /// </summary>
     private const string Prefix = "dbenc://";
+    /// <summary>
+    /// 定义助手模型供应商密钥使用的上下文配置值。
+    /// </summary>
     private const string Context = "assistant-provider-secret/aes-gcm/v1";
 
+    /// <summary>
+    /// 判断是否满足助手模型供应商密钥。
+    /// </summary>
     public bool IsProtected(string value) => value.StartsWith(Prefix, StringComparison.Ordinal);
 
+    /// <summary>
+    /// 判断是否满足引用。
+    /// </summary>
     public bool IsReference(string value)
     {
         if (IsProtected(value)) return false;
@@ -75,6 +87,9 @@ public sealed class AssistantProviderSecretProtector(IConfiguration configuratio
         }
     }
 
+    /// <summary>
+    /// 读取当前密钥。
+    /// </summary>
     private (string KeyId, byte[] Key) ReadCurrentKey()
     {
         var keyId = configuration["AssistantCredentials:CurrentKeyId"]
@@ -83,6 +98,9 @@ public sealed class AssistantProviderSecretProtector(IConfiguration configuratio
         return (keyId, ReadKey(keyId));
     }
 
+    /// <summary>
+    /// 从配置或密钥材料中读取指定密钥，并校验其可用性。
+    /// </summary>
     private byte[] ReadKey(string keyId)
     {
         var encoded = configuration[$"AssistantCredentials:EncryptionKeys:{keyId}"]
@@ -99,11 +117,20 @@ public sealed class AssistantProviderSecretProtector(IConfiguration configuratio
         }
     }
 
+    /// <summary>
+    /// 生成绑定供应商、版本和密钥编号的 AES-GCM 附加认证数据。
+    /// </summary>
     private static byte[] Aad(string providerId, string version, string keyId)
         => JsonSerializer.SerializeToUtf8Bytes(new[] { Context, providerId, version, keyId });
 
+    /// <summary>
+    /// 对凭据密文组件执行 URL 安全编码。
+    /// </summary>
     private static string Encode(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+    /// <summary>
+    /// 校验并解码凭据密文中的 URL 安全数据。
+    /// </summary>
     private static byte[] Decode(string value)
     {
         var normalized = value.Replace('-', '+').Replace('_', '/');
@@ -111,5 +138,8 @@ public sealed class AssistantProviderSecretProtector(IConfiguration configuratio
         return Convert.FromBase64String(normalized);
     }
 
+    /// <summary>
+    /// 解码凭据文本组件并以严格 UTF-8 读取。
+    /// </summary>
     private static string DecodeText(string value) => Encoding.UTF8.GetString(Decode(value));
 }

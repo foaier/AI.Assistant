@@ -27,26 +27,71 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
 {
+    /// <summary>
+    /// 定义流票据允许使用的事件传输方式。
+    /// </summary>
     private static readonly IReadOnlySet<AssistantTransportKind> AllowedTransports =
         new HashSet<AssistantTransportKind> { AssistantTransportKind.Sse, AssistantTransportKind.WebSocket };
 
+    /// <summary>
+    /// 保存助手公开授权解析器依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IAssistantPublicAuthorityResolver _authority;
+    /// <summary>
+    /// 保存助手运行时仓储依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IAssistantRuntimeRepository _runtime;
+    /// <summary>
+    /// 保存助手执行快照服务依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly AssistantExecutionSnapshotService _snapshots;
+    /// <summary>
+    /// 保存助手策略服务依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IAssistantPolicyService _policies;
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
+    /// <summary>
+    /// 保存聊天模型模型供应商依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IChatModelProvider _provider;
+    /// <summary>
+    /// 保存执行事件事件代理依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IRunEventBroker _broker;
+    /// <summary>
+    /// 保存流式输出票据服务依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IStreamTicketService _tickets;
+    /// <summary>
+    /// 保存助手知识运行时检索器依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeRuntimeRetriever _knowledgeRetriever;
+    /// <summary>
+    /// 保存助手工具注册表依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IAssistantToolRegistry _toolRegistry;
+    /// <summary>
+    /// 保存助手执行编排器在处理日志记录器时所需的数据或状态。
+    /// </summary>
     private readonly ILogger<AssistantRunOrchestrator> _logger;
+    /// <summary>
+    /// 保存服务范围工厂依赖，供助手执行编排器执行相关操作。
+    /// </summary>
     private readonly IServiceScopeFactory? _scopeFactory;
     /*
      * 请求与后台依赖注入作用域共用运行取消源；运行进入终态后移除对应记录。
      */
+    /// <summary>
+    /// 保存当前运行的取消信号源，使请求取消能够传递到后台模型执行。
+    /// </summary>
     private static readonly ConcurrentDictionary<string, CancellationTokenSource> RunCancellation = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 接收并保存助手执行编排器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantRunOrchestrator(
         IAssistantPublicAuthorityResolver authority,
         IAssistantRuntimeRepository runtime,
@@ -75,11 +120,17 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         _scopeFactory = scopeFactory;
     }
 
+    /// <summary>
+    /// 受理并提交轮次，并响应调用方的取消请求。
+    /// </summary>
     public Task<AssistantTurnAccepted> SubmitTurnAsync(
         SubmitAssistantTurnCommand command,
         CancellationToken cancellationToken = default)
         => throw new BizResultException(BusinessCodes.Forbidden, "assistant_session_required");
 
+    /// <summary>
+    /// 受理并提交轮次，并响应调用方的取消请求。
+    /// </summary>
     public async Task<AssistantTurnAccepted> SubmitTurnAsync(
         SubmitAssistantTurnCommand command,
         string sessionId,
@@ -103,8 +154,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var scope = authority.Scope;
         var session = await _runtime.GetSessionAsync(scope, sessionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_session_not_found");
-        session.EnsureAccessible(scope.AssistantId, scope.TenantId, scope.OrgId,
-            scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
+        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
         var conversation = await _runtime.GetConversationAsync(scope, command.ConversationId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_conversation_not_found");
         conversation.EnsureScope(scope, session.Id);
@@ -145,9 +195,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             var turnNo = conversation.LastTurnNo == long.MaxValue ? long.MaxValue : conversation.LastTurnNo + 1;
             turn = AssistantTurn.Create(
                 Guid.NewGuid().ToString("N"), conversation.Id, session.Id, scope.AssistantId,
-                scope.TenantId, scope.OrgId, scope.PublishedVersionId, command.ClientMessageId,
-                command.MessageType, command.Text, command.Locale, turnNo, scope.ExecutionMode, now);
-            run = AssistantRun.Create(Guid.NewGuid().ToString("N"), turn, providerProfileRef, model, now);
+                scope.PublishedVersionId, command.ClientMessageId,
+                command.MessageType, command.Text, command.Locale, turnNo, scope.ExecutionMode);
+            run = AssistantRun.Create(Guid.NewGuid().ToString("N"), turn, providerProfileRef, model);
             var userMessage = AssistantMessage.CreateUser(Guid.NewGuid().ToString("N"), conversation.Id, turn.Id, command.Text, now);
             var assistantMessage = AssistantMessage.CreateAssistant(Guid.NewGuid().ToString("N"), conversation.Id, turn.Id, run.Id, now);
             var queued = await _runtime.TryCreateTurnBundleAsync(scope, conversation.Id, conversation.LastTurnNo, now,
@@ -218,8 +268,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         var scope = authority.Scope;
         var session = await _runtime.GetSessionAsync(scope, sessionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_session_not_found");
-        session.EnsureAccessible(scope.AssistantId, scope.TenantId, scope.OrgId,
-            scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
+        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var run = await _runtime.GetRunAsync(scope, runId, cancellationToken)
@@ -312,7 +361,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             stage = "start_run";
             var now = DateTime.UtcNow;
             run.Start(now);
-            turn.Start(now);
+            turn.Start();
             await _runtime.TryStartRunBundleAsync(scope, run, turn, cancellationToken);
             try
             {
@@ -334,7 +383,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 return;
             }
             stage = "check_policy";
-            await _policies.EnsureAvailableAsync(scope.TenantId, scope.OrgId, policy, cancellationToken);
+            await _policies.EnsureAvailableAsync(policy, cancellationToken);
             stage = "retrieve_knowledge";
             var evidence = policy.KnowledgeEnabled
                 ? await _knowledgeRetriever.RetrieveAsync(
@@ -371,7 +420,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                     Tools: toolDefinitions.Length == 0 ? null : toolDefinitions,
                     ToolChoice: toolDefinitions.Length == 0 ? null : "auto",
                     ParallelToolCalls: toolDefinitions.Length == 0 ? null : false,
-                    TenantId: scope.TenantId, OrgId: scope.OrgId, Instructions: instructions);
+                    Instructions: instructions);
                 var assembler = new AssistantProviderToolCallAssembler();
                 var providerCompleted = false;
                 await foreach (var chunk in _provider.StreamAsync(request, cancellationToken))
@@ -492,6 +541,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         }
     }
 
+    /// <summary>
+    /// 原子保存运行、轮次和助手消息的完成状态及模型用量，再发布终态事件。
+    /// </summary>
     private async Task CompleteRunAsync(
         AssistantScopeSnapshot scope,
         AssistantRun run,
@@ -551,6 +603,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             }, cancellationToken);
     }
 
+    /// <summary>
+    /// 按已冻结的工具定义解析模型参数、校验能力并执行处理器。
+    /// </summary>
     private async Task<AssistantToolExecutionResult> ExecuteToolCallAsync(
         AssistantScopeSnapshot scope,
         AssistantRun run,
@@ -559,11 +614,12 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         AssistantAssembledToolCall call,
         CancellationToken cancellationToken)
     {
+        var toolTimer = System.Diagnostics.Stopwatch.StartNew();
         var inputHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(call.ArgumentsJson)))
             .ToLowerInvariant();
         var toolCall = AssistantToolCall.Create(
             Guid.NewGuid().ToString("N"), run.Id, definition.ToolId, definition.ContractVersion,
-            inputHash, DateTime.UtcNow);
+            inputHash);
         toolCall.Start();
         await _runtime.AddToolCallAsync(toolCall, cancellationToken);
         await _dbContext.CommitAsync(cancellationToken);
@@ -582,6 +638,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         if (handler is null)
         {
             toolCall.Deny("assistant_tool_handler_unavailable", DateTime.UtcNow);
+            toolCall.RecordDuration(toolTimer.Elapsed);
             await _runtime.SaveToolCallAsync(toolCall, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
             await PublishEventAsync(scope, run, AssistantRunEventTypes.ToolCallCompleted,
@@ -595,6 +652,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             var output = await handler.ExecuteAsync(inputDocument.RootElement.Clone(), scope, cancellationToken);
             var outputJson = output.GetRawText();
             toolCall.Complete(outputJson, DateTime.UtcNow);
+            toolCall.RecordDuration(toolTimer.Elapsed);
             await _runtime.SaveToolCallAsync(toolCall, cancellationToken);
             await _dbContext.CommitAsync(cancellationToken);
             var toolMessage = AssistantMessage.CreateTool(
@@ -618,6 +676,7 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 : "assistant_tool_execution_failed";
             if (toolCall.Status is AssistantToolCallStatus.Running)
                 toolCall.Fail(failureCode, DateTime.UtcNow);
+            toolCall.RecordDuration(toolTimer.Elapsed);
             await _runtime.SaveToolCallAsync(toolCall, CancellationToken.None);
             await _dbContext.CommitAsync(CancellationToken.None);
             await PublishEventAsync(scope, run, AssistantRunEventTypes.ToolCallCompleted,
@@ -632,6 +691,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
     /// </summary>
     private sealed record AssistantToolExecutionResult(string OutputJson, bool Succeeded);
 
+    /// <summary>
+    /// 持久化运行失败状态与稳定错误码，并向订阅者发布失败事件。
+    /// </summary>
     private async Task FailRunAsync(
         AssistantScopeSnapshot scope,
         AssistantRun run,
@@ -664,6 +726,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             new { runId = run.Id, turnId = turn.Id, code = SanitizeFailureCode(code) }, cancellationToken);
     }
 
+    /// <summary>
+    /// 先预留持久事件序号再发布事件，并保留重试时使用的同一事件信封。
+    /// </summary>
     private async Task<long> PublishEventAsync<TPayload>(
         AssistantScopeSnapshot scope,
         AssistantRun run,
@@ -722,6 +787,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
     /// </summary>
     private sealed class RunAlreadyCancelledException : Exception;
 
+    /// <summary>
+    /// 使用条件更新为对话预留下一轮编号，遇到并发修改时重新读取并重试。
+    /// </summary>
     private async Task<long> ReserveTurnNoAsync(
         AssistantScopeSnapshot scope,
         AssistantConversation conversation,
@@ -739,6 +807,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         throw new BizResultException(BusinessCodes.Conflict, "assistant_turn_number_conflict");
     }
 
+    /// <summary>
+    /// 将当前对话先前轮次整理为模型所需上下文，并排除失败或未完成内容。
+    /// </summary>
     private async Task<IReadOnlyList<AssistantProviderMessage>> BuildHistoryAsync(
         AssistantScopeSnapshot scope,
         string conversationId,
@@ -761,6 +832,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         return history;
     }
 
+    /// <summary>
+    /// 把已持久化的对话消息转换为供应商协议中的消息结构。
+    /// </summary>
     private static AssistantProviderMessage? ToProviderMessage(AssistantMessage message)
     {
         try
@@ -804,6 +878,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         }
     }
 
+    /// <summary>
+    /// 在供应商或调用方取消后尝试写入取消终态，并保持终态只提交一次。
+    /// </summary>
     private async Task TryCancelAfterCancellationAsync(
         AssistantScopeSnapshot scope,
         string turnId,
@@ -839,6 +916,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         }
     }
 
+    /// <summary>
+    /// 在运行异常后尝试写入稳定失败状态，避免覆盖已有取消或成功终态。
+    /// </summary>
     private async Task TryFailAfterExceptionAsync(
         AssistantScopeSnapshot scope,
         string turnId,
@@ -867,10 +947,16 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         }
     }
 
+    /// <summary>
+    /// 解析并确认公开助手当前存在有效发布版本，否则拒绝访问。
+    /// </summary>
     private async Task<AssistantPublicAuthority> RequireAuthorityAsync(string assistantKey, CancellationToken cancellationToken)
         => await _authority.ResolveAsync(assistantKey, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_publication_not_found");
 
+    /// <summary>
+    /// 为固定问答直接建立完成消息和运行终态，无需调用模型供应商。
+    /// </summary>
     private async Task CompleteDirectAnswerAsync(
         AssistantScopeSnapshot scope,
         AssistantRun run,
@@ -903,6 +989,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
             new { runId = run.Id, turnId = turn.Id, source, providerInvoked = false }, cancellationToken);
     }
 
+    /// <summary>
+    /// 从模型输出的 JSON 内容中提取正文文本，并忽略非文本结构。
+    /// </summary>
     private static string ExtractText(string contentJson)
     {
         try
@@ -918,6 +1007,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
         }
     }
 
+    /// <summary>
+    /// 把内部异常归一化为可公开的稳定错误码，并过滤敏感细节。
+    /// </summary>
     private static string SanitizeFailureCode(string code)
         => string.IsNullOrWhiteSpace(code) ? "assistant_runtime_failed" : code.Trim()[..Math.Min(code.Trim().Length, 80)];
 }

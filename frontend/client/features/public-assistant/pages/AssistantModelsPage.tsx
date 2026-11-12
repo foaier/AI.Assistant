@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/context/i18nContext";
 import { usePermissions } from "@/context/permissionContext";
-import { useOrg } from "@/context/orgContext";
 import { ApiError } from "@/lib/ApiClient";
 import {
   listModelServices,
@@ -53,7 +52,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export default function AssistantModelsPage({ mode = "organization" }: { mode?: "organization" | "platform" }) {
+export default function AssistantModelsPage({ mode = "business" }: { mode?: "business" | "platform" }) {
   const { t } = useI18n();
   const m = (key: string) => t(`publicAssistant.models.${key}`);
   const saveErrorMessage = (error: unknown) => {
@@ -69,21 +68,19 @@ export default function AssistantModelsPage({ mode = "organization" }: { mode?: 
   };
   const { hasPermission } = usePermissions();
   const isPlatform = mode === "platform";
-  const { currentOrg } = useOrg();
-  const canEdit = hasPermission("org.settings.write");
+  const canEdit = hasPermission("assistant.settings.write");
   const cache = useQueryClient();
-  const scope = currentOrg?.id;
   const providers = useQuery({
-    queryKey: ["assistant-model-services", mode, ...(isPlatform ? [] : [scope])],
+    queryKey: ["assistant-model-services", mode],
     queryFn: isPlatform ? listPlatformModelServices : listModelServices,
   });
   const availableProviders = useQuery({
-    queryKey: ["assistant-model-services-available", scope],
+    queryKey: ["assistant-model-services-available"],
     queryFn: listAvailableModelServices,
     enabled: !isPlatform,
   });
   const policies = useQuery({
-    queryKey: ["assistant-business-policies", scope],
+    queryKey: ["assistant-business-policies"],
     queryFn: listBusinessPolicies,
     enabled: !isPlatform,
   });

@@ -7,17 +7,10 @@ import AssistantModelsPage from './AssistantModelsPage';
 import { listModelServices, listPlatformModelServices, listAvailableModelServices, getPlatformModelServiceForEdit, listBusinessPolicies, savePlatformModelService, saveBusinessPolicy, checkPlatformModelService, getPlatformAssistantWebSearchConfig, savePlatformAssistantWebSearchConfig, setPlatformAssistantWebSearchStatus } from '../services/assistantPolicyService';
 import { ApiError } from '@/lib/ApiClient';
 import { publicAssistantMessages } from '@/i18n/publicAssistantMessages';
-const organizationContext = vi.hoisted(() => ({
-  currentTenant: { id: 'tenant' } as { id: string } | null,
-  currentOrg: { id: 'org' } as { id: string } | null,
-}));
 vi.mock('@/context/i18nContext', () => ({ useI18n: () => ({ t: (key: string) => (publicAssistantMessages.zhCN as Record<string, string>)[key] ?? key }) }));
 vi.mock('@/context/permissionContext', () => ({ usePermissions: () => ({ isSuperAdmin: true, hasPermission: () => true }) }));
-vi.mock('@/context/orgContext', () => ({ useOrg: () => organizationContext }));
 vi.mock('../services/assistantPolicyService', () => ({ listModelServices: vi.fn(), listPlatformModelServices: vi.fn(), listAvailableModelServices: vi.fn(), getPlatformModelServiceForEdit: vi.fn(), listBusinessPolicies: vi.fn(), savePlatformModelService: vi.fn(), saveBusinessPolicy: vi.fn(), checkPlatformModelService: vi.fn(), setPlatformModelServiceStatus: vi.fn(), setBusinessPolicyStatus: vi.fn(), getPlatformAssistantWebSearchConfig: vi.fn(), savePlatformAssistantWebSearchConfig: vi.fn(), setPlatformAssistantWebSearchStatus: vi.fn() }));
 beforeEach(() => {
-  organizationContext.currentTenant = { id: 'tenant' };
-  organizationContext.currentOrg = { id: 'org' };
   vi.mocked(listModelServices).mockResolvedValue([]);
   vi.mocked(listPlatformModelServices).mockResolvedValue([]);
   vi.mocked(listAvailableModelServices).mockResolvedValue([]);
@@ -25,7 +18,6 @@ beforeEach(() => {
     id: 'provider-1', name: 'Qwen', revision: 2, enabled: true,
     models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }],
     settings: { name: 'Qwen', baseUrl: 'https://models.example.test/v1', secretReference: 'sk-existing-token', secretVersion: 'v1', timeoutSeconds: 60, models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }] },
-    updatedAt: '2026-11-05T00:00:00Z',
   });
   vi.mocked(listBusinessPolicies).mockResolvedValue([]);
   vi.mocked(getPlatformAssistantWebSearchConfig).mockResolvedValue({
@@ -33,7 +25,6 @@ beforeEach(() => {
     endpoint: 'https://open.feedcoopapi.com/agent_api/agent/chat/completion',
     botId: '7602814290642355738', serviceName: 'ask_echo',
     credentialConfigured: false, credentialMasked: '', timeoutSeconds: 60,
-    updatedAt: '1970-01-01T00:00:00Z',
   });
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -43,14 +34,12 @@ it('stores the platform web search key without reading it back or retaining it i
     endpoint: 'https://open.feedcoopapi.com/agent_api/agent/chat/completion',
     botId: '7602814290642355738', serviceName: 'ask_echo',
     credentialConfigured: true, credentialMasked: '••••••••••••', timeoutSeconds: 60,
-    updatedAt: '2026-11-06T00:00:00Z',
   });
   vi.mocked(savePlatformAssistantWebSearchConfig).mockResolvedValue({
     id: 'volc-agent-chat', revision: 2, enabled: true,
     endpoint: 'https://open.feedcoopapi.com/agent_api/agent/chat/completion',
     botId: '7602814290642355738', serviceName: 'ask_echo',
     credentialConfigured: true, credentialMasked: '••••••••••••', timeoutSeconds: 60,
-    updatedAt: '2026-11-06T00:01:00Z',
   });
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage mode="platform" /></QueryClientProvider>);
 
@@ -68,7 +57,7 @@ it('stores the platform web search key without reading it back or retaining it i
   await waitFor(() => expect(screen.getByTestId('assistant-web-search-credential')).toHaveValue(''));
   expect(getPlatformAssistantWebSearchConfig).not.toHaveBeenCalledWith(expect.stringContaining('key'));
 });
-it('separates organization policies from platform services and their requests', async () => {
+it('separates business policies from platform services and their requests', async () => {
   const view = render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage /></QueryClientProvider>);
   expect(screen.getByRole('heading', { name: '助手业务策略' })).toBeInTheDocument();
   expect(screen.queryByTestId('assistant-models-tab-providers')).not.toBeInTheDocument();
@@ -78,8 +67,6 @@ it('separates organization policies from platform services and their requests', 
   view.unmount();
   vi.mocked(listBusinessPolicies).mockClear();
   vi.mocked(listAvailableModelServices).mockClear();
-  organizationContext.currentTenant = null;
-  organizationContext.currentOrg = null;
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage mode="platform" /></QueryClientProvider>);
   expect(screen.getByRole('heading', { name: '模型服务' })).toBeInTheDocument();
   expect(screen.getByRole('tab', { name: '模型服务' })).toBeInTheDocument();
@@ -90,8 +77,7 @@ it('separates organization policies from platform services and their requests', 
   expect(listBusinessPolicies).not.toHaveBeenCalled();
   expect(listAvailableModelServices).not.toHaveBeenCalled();
 });
-it('keeps platform operational data out of the organization query cache even when the org is named platform', async () => {
-  organizationContext.currentOrg = { id: 'platform' };
+it('keeps platform operational data out of the business policy query cache', async () => {
   const operationalProvider = (await getPlatformModelServiceForEdit('provider-1'));
   vi.mocked(listPlatformModelServices).mockResolvedValue([operationalProvider]);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -110,7 +96,7 @@ it('places the connection check on each model service and shows its result in th
   vi.mocked(listPlatformModelServices).mockResolvedValue([{
     id: 'provider-1', name: 'Qwen', revision: 1, enabled: true,
     models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }],
-    settings: null, updatedAt: '2026-11-05T00:00:00Z',
+    settings: null,
   }]);
   vi.mocked(checkPlatformModelService).mockResolvedValue({ success: false, message: '模型服务返回未授权', checkedAt: '2026-11-05T00:00:00Z' });
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage mode="platform" /></QueryClientProvider>);
@@ -123,10 +109,10 @@ it('places the connection check on each model service and shows its result in th
   expect(screen.getByTestId('assistant-provider-check-result-provider-1')).toHaveTextContent('模型服务返回未授权');
   expect(checkPlatformModelService).toHaveBeenCalledWith('provider-1');
 });
-it('offers enabled platform chat services to the current organization without a separate grant', async () => {
+it('offers enabled platform chat services to business policies without a separate grant', async () => {
   const model = { id: 'qwen-chat', purpose: 'chat' as const, supportsTools: false };
   const service = (id: string, name: string) => ({
-    id, name, revision: 1, enabled: true, models: [model], updatedAt: '2026-11-05T00:00:00Z',
+    id, name, revision: 1, enabled: true, models: [model],
     settings: {
       name, baseUrl: 'https://models.example.test/v1', secretReference: '[configured]', secretVersion: 'v1',
       timeoutSeconds: 60, models: [model],
@@ -148,7 +134,7 @@ it('offers enabled platform chat services to the current organization without a 
 });
 it('blocks editing a policy whose model service is no longer available and explains the administrator action', async () => {
   vi.mocked(listBusinessPolicies).mockResolvedValue([{
-    id: 'policy-1', revision: 1, enabled: true, updatedAt: '2026-11-05T00:00:00Z',
+    id: 'policy-1', revision: 1, enabled: true,
     settings: {
       name: '客服策略', businessCode: 'customer_service', providerId: 'provider-revoked', providerRevision: 10,
       model: 'qwen3.8-max', instructions: '用中文答复。', temperature: 0.7, maxOutputTokens: 2000,
@@ -171,7 +157,7 @@ it('explains the administrator action when the platform has no available chat mo
   expect(screen.getByTestId('assistant-policy-provider')).toHaveValue('');
 });
 it.each(['provider', 'policy'])('returns keyboard focus to the %s create button after Escape', async (editor) => {
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage mode={editor === 'provider' ? 'platform' : 'organization'} /></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage mode={editor === 'provider' ? 'platform' : 'business'} /></QueryClientProvider>);
   const trigger = await screen.findByTestId(`assistant-${editor}-create`);
   trigger.focus();
   fireEvent.click(trigger);
@@ -201,7 +187,6 @@ it('reads the saved provider token into the edit form and submits it when anothe
       name: 'Qwen', baseUrl: 'https://models.example.test/v1', secretReference: '[configured]', secretVersion: 'v1',
       timeoutSeconds: 60, models: [{ id: 'qwen3.8-max', purpose: 'chat' as const, supportsTools: false }],
     },
-    updatedAt: '2026-11-05T00:00:00Z',
   };
   vi.mocked(listPlatformModelServices).mockResolvedValue([provider]);
   vi.mocked(getPlatformModelServiceForEdit).mockResolvedValue({
@@ -229,7 +214,6 @@ it('blocks provider edits until the saved token has been read successfully', asy
     id: 'provider-1', name: 'Qwen', revision: 2, enabled: true,
     models: [{ id: 'qwen3.8-max', purpose: 'chat' as const, supportsTools: false }],
     settings: { name: 'Qwen', baseUrl: 'https://models.example.test/v1', secretReference: '[configured]', secretVersion: 'v1', timeoutSeconds: 60, models: [{ id: 'qwen3.8-max', purpose: 'chat' as const, supportsTools: false }] },
-    updatedAt: '2026-11-05T00:00:00Z',
   };
   vi.mocked(listPlatformModelServices).mockResolvedValue([provider]);
   vi.mocked(getPlatformModelServiceForEdit).mockRejectedValueOnce(new Error('temporary read failure'));
@@ -251,7 +235,7 @@ it('blocks provider edits until the saved token has been read successfully', asy
 it('explains how to fix an unavailable model service when saving a policy', async () => {
   vi.mocked(listAvailableModelServices).mockResolvedValue([{
     id: 'provider-1', name: 'Qwen', revision: 10, enabled: true,
-    models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }], settings: null, updatedAt: '2026-11-05T00:00:00Z',
+    models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }], settings: null,
   }]);
   vi.mocked(saveBusinessPolicy).mockRejectedValue(new ApiError(1002, 'assistant_provider_unavailable'));
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage /></QueryClientProvider>);
@@ -270,7 +254,7 @@ it.each([
 ])('explains %s when saving a policy', async (code, explanation) => {
   vi.mocked(listAvailableModelServices).mockResolvedValue([{
     id: 'provider-1', name: 'Qwen', revision: 10, enabled: true,
-    models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }], settings: null, updatedAt: '2026-11-05T00:00:00Z',
+    models: [{ id: 'qwen3.8-max', purpose: 'chat', supportsTools: false }], settings: null,
   }]);
   vi.mocked(saveBusinessPolicy).mockRejectedValue(new ApiError(1002, code));
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage /></QueryClientProvider>);

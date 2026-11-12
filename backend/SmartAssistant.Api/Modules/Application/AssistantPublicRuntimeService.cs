@@ -55,7 +55,13 @@ public interface IAssistantPublicRuntimeService
 /// </summary>
 public interface IAssistantRuntimeOrchestrator : IAssistantOrchestrator
 {
+    /// <summary>
+    /// 受理并提交轮次，并响应调用方的取消请求。
+    /// </summary>
     Task<AssistantTurnAccepted> SubmitTurnAsync(SubmitAssistantTurnCommand command, string sessionId, CancellationToken cancellationToken);
+    /// <summary>
+    /// 请求取消指定运行，并将取消信号传递到正在执行的模型调用。
+    /// </summary>
     new Task CancelRunAsync(string assistantKey, string runId, string sessionId, CancellationToken cancellationToken);
 }
 
@@ -70,17 +76,44 @@ public sealed record AssistantSessionCreated(AnonymousAssistantSessionSnapshot S
 /// </summary>
 public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeService
 {
+    /// <summary>
+    /// 定义助手公开运行时服务使用的会话有效期配置值。
+    /// </summary>
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);
+    /// <summary>
+    /// 定义助手公开运行时服务使用的流式输出票据有效期配置值。
+    /// </summary>
     private static readonly TimeSpan StreamTicketLifetime = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// 定义流票据允许使用的事件传输方式。
+    /// </summary>
     private static readonly IReadOnlySet<AssistantTransportKind> AllowedTransports =
         new HashSet<AssistantTransportKind> { AssistantTransportKind.Sse, AssistantTransportKind.WebSocket };
 
+    /// <summary>
+    /// 保存助手公开授权解析器依赖，供助手公开运行时服务执行相关操作。
+    /// </summary>
     private readonly IAssistantPublicAuthorityResolver _authority;
+    /// <summary>
+    /// 保存助手运行时仓储依赖，供助手公开运行时服务执行相关操作。
+    /// </summary>
     private readonly IAssistantRuntimeRepository _runtime;
+    /// <summary>
+    /// 保存助手运行时编排器依赖，供助手公开运行时服务执行相关操作。
+    /// </summary>
     private readonly IAssistantRuntimeOrchestrator _orchestrator;
+    /// <summary>
+    /// 保存流式输出票据服务依赖，供助手公开运行时服务执行相关操作。
+    /// </summary>
     private readonly IStreamTicketService _tickets;
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手公开运行时服务执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
 
+    /// <summary>
+    /// 接收并保存助手公开运行时服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantPublicRuntimeService(
         IAssistantPublicAuthorityResolver authority,
         IAssistantRuntimeRepository runtime,
@@ -147,8 +180,6 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
         var session = AnonymousAssistantSession.Create(
             Guid.NewGuid().ToString("N"),
             authority.Scope.AssistantId,
-            authority.Scope.TenantId,
-            authority.Scope.OrgId,
             authority.Scope.PublishedVersionId,
             AnonymousAssistantSession.HashSubject(bearerToken),
             command.Locale,
@@ -176,7 +207,7 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
         var now = DateTime.UtcNow;
         var conversation = AssistantConversation.Create(
             Guid.NewGuid().ToString("N"), authority.Scope.AssistantId, session.Id,
-            authority.Scope.TenantId, authority.Scope.OrgId, authority.Scope.PublishedVersionId,
+            authority.Scope.PublishedVersionId,
             command.Locale, AssistantExecutionMode.Public, now);
         await _runtime.AddConversationAsync(conversation, cancellationToken);
         await _dbContext.CommitAsync(cancellationToken);
@@ -289,6 +320,9 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
             DateTime.UtcNow, cancellationToken);
     }
 
+    /// <summary>
+    /// 解析并确认公开助手当前存在有效发布版本，否则拒绝访问。
+    /// </summary>
     private async Task<AssistantPublicAuthority> RequireAuthorityAsync(string assistantKey, CancellationToken cancellationToken)
     {
         var authority = await _authority.ResolveAsync(assistantKey, cancellationToken);
@@ -297,34 +331,50 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
         return authority;
     }
 
+    /// <summary>
+    /// 校验匿名会话令牌、会话有效期及其绑定的发布执行范围。
+    /// </summary>
     private async Task<AnonymousAssistantSession> RequireSessionAsync(
         AssistantScopeSnapshot scope, string sessionId, string bearerToken, CancellationToken cancellationToken)
     {
         var session = await _runtime.GetSessionAsync(scope, sessionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_session_not_found");
-        session.EnsureAccessible(scope.AssistantId, scope.TenantId, scope.OrgId,
-            scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
+        session.EnsureAccessible(scope.AssistantId, scope.PublishedVersionId, scope.ExecutionMode, DateTime.UtcNow);
         if (!string.Equals(session.SubjectHash, AnonymousAssistantSession.HashSubject(bearerToken), StringComparison.Ordinal))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_session_token_invalid");
         return session;
     }
 
+    /// <summary>
+    /// 按对话和轮次编号查询对应用户请求，并校验会话权限。
+    /// </summary>
     private async Task<AssistantTurn?> FindTurnByNumberAsync(
         AssistantScopeSnapshot scope, string conversationId, long turnNo, CancellationToken cancellationToken)
         => await _runtime.GetTurnByNumberAsync(scope, conversationId, turnNo, cancellationToken);
 
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
     private static AnonymousAssistantSessionSnapshot Map(AnonymousAssistantSession value)
-        => new(value.Id, value.AssistantId, value.TenantId, value.OrgId, value.PublishedVersionId,
-            string.Empty, value.Locale, value.ExecutionMode, value.Status, value.CreatedAt,
-            value.LastSeenAt, value.ExpiresAt);
+        => new(value.Id, value.AssistantId, value.PublishedVersionId,
+            string.Empty, value.Locale, value.ExecutionMode, value.Status, value.LastSeenAt, value.ExpiresAt);
 
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
     private static AssistantMessageSnapshot Map(AssistantMessage value, string? clientMessageId = null, AssistantTurnStatus? turnStatus = null)
         => new(value.Id, value.ConversationId, value.TurnId, value.RunId, value.Role,
-            value.Status, value.ContentJson, value.CreatedAt, value.CompletedAt, clientMessageId, turnStatus);
+            value.Status, value.ContentJson, value.CompletedAt, clientMessageId, turnStatus);
 
+    /// <summary>
+    /// 规范化语言标识；不支持的语言回退到默认语言。
+    /// </summary>
     private static string NormalizeLocale(string? locale)
         => string.IsNullOrWhiteSpace(locale) ? "zh-cn" : locale.Trim().Replace('_', '-').ToLowerInvariant();
 
+    /// <summary>
+    /// 读取 JSON 中指定名称的字符串字段，并统一空值处理方式。
+    /// </summary>
     private static string? String(JsonElement json, string property)
         => json.ValueKind == JsonValueKind.Object
            && json.TryGetProperty(property, out var value)
@@ -332,6 +382,9 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
             ? value.GetString()
             : null;
 
+    /// <summary>
+    /// 读取 JSON 中指定名称的布尔字段，并在字段缺失时使用调用方提供的默认值。
+    /// </summary>
     private static bool Boolean(JsonElement json, string property, bool defaultValue)
         => json.ValueKind == JsonValueKind.Object
            && json.TryGetProperty(property, out var value)
@@ -339,6 +392,9 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
             ? value.GetBoolean()
             : defaultValue;
 
+    /// <summary>
+    /// 过滤不安全或不可公开访问的资源链接。
+    /// </summary>
     private static string? SafePublicUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)
@@ -360,10 +416,16 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
                 : null;
     }
 
+    /// <summary>
+    /// 使用密码学安全随机数生成高熵匿名会话凭据。
+    /// </summary>
     private static string NewSecret()
         => Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+    /// <summary>
+    /// 解码分页游标并校验偏移位置，非法游标返回稳定业务错误。
+    /// </summary>
     private static int ParseCursor(string? cursor, int count)
     {
         if (string.IsNullOrWhiteSpace(cursor)) return 0;
@@ -372,5 +434,8 @@ public sealed class AssistantPublicRuntimeService : IAssistantPublicRuntimeServi
         return index;
     }
 
+    /// <summary>
+    /// 将分页偏移位置编码为可在后续请求中安全传回的游标。
+    /// </summary>
     private static string EncodeCursor(int index) => index.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }

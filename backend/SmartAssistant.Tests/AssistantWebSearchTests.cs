@@ -19,11 +19,18 @@ using SmartAssistant.Modules.Contracts;
 using SmartAssistant.Modules.Domain;
 using SmartAssistant.Platform;
 using Xunit;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手网络检索行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantWebSearchTests
 {
+    /// <summary>
+    /// 验证平台配置脱敏凭据，空白更新保留已有值，并遵守启用状态和修订约束。
+    /// </summary>
     [Fact]
     public async Task Platform_config_masks_credential_preserves_blank_updates_and_honors_disable_and_revision()
     {
@@ -76,6 +83,9 @@ public sealed class AssistantWebSearchTests
         Assert.Equal("assistant_web_search_revision_conflict", conflict.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证火山引擎搜索适配器限制查询内容，并解析 SSE 回答及引用。
+    /// </summary>
     [Fact]
     public async Task Volcengine_adapter_posts_bounded_search_query_and_parses_sse_answer_and_references()
     {
@@ -106,6 +116,9 @@ public sealed class AssistantWebSearchTests
         Assert.DoesNotContain("test-only-key", handler.RequestBody);
     }
 
+    /// <summary>
+    /// 验证发布快照冻结配置修订和查询工具结构。
+    /// </summary>
     [Fact]
     public async Task Published_snapshot_freezes_only_config_revision_and_query_tool_schema()
     {
@@ -121,9 +134,9 @@ public sealed class AssistantWebSearchTests
         var documents = DispatchProxy.Create<IAssistantKnowledgeDocumentRepository, UnexpectedCallProxy>();
         var embeddingProfiles = DispatchProxy.Create<IAssistantKnowledgeEmbeddingProfileRepository, UnexpectedCallProxy>();
         var snapshots = new AssistantExecutionSnapshotService(policy, knowledge, documents, embeddingProfiles, webSearch);
-        var draft = AssistantDraft.Create("assistant-1", "tenant-1", "org-1", "客服", null,
+        var draft = AssistantDraft.Create("assistant-1", "客服", null,
             "{\"businessPolicyId\":\"policy-1\",\"capabilities\":{\"webSearch\":true}}",
-            "admin-1", null, DateTime.UtcNow);
+            "admin-1", null);
 
         var json = await snapshots.FreezeAsync(draft, CancellationToken.None);
 
@@ -142,6 +155,9 @@ public sealed class AssistantWebSearchTests
         Assert.DoesNotContain(testCredential, unsupported.Message);
     }
 
+    /// <summary>
+    /// 验证搜索工具使用冻结配置，且返回结果受长度限制。
+    /// </summary>
     [Fact]
     public async Task Web_search_tool_handler_uses_frozen_config_and_returns_only_bounded_search_result()
     {
@@ -154,7 +170,7 @@ public sealed class AssistantWebSearchTests
         var handler = new AssistantVolcengineWebSearchToolHandler(configuration, client);
         using var input = JsonDocument.Parse("{\"query\":\"展会开放时间\"}");
         var scope = new AssistantScopeSnapshot(
-            "assistant-1", "tenant-1", "org-1", "published-1", AssistantExecutionMode.Public,
+            "assistant-1", "published-1", AssistantExecutionMode.Public,
             "volc-agent-chat@1");
 
         var output = await handler.ExecuteAsync(input.RootElement, scope);
@@ -167,6 +183,9 @@ public sealed class AssistantWebSearchTests
         Assert.DoesNotContain(testCredential, output.GetRawText());
     }
 
+    /// <summary>
+    /// 验证火山引擎适配器脱敏供应商错误，并拒绝不完整的响应流。
+    /// </summary>
     [Fact]
     public async Task Volcengine_adapter_sanitizes_provider_errors_and_rejects_incomplete_streams()
     {
@@ -194,6 +213,9 @@ public sealed class AssistantWebSearchTests
         Assert.DoesNotContain(testCredential, incomplete.Message);
     }
 
+    /// <summary>
+    /// 验证 HTTP 200 中的 JSON 鉴权错误会映射为脱敏供应商错误。
+    /// </summary>
     [Fact]
     public async Task Volcengine_adapter_maps_http_200_json_authentication_error_to_sanitized_provider_failure()
     {
@@ -214,16 +236,25 @@ public sealed class AssistantWebSearchTests
         Assert.DoesNotContain("invalid_api_key", failure.Message);
     }
 
+    /// <summary>
+    /// 验证设置相关行为、预期结果及错误边界。
+    /// </summary>
     private static AssistantWebSearchSettings Settings(string key)
         => new(AssistantWebSearchConfigurationService.DefaultEndpoint,
             AssistantWebSearchConfigurationService.DefaultBotId,
             AssistantWebSearchConfigurationService.DefaultServiceName, key, 5);
 
+    /// <summary>
+    /// 验证策略相关行为、预期结果及错误边界。
+    /// </summary>
     private static AssistantResolvedPolicy ResolvedPolicy(bool supportsTools)
         => new("policy-1", 1, "customer_service", "provider-1@1", "test provider", "test-model",
             "Answer in Chinese.", 0.2, 1024, KnowledgeEnabled: false, RetrievalLimit: 5, RequireEvidence: true,
             NoAnswerMessage: "No answer.", ModelSupportsTools: supportsTools);
 
+    /// <summary>
+    /// 验证助手网络检索测试相关行为、预期结果及错误边界。
+    /// </summary>
     private static Task<T> InvokeInternalAsync<T>(object target, string methodName, params object?[] arguments)
     {
         var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
@@ -232,68 +263,120 @@ public sealed class AssistantWebSearchTests
             ?? throw new InvalidOperationException($"Internal method returned null: {methodName}"));
     }
 
+    /// <summary>
+    /// 测试用仓储替身，按预设数据实现所需查询并避免连接外部数据库。
+    /// </summary>
     private sealed class MemoryPolicyRepository : IAssistantPolicyRepository
     {
-        private AssistantPolicyRecord? _current;
-        public AssistantPolicyRecord? Current => _current is null ? null : Clone(_current);
-        public List<AssistantPolicyRevisionRecord> Revisions { get; } = new();
+        /// <summary>
+        /// 保存助手策略记录依赖，供策略仓储执行相关操作。
+        /// </summary>
+        private AssistantPolicyEntity? _current;
+        /// <summary>
+        /// 表示策略仓储的当前信息。
+        /// </summary>
+        public AssistantPolicyEntity? Current => _current is null ? null : Clone(_current);
+        /// <summary>
+        /// 表示策略仓储的修订信息。
+        /// </summary>
+        public List<AssistantPolicyRevisionEntity> Revisions { get; } = new();
 
-        public Task<IReadOnlyList<AssistantPolicyRecord>> ListAsync(string tenantId, string orgId, string kind, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<AssistantPolicyRecord>>(Array.Empty<AssistantPolicyRecord>());
+        /// <summary>
+        /// 验证列出相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<IReadOnlyList<AssistantPolicyEntity>> ListAsync(string kind, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<AssistantPolicyEntity>>(Array.Empty<AssistantPolicyEntity>());
 
-        public Task<AssistantPolicyRecord?> GetAsync(string tenantId, string orgId, string kind, string id, CancellationToken ct)
-            => Task.FromResult(_current is not null && _current.TenantId == tenantId && _current.OrgId == orgId
+        /// <summary>
+        /// 验证获取相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyEntity?> GetAsync(string kind, string id, CancellationToken ct)
+            => Task.FromResult(_current is not null
                 && _current.Kind == kind && _current.Id == id ? Clone(_current) : null);
 
-        public Task<AssistantPolicyRecord?> GetProviderAsync(string id, CancellationToken ct)
-            => Task.FromResult<AssistantPolicyRecord?>(null);
+        /// <summary>
+        /// 验证获取模型供应商相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyEntity?> GetProviderAsync(string id, CancellationToken ct)
+            => Task.FromResult<AssistantPolicyEntity?>(null);
 
-        public Task<AssistantPolicyRevisionRecord?> GetRevisionAsync(
-            string tenantId, string orgId, string kind, string id, long revision, CancellationToken ct)
+        /// <summary>
+        /// 验证获取修订相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyRevisionEntity?> GetRevisionAsync(
+string kind, string id, long revision, CancellationToken ct)
         {
-            var frozen = Revisions.FirstOrDefault(item => item.RecordId == id && item.TenantId == tenantId
-                && item.OrgId == orgId && item.Kind == kind && item.Revision == revision);
+            var frozen = Revisions.FirstOrDefault(item => item.RecordId == id && item.Kind == kind && item.Revision == revision);
             return Task.FromResult(frozen is null || _current?.Enabled != true || !frozen.Enabled
                 ? null
-                : new AssistantPolicyRevisionRecord
+                : new AssistantPolicyRevisionEntity
                 {
-                    Id = frozen.Id, RecordId = frozen.RecordId, TenantId = frozen.TenantId, OrgId = frozen.OrgId,
-                    Kind = frozen.Kind, Revision = frozen.Revision, Enabled = frozen.Enabled,
+                    Id = frozen.Id,
+                    RecordId = frozen.RecordId,
+                    Kind = frozen.Kind,
+                    Revision = frozen.Revision,
+                    Enabled = frozen.Enabled,
                     SettingsJson = frozen.SettingsJson
                 });
         }
 
-        public Task SaveAsync(AssistantPolicyRecord record, long expectedRevision, CancellationToken ct)
+        /// <summary>
+        /// 验证保存相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task SaveAsync(AssistantPolicyEntity record, long expectedRevision, CancellationToken ct)
         {
             if ((_current?.Revision ?? 0) != expectedRevision)
                 throw new BizResultException(BusinessCodes.Conflict, "assistant_policy_revision_conflict");
             _current = Clone(record);
-            Revisions.Add(new AssistantPolicyRevisionRecord
+            Revisions.Add(new AssistantPolicyRevisionEntity
             {
-                Id = Guid.NewGuid().ToString("N"), RecordId = record.Id, TenantId = record.TenantId,
-                OrgId = record.OrgId, Kind = record.Kind, Revision = record.Revision,
-                Enabled = record.Enabled, SettingsJson = record.SettingsJson
+                Id = Guid.NewGuid().ToString("N"),
+                RecordId = record.Id,
+                Kind = record.Kind,
+                Revision = record.Revision,
+                Enabled = record.Enabled,
+                SettingsJson = record.SettingsJson
             });
             return Task.CompletedTask;
         }
 
-        private static AssistantPolicyRecord Clone(AssistantPolicyRecord value)
+        /// <summary>
+        /// 验证策略仓储相关行为、预期结果及错误边界。
+        /// </summary>
+        private static AssistantPolicyEntity Clone(AssistantPolicyEntity value)
             => new()
             {
-                Id = value.Id, TenantId = value.TenantId, OrgId = value.OrgId, Kind = value.Kind,
-                Name = value.Name, BusinessCode = value.BusinessCode, Revision = value.Revision,
-                Enabled = value.Enabled, SettingsJson = value.SettingsJson, CreatedAt = value.CreatedAt,
-                CreatedBy = value.CreatedBy, UpdatedAt = value.UpdatedAt, UpdatedBy = value.UpdatedBy,
-                IsDeleted = value.IsDeleted, DeletedAt = value.DeletedAt, DeletedBy = value.DeletedBy
+                Id = value.Id,
+                Kind = value.Kind,
+                Name = value.Name,
+                BusinessCode = value.BusinessCode,
+                Revision = value.Revision,
+                Enabled = value.Enabled,
+                SettingsJson = value.SettingsJson
             };
     }
 
+    /// <summary>
+    /// 测试用请求处理器，用于验证 HTTP 请求和响应边界。
+    /// </summary>
     private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
+        /// <summary>
+        /// 表示处理器的授权信息。
+        /// </summary>
         public AuthenticationHeaderValue? Authorization { get; private set; }
+        /// <summary>
+        /// 保存搜索服务使用的服务名称。
+        /// </summary>
         public string? ServiceName { get; private set; }
+        /// <summary>
+        /// 表示处理器的请求正文信息。
+        /// </summary>
         public string? RequestBody { get; private set; }
 
+        /// <summary>
+        /// 验证发送相关行为、预期结果及错误边界。
+        /// </summary>
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Authorization = request.Headers.Authorization;
@@ -303,16 +386,34 @@ public sealed class AssistantWebSearchTests
         }
     }
 
+    /// <summary>
+    /// 仅供助手网络检索测试使用的测试辅助类型。
+    /// </summary>
     private sealed class RecordingClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
+        /// <summary>
+        /// 验证创建客户端相关行为、预期结果及错误边界。
+        /// </summary>
         public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
     }
 
+    /// <summary>
+    /// 测试用客户端替身，用于控制下游结果并核对调用参数。
+    /// </summary>
     private sealed class StaticWebSearchClient : IAssistantWebSearchClient
     {
+        /// <summary>
+        /// 表示网络检索客户端的设置信息。
+        /// </summary>
         public AssistantWebSearchSettings? Settings { get; private set; }
+        /// <summary>
+        /// 保存发出的检索查询文本。
+        /// </summary>
         public string? Query { get; private set; }
 
+        /// <summary>
+        /// 验证检索相关行为、预期结果及错误边界。
+        /// </summary>
         public Task<AssistantWebSearchResult> SearchAsync(
             AssistantWebSearchSettings settings, string query, CancellationToken ct = default)
         {
@@ -323,8 +424,14 @@ public sealed class AssistantWebSearchTests
         }
     }
 
+    /// <summary>
+    /// 仅供助手网络检索测试使用的测试辅助类型。
+    /// </summary>
     public class NoopDbContext : DispatchProxy
     {
+        /// <summary>
+        /// 验证数据库上下文相关行为、预期结果及错误边界。
+        /// </summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
             => targetMethod!.Name switch
             {
@@ -333,10 +440,19 @@ public sealed class AssistantWebSearchTests
             };
     }
 
+    /// <summary>
+    /// 仅供助手网络检索测试使用的测试辅助类型。
+    /// </summary>
     public class StaticPolicyService : DispatchProxy
     {
+        /// <summary>
+        /// 表示策略服务的策略信息。
+        /// </summary>
         public AssistantResolvedPolicy Policy { get; set; } = ResolvedPolicy(supportsTools: true);
 
+        /// <summary>
+        /// 验证策略服务相关行为、预期结果及错误边界。
+        /// </summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
             => targetMethod!.Name switch
             {
@@ -345,8 +461,14 @@ public sealed class AssistantWebSearchTests
             };
     }
 
+    /// <summary>
+    /// 在测试中替代服务依赖，用来记录调用或模拟特定响应。
+    /// </summary>
     public class UnexpectedCallProxy : DispatchProxy
     {
+        /// <summary>
+        /// 验证调用相关行为、预期结果及错误边界。
+        /// </summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
             => throw new NotSupportedException($"Unexpected repository call: {targetMethod!.Name}");
     }

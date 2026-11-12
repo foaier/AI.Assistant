@@ -17,9 +17,18 @@ namespace SmartAssistant.Modules.Infrastructure.AssistantTransport;
 /// </summary>
 public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
 {
+    /// <summary>
+    /// 保存助手执行事件事件代理在处理执行时所需的数据或状态。
+    /// </summary>
     private readonly ConcurrentDictionary<string, RunState> _runs = new(StringComparer.Ordinal);
+    /// <summary>
+    /// 保存助手执行事件事件代理在处理回放窗口大小时所需的数据或状态。
+    /// </summary>
     private readonly int _replayWindowSize;
 
+    /// <summary>
+    /// 接收并保存助手执行事件事件代理执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public InMemoryAssistantRunEventBroker(int replayWindowSize = 256)
     {
         if (replayWindowSize < 1)
@@ -89,6 +98,9 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
         }
     }
 
+    /// <summary>
+    /// 创建包含当前回放边界和运行状态的序号缺口事件。
+    /// </summary>
     private static AssistantRunEventEnvelope CreateReplayGapEnvelope(
         RunState state,
         long afterSequence,
@@ -102,20 +114,44 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
             DateTime.UtcNow,
             gap);
 
+    /// <summary>
+    /// 判断事件类型或运行状态是否已经进入不可逆终态。
+    /// </summary>
     private static bool IsTerminal(string type)
         => type is AssistantRunEventTypes.RunCompleted
             or AssistantRunEventTypes.RunFailed
             or AssistantRunEventTypes.RunCancelled
             or AssistantRunEventTypes.RunExpired;
 
+    /// <summary>
+    /// 封装执行状态相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed class RunState
     {
+        /// <summary>
+        /// 提供执行状态访问共享状态时使用的同步锁。
+        /// </summary>
         private readonly object _gate = new();
+        /// <summary>
+        /// 保存执行状态在处理回放窗口大小时所需的数据或状态。
+        /// </summary>
         private readonly int _replayWindowSize;
+        /// <summary>
+        /// 保存助手执行事件回放依赖，供执行状态执行相关操作。
+        /// </summary>
         private AssistantRunEventReplay? _replay;
+        /// <summary>
+        /// 保存执行状态当前等待事件的订阅者，供事件发布时唤醒。
+        /// </summary>
         private readonly List<Channel<AssistantRunEventEnvelope>> _subscribers = new();
+        /// <summary>
+        /// 保存执行状态在处理终态时所需的数据或状态。
+        /// </summary>
         private bool _terminal;
 
+        /// <summary>
+        /// 接收并保存执行状态执行所需的依赖，建立后续操作使用的运行状态。
+        /// </summary>
         public RunState(string runId, string turnId, int replayWindowSize)
         {
             RunId = runId;
@@ -125,9 +161,18 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
                 _replay = new AssistantRunEventReplay(runId, turnId, maxEvents: replayWindowSize);
         }
 
+        /// <summary>
+        /// 关联产生此事件、消息或工具调用的执行运行。
+        /// </summary>
         public string RunId { get; }
+        /// <summary>
+        /// 关联此记录所属的用户请求轮次。
+        /// </summary>
         public string TurnId { get; private set; }
 
+        /// <summary>
+        /// 校验事件顺序后写入有界回放窗口，并唤醒等待中的订阅者。
+        /// </summary>
         public void Publish(AssistantRunEventEnvelope envelope)
         {
             Channel<AssistantRunEventEnvelope>[] subscribers;
@@ -160,6 +205,9 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
             }
         }
 
+        /// <summary>
+        /// 先发送保留窗口中可恢复的事件，再持续等待新事件或终态。
+        /// </summary>
         public Subscription Subscribe(long afterSequence)
         {
             lock (_gate)
@@ -185,6 +233,9 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
             }
         }
 
+        /// <summary>
+        /// 移除订阅并释放等待资源，避免断开的连接继续被通知。
+        /// </summary>
         public void Unsubscribe(Channel<AssistantRunEventEnvelope> channel)
         {
             lock (_gate)
@@ -194,6 +245,9 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
             }
         }
 
+        /// <summary>
+        /// 从已记录的终态事件推断运行的当前持久状态。
+        /// </summary>
         private static AssistantRunStatus InferStatus(string type)
             => type switch
             {
@@ -206,6 +260,9 @@ public sealed class InMemoryAssistantRunEventBroker : IRunEventBroker
             };
     }
 
+    /// <summary>
+    /// 封装订阅相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed record Subscription(
         IReadOnlyList<AssistantRunEventEnvelope> Events,
         AssistantReplayGap? Gap,

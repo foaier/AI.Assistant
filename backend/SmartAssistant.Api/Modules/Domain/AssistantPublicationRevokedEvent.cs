@@ -12,32 +12,41 @@ namespace SmartAssistant.Modules.Domain;
 /// </summary>
 public sealed class AssistantPublicationRevokedEvent : DomainEvent, IDeterministicOutboxIdEvent
 {
+    /// <summary>
+    /// 接收并保存助手发布已撤回事件执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantPublicationRevokedEvent(
         string assistantId,
-        string tenantId,
-        string orgId,
         string publishedVersionId,
         long pointerRevision,
         string actorUserId)
     {
         var identity = string.Concat(
-            tenantId, "\0", orgId, "\0", assistantId, "\0", publishedVersionId, "\0",
+            assistantId, "\0", publishedVersionId, "\0",
             pointerRevision.ToString(CultureInfo.InvariantCulture));
         var fingerprint = Convert.ToHexString(
             SHA256.HashData(Encoding.UTF8.GetBytes(identity)).AsSpan(0, 16)).ToLowerInvariant();
         Id = $"assistant-publication-revoked:{fingerprint}";
         AssistantId = assistantId;
-        TenantId = tenantId;
-        OrgId = orgId;
         PublishedVersionId = publishedVersionId;
         PointerRevision = pointerRevision;
         ActorUserId = actorUserId;
     }
 
+    /// <summary>
+    /// 关联此数据所属的助手。
+    /// </summary>
     public string AssistantId { get; }
-    public string TenantId { get; }
-    public string OrgId { get; }
+    /// <summary>
+    /// 绑定创建此会话或运行时使用的固定发布版本。
+    /// </summary>
     public string PublishedVersionId { get; }
+    /// <summary>
+    /// 记录发布指针修订号，用于检测并发发布或撤回。
+    /// </summary>
     public long PointerRevision { get; }
+    /// <summary>
+    /// 记录当前操作人的用户标识。
+    /// </summary>
     public string ActorUserId { get; }
 }

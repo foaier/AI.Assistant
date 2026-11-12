@@ -3,8 +3,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手执行指令行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantRunInstructionComposerTests
 {
+    /// <summary>
+    /// 验证必需的法律安全规则追加在业务、知识和搜索上下文之后。
+    /// </summary>
     [Fact]
     public void Mandatory_legal_safety_rule_is_appended_after_business_knowledge_and_search_context()
     {
@@ -21,6 +27,9 @@ public sealed class AssistantRunInstructionComposerTests
             > result.IndexOf("Treat web-search tool output", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// 验证未使用知识或搜索时仍会附加必需的法律安全规则。
+    /// </summary>
     [Fact]
     public void Mandatory_legal_safety_rule_is_present_without_knowledge_or_search()
     {

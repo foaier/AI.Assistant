@@ -15,7 +15,7 @@ export function KnowledgeEmbeddingPanel({ knowledgeBaseId }: { knowledgeBaseId: 
   const { t } = useI18n();
   const e = (key: string) => t(`publicAssistant.embedding.${key}`);
   const { hasPermission, isSuperAdmin } = usePermissions();
-  const canEdit = hasPermission('org.settings.write');
+  const canEdit = hasPermission('assistant.settings.write');
   const cache = useQueryClient();
   const profile = useQuery({
     queryKey: ['assistant-knowledge-embedding', knowledgeBaseId],

@@ -31,10 +31,10 @@ public sealed record OpenAiCompatibleProviderCredential(
     TimeSpan? Timeout = null);
 
 /// <summary>
-/// 解析供应商凭据所需的访问上下文，包含配置引用、组织范围、模型和用途。
+/// 解析供应商凭据所需的访问上下文，包含配置引用、模型和用途。
 /// </summary>
 public sealed record AssistantProviderAccess(
-    string ProviderProfileRef, string TenantId, string OrgId, string Model, string Purpose = "chat", int? Dimension = null);
+    string ProviderProfileRef, string Model, string Purpose = "chat", int? Dimension = null);
 
 /// <summary>
 /// 根据冻结的供应商引用解析当前可用的模型访问配置和凭据。
@@ -55,16 +55,34 @@ public interface IAssistantProviderCredentialResolver
 /// </summary>
 public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
 {
+    /// <summary>
+    /// 定义打开兼容聊天模型模型供应商使用的用量补全配置值。
+    /// </summary>
     private static readonly TimeSpan UsageAfterCompletionGracePeriod = TimeSpan.FromMilliseconds(500);
+    /// <summary>
+    /// 保存用于打开兼容聊天模型模型供应商事件编解码的序列化器。
+    /// </summary>
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    /// <summary>
+    /// 保存复用的 HTTP 传输依赖，用于访问配置的模型或搜索服务。
+    /// </summary>
     private readonly HttpClient _httpClient;
+    /// <summary>
+    /// 保存助手模型供应商凭据解析器依赖，供打开兼容聊天模型模型供应商执行相关操作。
+    /// </summary>
     private readonly IAssistantProviderCredentialResolver _credentialResolver;
+    /// <summary>
+    /// 保存打开兼容模型供应商选项依赖，供打开兼容聊天模型模型供应商执行相关操作。
+    /// </summary>
     private readonly OpenAiCompatibleProviderOptions _options;
 
+    /// <summary>
+    /// 接收并保存打开兼容聊天模型模型供应商执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public OpenAiCompatibleChatModelProvider(
         HttpClient httpClient,
         IAssistantProviderCredentialResolver credentialResolver,
@@ -88,7 +106,7 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
     {
         ArgumentNullException.ThrowIfNull(request);
         var credential = await _credentialResolver.ResolveAsync(
-            new AssistantProviderAccess(request.ProviderProfileRef, request.TenantId, request.OrgId, request.Model),
+            new AssistantProviderAccess(request.ProviderProfileRef, request.Model),
             cancellationToken);
         ValidateBaseUrl(credential.BaseUrl);
         if (string.IsNullOrWhiteSpace(credential.ApiKey))
@@ -120,6 +138,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         }
     }
 
+    /// <summary>
+    /// 发送模型请求并把响应流解析为有序的内容、工具调用和用量片段。
+    /// </summary>
     private async Task ProduceAsync(
         AssistantProviderRequest request,
         OpenAiCompatibleProviderCredential credential,
@@ -189,6 +210,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         }
     }
 
+    /// <summary>
+    /// 读取模型供应商的 HTTP 响应流，解析增量内容并处理调用方取消。
+    /// </summary>
     private async Task ReadResponseAsync(
         HttpResponseMessage response,
         string? providerRequestId,
@@ -301,6 +325,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         }
     }
 
+    /// <summary>
+    /// 根据已校验的模型请求和凭据构造供应商协议请求。
+    /// </summary>
     private HttpRequestMessage BuildRequest(
         AssistantProviderRequest request,
         OpenAiCompatibleProviderCredential credential)
@@ -336,6 +363,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         return httpRequest;
     }
 
+    /// <summary>
+    /// 将数据映射为消息，并统一相关格式。
+    /// </summary>
     private static IReadOnlyList<OpenAiMessage> MapMessages(IReadOnlyList<AssistantProviderMessage> messages, string? instructions)
     {
         var result = new List<OpenAiMessage>(messages.Count);
@@ -376,6 +406,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         return result;
     }
 
+    /// <summary>
+    /// 将数据映射为工具，并统一相关格式。
+    /// </summary>
     private static IReadOnlyList<OpenAiTool> MapTools(IReadOnlyList<AssistantToolDefinition> tools)
     {
         var result = new List<OpenAiTool>(tools.Count);
@@ -398,6 +431,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         return result;
     }
 
+    /// <summary>
+    /// 完成当前事件缓冲区的解析，并把有效增量写入输出通道。
+    /// </summary>
     private FlushResult FlushEvent(
         StringBuilder buffer,
         string? providerRequestId,
@@ -430,6 +466,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         }
     }
 
+    /// <summary>
+    /// 将数据映射为响应，并统一相关格式。
+    /// </summary>
     private static FlushResult MapResponse(
         JsonElement root,
         string? providerRequestId,
@@ -522,6 +561,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         return new FlushResult(chunks, completed, false);
     }
 
+    /// <summary>
+    /// 读取并规范化供应商错误响应，避免向调用方泄漏凭据或内部内容。
+    /// </summary>
     private static async Task<AssistantProviderError> ReadHttpErrorAsync(
         HttpResponseMessage response,
         string? providerRequestId,
@@ -556,6 +598,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
             providerRequestId ?? providerCode);
     }
 
+    /// <summary>
+    /// 尝试写入，并响应调用方的取消请求。
+    /// </summary>
     private static async Task TryWriteAsync(
         ChannelWriter<AssistantProviderChunk> writer,
         AssistantProviderChunk chunk)
@@ -572,6 +617,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         }
     }
 
+    /// <summary>
+    /// 创建标准错误片段，供模型流以统一格式报告失败。
+    /// </summary>
     private static AssistantProviderChunk ErrorChunk(
         string code,
         string message,
@@ -582,23 +630,35 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
             Error: new AssistantProviderError(code, message, retryable, null, providerRequestId),
             ProviderRequestId: providerRequestId);
 
+    /// <summary>
+    /// 从供应商响应标头中提取请求标识，供日志和故障追踪使用。
+    /// </summary>
     private static string? GetProviderRequestId(HttpResponseMessage response)
         => response.Headers.TryGetValues("x-request-id", out var values)
             ? values.FirstOrDefault()
             : null;
 
+    /// <summary>
+    /// 读取 JSON 字段中的字符串，并统一处理缺失值和空白内容。
+    /// </summary>
     private static string? ReadString(JsonElement element, string propertyName)
         => element.TryGetProperty(propertyName, out var property)
             && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
 
+    /// <summary>
+    /// 读取 JSON 字段中的整数，并校验其数值格式。
+    /// </summary>
     private static int? ReadInt(JsonElement element, string propertyName)
         => element.TryGetProperty(propertyName, out var property)
             && property.TryGetInt32(out var value)
             ? value
             : null;
 
+    /// <summary>
+    /// 规范化供应商接口地址并补齐所需的 API 路径。
+    /// </summary>
     private static Uri BuildEndpoint(Uri baseUrl)
     {
         var baseText = baseUrl.ToString().TrimEnd('/');
@@ -606,6 +666,9 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
             ? $"{baseText}/chat/completions" : $"{baseText}/v1/chat/completions", UriKind.Absolute);
     }
 
+    /// <summary>
+    /// 校验供应商基础地址为受支持的安全 URI。
+    /// </summary>
     private static void ValidateBaseUrl(Uri baseUrl)
     {
         if (baseUrl is null || !baseUrl.IsAbsoluteUri
@@ -617,65 +680,215 @@ public sealed class OpenAiCompatibleChatModelProvider : IChatModelProvider
         }
     }
 
+    /// <summary>
+    /// 校验必填文本并返回去除首尾空白后的值；内容缺失时报告输入错误。
+    /// </summary>
     private static string Require(string? value, string field)
         => string.IsNullOrWhiteSpace(value)
             ? throw new BizResultException(BusinessCodes.BusinessException, $"{field} required")
             : value.Trim();
 
+    /// <summary>
+    /// 封装打开聊天补全请求所需字段，供模型供应商协议序列化和反序列化使用。
+    /// </summary>
     private sealed class OpenAiChatCompletionRequest
     {
-        [JsonPropertyName("model")] public string Model { get; init; } = string.Empty;
-        [JsonPropertyName("messages")] public IReadOnlyList<OpenAiMessage> Messages { get; init; } = Array.Empty<OpenAiMessage>();
-        [JsonPropertyName("temperature")] public double? Temperature { get; init; }
-        [JsonPropertyName("top_p")] public double? TopP { get; init; }
-        [JsonPropertyName("max_tokens")] public int? MaxTokens { get; init; }
-        [JsonPropertyName("stream")] public bool Stream { get; init; }
-        [JsonPropertyName("stream_options")] public OpenAiStreamOptions? StreamOptions { get; init; }
-        [JsonPropertyName("tools")] public IReadOnlyList<OpenAiTool>? Tools { get; init; }
-        [JsonPropertyName("tool_choice")] public string? ToolChoice { get; init; }
-        [JsonPropertyName("parallel_tool_calls")] public bool? ParallelToolCalls { get; init; }
+        /// <summary>
+        /// 记录当前选择的模型标识。
+        /// </summary>
+        [JsonPropertyName("model")]
+        public string Model { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 保存发送给模型供应商的消息请求字段。
+        /// </summary>
+        [JsonPropertyName("messages")]
+        public IReadOnlyList<OpenAiMessage> Messages { get; init; } = Array.Empty<OpenAiMessage>();
+
+        /// <summary>
+        /// 控制模型生成文本的随机程度，数值越高输出变化越明显。
+        /// </summary>
+        [JsonPropertyName("temperature")]
+        public double? Temperature { get; init; }
+
+        /// <summary>
+        /// 限制模型从累计概率范围内选择候选词的采样阈值。
+        /// </summary>
+        [JsonPropertyName("top_p")]
+        public double? TopP { get; init; }
+
+        /// <summary>
+        /// 限制模型生成内容的令牌数量。
+        /// </summary>
+        [JsonPropertyName("max_tokens")]
+        public int? MaxTokens { get; init; }
+
+        /// <summary>
+        /// 保存发送给模型供应商的流式输出请求字段。
+        /// </summary>
+        [JsonPropertyName("stream")]
+        public bool Stream { get; init; }
+
+        /// <summary>
+        /// 保存发送给模型供应商的流式输出选项请求字段。
+        /// </summary>
+        [JsonPropertyName("stream_options")]
+        public OpenAiStreamOptions? StreamOptions { get; init; }
+
+        /// <summary>
+        /// 保存发送给模型供应商的工具请求字段。
+        /// </summary>
+        [JsonPropertyName("tools")]
+        public IReadOnlyList<OpenAiTool>? Tools { get; init; }
+
+        /// <summary>
+        /// 保存本次模型请求的工具选择策略。
+        /// </summary>
+        [JsonPropertyName("tool_choice")]
+        public string? ToolChoice { get; init; }
+
+        /// <summary>
+        /// 控制模型是否允许并行生成工具调用。
+        /// </summary>
+        [JsonPropertyName("parallel_tool_calls")]
+        public bool? ParallelToolCalls { get; init; }
     }
 
+    /// <summary>
+    /// 封装打开消息所需字段，供模型供应商协议序列化和反序列化使用。
+    /// </summary>
     private sealed class OpenAiMessage
     {
-        [JsonPropertyName("role")] public string Role { get; init; } = string.Empty;
-        [JsonPropertyName("content")] public string Content { get; init; } = string.Empty;
-        [JsonPropertyName("name")] public string? Name { get; init; }
-        [JsonPropertyName("tool_call_id")] public string? ToolCallId { get; init; }
-        [JsonPropertyName("tool_calls")] public IReadOnlyList<OpenAiToolCall>? ToolCalls { get; init; }
+        /// <summary>
+        /// 区分用户、助手和工具消息。
+        /// </summary>
+        [JsonPropertyName("role")]
+        public string Role { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 表示打开消息的内容信息。
+        /// </summary>
+        [JsonPropertyName("content")]
+        public string Content { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 记录此资源的展示名称。
+        /// </summary>
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        /// <summary>
+        /// 关联模型发起的具体工具调用。
+        /// </summary>
+        [JsonPropertyName("tool_call_id")]
+        public string? ToolCallId { get; init; }
+
+        /// <summary>
+        /// 表示打开消息的工具调用信息。
+        /// </summary>
+        [JsonPropertyName("tool_calls")]
+        public IReadOnlyList<OpenAiToolCall>? ToolCalls { get; init; }
     }
 
+    /// <summary>
+    /// 封装打开流式输出选项所需字段，供模型供应商协议序列化和反序列化使用。
+    /// </summary>
     private sealed class OpenAiStreamOptions
     {
-        [JsonPropertyName("include_usage")] public bool IncludeUsage { get; init; }
+        /// <summary>
+        /// 控制模型流响应是否包含令牌用量信息。
+        /// </summary>
+        [JsonPropertyName("include_usage")]
+        public bool IncludeUsage { get; init; }
     }
 
+    /// <summary>
+    /// 封装打开工具所需字段，供模型供应商协议序列化和反序列化使用。
+    /// </summary>
     private sealed class OpenAiTool
     {
-        [JsonPropertyName("type")] public string Type { get; init; } = "function";
-        [JsonPropertyName("function")] public OpenAiFunction Function { get; init; } = new();
+        /// <summary>
+        /// 表示打开工具的类型信息。
+        /// </summary>
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = "function";
+
+        /// <summary>
+        /// 保存供应商协议中的函数定义及其参数约束。
+        /// </summary>
+        [JsonPropertyName("function")]
+        public OpenAiFunction Function { get; init; } = new();
     }
 
+    /// <summary>
+    /// 封装打开函数所需字段，供模型供应商协议序列化和反序列化使用。
+    /// </summary>
     private sealed class OpenAiFunction
     {
-        [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
-        [JsonPropertyName("description")] public string Description { get; init; } = string.Empty;
-        [JsonPropertyName("parameters")] public JsonElement Parameters { get; init; }
+        /// <summary>
+        /// 记录此资源的展示名称。
+        /// </summary>
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 记录此资源的可选说明。
+        /// </summary>
+        [JsonPropertyName("description")]
+        public string Description { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 保存函数可接受参数的 JSON Schema。
+        /// </summary>
+        [JsonPropertyName("parameters")]
+        public JsonElement Parameters { get; init; }
     }
 
+    /// <summary>
+    /// 封装打开工具调用相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed class OpenAiToolCall
     {
-        [JsonPropertyName("id")] public string Id { get; init; } = string.Empty;
-        [JsonPropertyName("type")] public string Type { get; init; } = "function";
-        [JsonPropertyName("function")] public OpenAiToolCallFunction Function { get; init; } = new();
+        /// <summary>
+        /// 记录当前数据的唯一标识。
+        /// </summary>
+        [JsonPropertyName("id")]
+        public string Id { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 表示打开工具调用的类型信息。
+        /// </summary>
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = "function";
+
+        /// <summary>
+        /// 保存供应商协议中的函数定义及其参数约束。
+        /// </summary>
+        [JsonPropertyName("function")]
+        public OpenAiToolCallFunction Function { get; init; } = new();
     }
 
+    /// <summary>
+    /// 封装打开工具调用函数所需字段，供模型供应商协议序列化和反序列化使用。
+    /// </summary>
     private sealed class OpenAiToolCallFunction
     {
-        [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
-        [JsonPropertyName("arguments")] public string Arguments { get; init; } = "{}";
+        /// <summary>
+        /// 记录此资源的展示名称。
+        /// </summary>
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = string.Empty;
+
+        /// <summary>
+        /// 保存模型生成的工具调用参数 JSON。
+        /// </summary>
+        [JsonPropertyName("arguments")]
+        public string Arguments { get; init; } = "{}";
     }
 
+    /// <summary>
+    /// 封装结果相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed record FlushResult(
         IReadOnlyList<AssistantProviderChunk> Chunks,
         bool Completed,

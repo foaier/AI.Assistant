@@ -8,7 +8,7 @@ import { listKnowledgeQna, saveKnowledgeQna, testKnowledgeQna } from '../service
 import { publicAssistantMessages } from '@/i18n/publicAssistantMessages';
 vi.mock('@/context/i18nContext', () => ({ useI18n: () => ({ t: (key: string) => (publicAssistantMessages.zhCN as Record<string, string>)[key] ?? key }) }));
 vi.mock('../services/publicAssistantService', () => ({ listKnowledgeQna: vi.fn(), saveKnowledgeQna: vi.fn(), testKnowledgeQna: vi.fn() }));
-const item = { id: 'q1', knowledgeBaseId: 'kb', question: '如何报名？', answer: '请在首页报名', enabled: true, showAsSuggestion: true, sortOrder: 1, updatedAt: '2026-09-29T00:00:00Z' };
+const item = { id: 'q1', knowledgeBaseId: 'kb', question: '如何报名？', answer: '请在首页报名', enabled: true, showAsSuggestion: true, sortOrder: 1, };
 function setup() {
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}><KnowledgeQnaPanel knowledgeBaseId="kb" /></QueryClientProvider>);
 }

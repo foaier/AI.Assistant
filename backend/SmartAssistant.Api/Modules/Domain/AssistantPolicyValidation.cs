@@ -12,6 +12,9 @@ namespace SmartAssistant.Modules.Domain;
 /// </summary>
 public static class AssistantPolicyValidation
 {
+    /// <summary>
+    /// 校验模型供应商设置及其可用模型约束。
+    /// </summary>
     public static AssistantModelServiceSettings Provider(AssistantModelServiceSettings value)
     {
         if (value is null) Fail("assistant_provider_settings_required");
@@ -38,6 +41,9 @@ public static class AssistantPolicyValidation
         return value with { Name = name, BaseUrl = uri!.ToString().TrimEnd('/'), SecretReference = reference, SecretVersion = version, Models = models };
     }
 
+    /// <summary>
+    /// 校验业务策略设置中的范围、取值和相互依赖关系。
+    /// </summary>
     public static AssistantBusinessPolicySettings Policy(AssistantBusinessPolicySettings value)
     {
         if (value is null) Fail("assistant_policy_settings_required");
@@ -66,8 +72,17 @@ public static class AssistantPolicyValidation
             Tools = value.Tools?.Select(x => x with { ToolId = x.ToolId.Trim(), ContractVersion = x.ContractVersion.Trim() }).ToArray() };
     }
 
+    /// <summary>
+    /// 校验必填文本及其最大长度，并返回去除首尾空白后的值。
+    /// </summary>
     private static string Text(string? value, int max, string code)
         => string.IsNullOrWhiteSpace(value) || value.Trim().Length > max ? throw Error(code) : value.Trim();
+    /// <summary>
+    /// 构造包含稳定错误码的输入校验异常。
+    /// </summary>
     private static BizResultException Error(string code) => new(BusinessCodes.BusinessException, code);
+    /// <summary>
+    /// 抛出带有稳定错误信息的业务校验异常。
+    /// </summary>
     private static void Fail(string code) => throw Error(code);
 }

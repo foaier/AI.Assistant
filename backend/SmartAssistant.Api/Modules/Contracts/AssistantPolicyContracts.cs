@@ -21,7 +21,7 @@ public sealed record AssistantModelServiceSettings(
 /// </summary>
 public sealed record AssistantModelServiceDto(
     string Id, string Name, long Revision, bool Enabled, IReadOnlyList<AssistantModelOption> Models,
-    AssistantModelServiceSettings? Settings, DateTime UpdatedAt);
+    AssistantModelServiceSettings? Settings);
 /// <summary>
 /// 业务策略绑定的工具标识与契约版本。
 /// </summary>
@@ -41,7 +41,7 @@ public sealed record AssistantBusinessPolicySettings(
 /// 业务策略的管理视图，包含当前设置、修订和启用状态。
 /// </summary>
 public sealed record AssistantBusinessPolicyDto(
-    string Id, long Revision, bool Enabled, AssistantBusinessPolicySettings Settings, DateTime UpdatedAt);
+    string Id, long Revision, bool Enabled, AssistantBusinessPolicySettings Settings);
 /// <summary>
 /// 保存模型供应商设置并校验预期修订号的命令。
 /// </summary>
@@ -74,7 +74,16 @@ public sealed record AssistantWebSearchSettings(string Endpoint, string BotId, s
 /// <summary>
 /// 供系统管理端查看的联网搜索配置及修订状态。
 /// </summary>
-public sealed record AssistantWebSearchConfigDto(string Id, long Revision, bool Enabled, string Endpoint, string BotId, string ServiceName, bool CredentialConfigured, string CredentialMasked, int TimeoutSeconds, DateTime UpdatedAt);
+public sealed record AssistantWebSearchConfigDto(
+    string Id,
+    long Revision,
+    bool Enabled,
+    string Endpoint,
+    string BotId,
+    string ServiceName,
+    bool CredentialConfigured,
+    string CredentialMasked,
+    int TimeoutSeconds);
 /// <summary>
 /// 供业务端判断是否可以启用联网搜索的可用性信息。
 /// </summary>
@@ -114,25 +123,25 @@ public interface IAssistantPolicyService
     /// </summary>
     Task<AssistantModelServiceDto> SetProviderStatusAsync(string actor, string id, AssistantPolicyStatusCommand command, CancellationToken ct = default);
     /// <summary>
-    /// 读取当前租户和组织的业务模型策略。
+    /// 读取业务模型策略。
     /// </summary>
-    Task<IReadOnlyList<AssistantBusinessPolicyDto>> ListPoliciesAsync(string tenantId, string orgId, CancellationToken ct = default);
+    Task<IReadOnlyList<AssistantBusinessPolicyDto>> ListPoliciesAsync(CancellationToken ct = default);
     /// <summary>
     /// 校验模型及工具绑定后按预期修订保存业务策略。
     /// </summary>
-    Task<AssistantBusinessPolicyDto> SavePolicyAsync(string actor, string tenantId, string orgId, string? id, SaveAssistantBusinessPolicyCommand command, CancellationToken ct = default);
+    Task<AssistantBusinessPolicyDto> SavePolicyAsync(string actor, string? id, SaveAssistantBusinessPolicyCommand command, CancellationToken ct = default);
     /// <summary>
-    /// 在所属组织范围内按预期修订修改策略启用状态。
+    /// 按预期修订修改策略启用状态。
     /// </summary>
-    Task<AssistantBusinessPolicyDto> SetPolicyStatusAsync(string actor, string tenantId, string orgId, string id, AssistantPolicyStatusCommand command, CancellationToken ct = default);
+    Task<AssistantBusinessPolicyDto> SetPolicyStatusAsync(string actor, string id, AssistantPolicyStatusCommand command, CancellationToken ct = default);
     /// <summary>
     /// 解析有效业务策略及其绑定的供应商修订，生成可冻结的执行配置。
     /// </summary>
-    Task<AssistantResolvedPolicy> ResolveAsync(string tenantId, string orgId, string policyId, CancellationToken ct = default);
+    Task<AssistantResolvedPolicy> ResolveAsync(string policyId, CancellationToken ct = default);
     /// <summary>
     /// 在运行前复核冻结策略的当前可用性，使紧急停用对已有快照生效。
     /// </summary>
-    Task EnsureAvailableAsync(string tenantId, string orgId, AssistantResolvedPolicy snapshot, CancellationToken ct = default);
+    Task EnsureAvailableAsync(AssistantResolvedPolicy snapshot, CancellationToken ct = default);
     /// <summary>
     /// 检查指定供应商的连接配置并返回成功或失败诊断。
     /// </summary>

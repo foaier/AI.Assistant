@@ -6,6 +6,7 @@ using SmartAssistant.Extensions.DAL;
 using SmartAssistant.Modules.Domain;
 using SmartAssistant.Modules.Contracts;
 using SqlSugar;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Modules.Infrastructure;
 
@@ -14,27 +15,44 @@ namespace SmartAssistant.Modules.Infrastructure;
 /// </summary>
 public interface IAssistantPublicationRepository
 {
+    /// <summary>
+    /// 获取指针，并响应调用方的取消请求。
+    /// </summary>
     Task<AssistantPublicationPointer?> GetPointerAsync(
-        string tenantId,
-        string orgId,
         string assistantId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// 获取版本，并响应调用方的取消请求。
+    /// </summary>
     Task<AssistantPublishedVersion?> GetVersionAsync(
-        string tenantId,
-        string orgId,
         string versionId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// 获取当前助手密钥，并响应调用方的取消请求。
+    /// </summary>
     Task<(AssistantPublicationPointer Pointer, AssistantPublishedVersion Version)?>
         GetCurrentByAssistantKeyAsync(string assistantKey, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// 添加版本，并响应调用方的取消请求。
+    /// </summary>
     Task AddVersionAsync(AssistantPublishedVersion version, CancellationToken cancellationToken);
+    /// <summary>
+    /// 添加指针，并响应调用方的取消请求。
+    /// </summary>
     Task AddPointerAsync(AssistantPublicationPointer pointer, CancellationToken cancellationToken);
+    /// <summary>
+    /// 保存指针，并响应调用方的取消请求。
+    /// </summary>
     Task SavePointerAsync(
         AssistantPublicationPointer pointer,
         long expectedRevision,
         CancellationToken cancellationToken);
+    /// <summary>
+    /// 保存版本，并响应调用方的取消请求。
+    /// </summary>
     Task SaveVersionAsync(AssistantPublishedVersion version, CancellationToken cancellationToken);
 }
 
@@ -43,65 +61,66 @@ public interface IAssistantPublicationRepository
 /// </summary>
 public sealed class AssistantPublicationRepository : IAssistantPublicationRepository
 {
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手发布仓储执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
 
+    /// <summary>
+    /// 接收并保存助手发布仓储执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantPublicationRepository(IDbContext dbContext) => _dbContext = dbContext;
 
+    /// <summary>
+    /// 获取指针，并响应调用方的取消请求。
+    /// </summary>
     public async Task<AssistantPublicationPointer?> GetPointerAsync(
-        string tenantId,
-        string orgId,
         string assistantId,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var row = await _dbContext.GetSugarScope(ConnectionType.Master)
-            .Queryable<AssistantPublicationPointerRow>()
-            .Where(value => value.TenantId == tenantId
-                && value.OrgId == orgId
-                && value.AssistantId == assistantId
-                && !value.IsDeleted)
+        var row = await _dbContext.GetSugarScope()
+            .Queryable<AssistantPublicationPointerEntity>()
+            .Where(value => value.AssistantId == assistantId)
             .FirstAsync();
         return row is null ? null : ToDomain(row);
     }
 
+    /// <summary>
+    /// 获取版本，并响应调用方的取消请求。
+    /// </summary>
     public async Task<AssistantPublishedVersion?> GetVersionAsync(
-        string tenantId,
-        string orgId,
         string versionId,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var row = await _dbContext.GetSugarScope(ConnectionType.Master)
-            .Queryable<AssistantPublishedVersionRow>()
-            .Where(value => value.TenantId == tenantId
-                && value.OrgId == orgId
-                && value.Id == versionId
-                && !value.IsDeleted)
+        var row = await _dbContext.GetSugarScope()
+            .Queryable<AssistantPublishedVersionEntity>()
+            .Where(value => value.Id == versionId)
             .FirstAsync();
         return row is null ? null : ToDomain(row);
     }
 
+    /// <summary>
+    /// 获取当前助手密钥，并响应调用方的取消请求。
+    /// </summary>
     public async Task<(AssistantPublicationPointer Pointer, AssistantPublishedVersion Version)?>
         GetCurrentByAssistantKeyAsync(string assistantKey, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var scope = _dbContext.GetSugarScope(ConnectionType.Master);
-        var pointerRow = await scope.Queryable<AssistantPublicationPointerRow>()
+        var scope = _dbContext.GetSugarScope();
+        var pointerRow = await scope.Queryable<AssistantPublicationPointerEntity>()
             .Where(value => value.AssistantKey == assistantKey
-                && !value.IsDeleted
                 && value.Status == (int)AssistantPublicationPointerStatus.Active
                 && value.CurrentPublishedVersionId != null)
             .FirstAsync();
         if (pointerRow is null || string.IsNullOrWhiteSpace(pointerRow.CurrentPublishedVersionId))
             return null;
 
-        var versionRow = await scope.Queryable<AssistantPublishedVersionRow>()
+        var versionRow = await scope.Queryable<AssistantPublishedVersionEntity>()
             .Where(value => value.Id == pointerRow.CurrentPublishedVersionId
                 && value.AssistantId == pointerRow.AssistantId
                 && value.AssistantKey == pointerRow.AssistantKey
-                && value.TenantId == pointerRow.TenantId
-                && value.OrgId == pointerRow.OrgId
-                && !value.IsDeleted
                 && !value.IsRevoked)
             .FirstAsync();
         if (versionRow is null)
@@ -110,6 +129,9 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         return (ToDomain(pointerRow), ToDomain(versionRow));
     }
 
+    /// <summary>
+    /// 添加版本，并响应调用方的取消请求。
+    /// </summary>
     public Task AddVersionAsync(AssistantPublishedVersion version, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -117,6 +139,9 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 添加指针，并响应调用方的取消请求。
+    /// </summary>
     public Task AddPointerAsync(AssistantPublicationPointer pointer, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -124,6 +149,9 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 保存指针，并响应调用方的取消请求。
+    /// </summary>
     public Task SavePointerAsync(
         AssistantPublicationPointer pointer,
         long expectedRevision,
@@ -134,9 +162,6 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         {
             var affected = await client.Updateable(ToRow(pointer))
                 .Where(row => row.Id == pointer.Id
-                    && row.TenantId == pointer.TenantId
-                    && row.OrgId == pointer.OrgId
-                    && !row.IsDeleted
                     && row.PointerRevision == expectedRevision)
                 .ExecuteCommandAsync();
             if (affected != 1)
@@ -146,6 +171,9 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 保存版本，并响应调用方的取消请求。
+    /// </summary>
     public Task SaveVersionAsync(AssistantPublishedVersion version, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -153,9 +181,6 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         {
             var affected = await client.Updateable(ToRow(version))
                 .Where(row => row.Id == version.Id
-                    && row.TenantId == version.TenantId
-                    && row.OrgId == version.OrgId
-                    && !row.IsDeleted
                     && !row.IsRevoked)
                 .ExecuteCommandAsync();
             if (affected != 1)
@@ -165,33 +190,28 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         return Task.CompletedTask;
     }
 
-    private static AssistantPublicationPointerRow ToRow(AssistantPublicationPointer value) => new()
+    /// <summary>
+    /// 将数据转换为助手发布。
+    /// </summary>
+    private static AssistantPublicationPointerEntity ToRow(AssistantPublicationPointer value) => new()
     {
         Id = value.Id,
         AssistantKey = value.AssistantKey,
         AssistantId = value.AssistantId,
-        TenantId = value.TenantId,
-        OrgId = value.OrgId,
         CurrentPublishedVersionId = value.CurrentPublishedVersionId,
         CurrentVersionNo = value.CurrentVersionNo,
         PointerRevision = value.PointerRevision,
-        Status = (int)value.Status,
-        IsDeleted = value.IsDeleted,
-        DeletedAt = value.DeletedAt,
-        DeletedBy = value.DeletedBy,
-        CreatedAt = value.CreatedAt,
-        CreatedBy = value.CreatedBy,
-        UpdatedAt = value.UpdatedAt,
-        UpdatedBy = value.UpdatedBy
+        Status = (int)value.Status
     };
 
-    private static AssistantPublishedVersionRow ToRow(AssistantPublishedVersion value) => new()
+    /// <summary>
+    /// 将数据转换为助手发布。
+    /// </summary>
+    private static AssistantPublishedVersionEntity ToRow(AssistantPublishedVersion value) => new()
     {
         Id = value.Id,
         AssistantKey = value.AssistantKey,
         AssistantId = value.AssistantId,
-        TenantId = value.TenantId,
-        OrgId = value.OrgId,
         VersionNo = value.VersionNo,
         Name = value.Name,
         Description = value.Description,
@@ -200,39 +220,31 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
         IsRevoked = value.IsRevoked,
         RevokedAt = value.RevokedAt,
         RevokedBy = value.RevokedBy,
-        IsDeleted = value.IsDeleted,
-        DeletedAt = value.DeletedAt,
-        DeletedBy = value.DeletedBy,
         PublishedAt = value.PublishedAt,
         PublishedBy = value.PublishedBy
     };
 
-    private static AssistantPublicationPointer ToDomain(AssistantPublicationPointerRow row)
+    /// <summary>
+    /// 将数据转换为助手发布。
+    /// </summary>
+    private static AssistantPublicationPointer ToDomain(AssistantPublicationPointerEntity row)
         => AssistantPublicationPointer.Rehydrate(
             row.Id,
             row.AssistantKey,
             row.AssistantId,
-            row.TenantId,
-            row.OrgId,
             row.CurrentPublishedVersionId,
             row.CurrentVersionNo,
             row.PointerRevision,
-            (AssistantPublicationPointerStatus)row.Status,
-            row.IsDeleted,
-            row.DeletedAt,
-            row.DeletedBy,
-            row.CreatedAt,
-            row.CreatedBy,
-            row.UpdatedAt,
-            row.UpdatedBy);
+            (AssistantPublicationPointerStatus)row.Status);
 
-    private static AssistantPublishedVersion ToDomain(AssistantPublishedVersionRow row)
+    /// <summary>
+    /// 将数据转换为助手发布。
+    /// </summary>
+    private static AssistantPublishedVersion ToDomain(AssistantPublishedVersionEntity row)
         => AssistantPublishedVersion.Rehydrate(
             row.Id,
             row.AssistantKey,
             row.AssistantId,
-            row.TenantId,
-            row.OrgId,
             row.VersionNo,
             row.Name,
             row.Description,
@@ -241,67 +253,17 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
             row.IsRevoked,
             row.RevokedAt,
             row.RevokedBy,
-            row.IsDeleted,
-            row.DeletedAt,
-            row.DeletedBy,
             row.PublishedAt,
             row.PublishedBy);
-
-    /// <summary>
-    /// 当前公开发布指针的数据库行映射。
-    /// </summary>
-    [SugarTable("assistant_publication_pointer")]
-    private sealed class AssistantPublicationPointerRow
-    {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "assistant_key")] public string AssistantKey { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "assistant_id")] public string AssistantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "current_published_version_id", IsNullable = true)] public string? CurrentPublishedVersionId { get; set; }
-        [SugarColumn(ColumnName = "current_version_no")] public long CurrentVersionNo { get; set; }
-        [SugarColumn(ColumnName = "pointer_revision")] public long PointerRevision { get; set; }
-        [SugarColumn(ColumnName = "status")] public int Status { get; set; }
-        [SugarColumn(ColumnName = "is_deleted")] public bool IsDeleted { get; set; }
-        [SugarColumn(ColumnName = "deleted_at", IsNullable = true)] public DateTime? DeletedAt { get; set; }
-        [SugarColumn(ColumnName = "deleted_by", IsNullable = true)] public string? DeletedBy { get; set; }
-        [SugarColumn(ColumnName = "created_at")] public DateTime CreatedAt { get; set; }
-        [SugarColumn(ColumnName = "created_by")] public string CreatedBy { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "updated_at")] public DateTime UpdatedAt { get; set; }
-        [SugarColumn(ColumnName = "updated_by")] public string UpdatedBy { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// 冻结的助手发布版本数据库行映射。
-    /// </summary>
-    [SugarTable("assistant_published_version")]
-    private sealed class AssistantPublishedVersionRow
-    {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "assistant_key")] public string AssistantKey { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "assistant_id")] public string AssistantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "version_no")] public long VersionNo { get; set; }
-        [SugarColumn(ColumnName = "name")] public string Name { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "description", IsNullable = true)] public string? Description { get; set; }
-        [SugarColumn(ColumnName = "snapshot_json", ColumnDataType = "json")] public string SnapshotJson { get; set; } = "{}";
-        [SugarColumn(ColumnName = "snapshot_hash")] public string SnapshotHash { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "is_revoked")] public bool IsRevoked { get; set; }
-        [SugarColumn(ColumnName = "revoked_at", IsNullable = true)] public DateTime? RevokedAt { get; set; }
-        [SugarColumn(ColumnName = "revoked_by", IsNullable = true)] public string? RevokedBy { get; set; }
-        [SugarColumn(ColumnName = "is_deleted")] public bool IsDeleted { get; set; }
-        [SugarColumn(ColumnName = "deleted_at", IsNullable = true)] public DateTime? DeletedAt { get; set; }
-        [SugarColumn(ColumnName = "deleted_by", IsNullable = true)] public string? DeletedBy { get; set; }
-        [SugarColumn(ColumnName = "published_at")] public DateTime PublishedAt { get; set; }
-        [SugarColumn(ColumnName = "published_by")] public string PublishedBy { get; set; } = string.Empty;
-    }
 
     /// <summary>
     /// 表示发布指针在提交前已被其他操作修改。
     /// </summary>
     public sealed class PointerRevisionConflictException : Exception
     {
+        /// <summary>
+        /// 接收并保存指针修订冲突执行所需的依赖，建立后续操作使用的运行状态。
+        /// </summary>
         public PointerRevisionConflictException() : base("assistant_publication_pointer_revision_conflict") { }
     }
 
@@ -310,6 +272,9 @@ public sealed class AssistantPublicationRepository : IAssistantPublicationReposi
     /// </summary>
     public sealed class VersionRevokeConflictException : Exception
     {
+        /// <summary>
+        /// 接收并保存版本撤回冲突执行所需的依赖，建立后续操作使用的运行状态。
+        /// </summary>
         public VersionRevokeConflictException() : base("assistant_publication_version_revoke_conflict") { }
     }
 }

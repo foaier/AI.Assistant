@@ -161,8 +161,6 @@ const baseAssistant: Assistant = {
   name: "默认客服",
   description: "默认描述",
   draftRevision: 7,
-  updatedAt: "2026-09-24T00:00:00.000Z",
-  updatedBy: "admin-1",
   configuration: {
     welcomeMessage: "欢迎咨询默认客服",
     suggestedQuestions: ["报名方式", "活动时间"],
@@ -211,7 +209,6 @@ function conversationPage(page: number, totalCount = 81) {
         locale: "zh-cn",
         status: 1,
         lastTurnNo: 1,
-        createdAt: "2026-11-10T00:00:00Z",
         lastActivityAt: "2026-11-10T00:00:00Z",
       }),
     ),
@@ -259,7 +256,6 @@ describe("PublicAssistantWorkbenchPage", () => {
         id: "policy-1",
         revision: 2,
         enabled: true,
-        updatedAt: "",
         settings: {
           name: "客服策略",
           businessCode: "customer_service",
@@ -603,7 +599,6 @@ describe("PublicAssistantWorkbenchPage", () => {
         enabled: true,
         showAsSuggestion: true,
         sortOrder: 1,
-        updatedAt: "",
       },
       {
         id: "q2",
@@ -613,7 +608,6 @@ describe("PublicAssistantWorkbenchPage", () => {
         enabled: true,
         showAsSuggestion: false,
         sortOrder: 2,
-        updatedAt: "",
       },
       {
         id: "q3",
@@ -623,7 +617,6 @@ describe("PublicAssistantWorkbenchPage", () => {
         enabled: false,
         showAsSuggestion: true,
         sortOrder: 3,
-        updatedAt: "",
       },
     ]);
     renderPage();
@@ -805,7 +798,6 @@ describe("PublicAssistantWorkbenchPage", () => {
           locale: "zh-cn",
           status: 1,
           lastTurnNo: 1,
-          createdAt: "2026-11-05T00:00:00Z",
           lastActivityAt: "2026-11-05T00:00:00Z",
         },
       ],
@@ -820,7 +812,6 @@ describe("PublicAssistantWorkbenchPage", () => {
           role: 1,
           status: 3,
           contentJson: JSON.stringify({ text: "咨询问题" }),
-          createdAt: "2026-11-05T00:00:00Z",
         },
         {
           id: "message-2",
@@ -829,7 +820,6 @@ describe("PublicAssistantWorkbenchPage", () => {
           contentJson: JSON.stringify({
             text: "## 参观安排\n\n**开放时间**：09:17。\n\n- 从北门进入。",
           }),
-          createdAt: "2026-11-05T00:01:00Z",
         },
       ],
       hasMore: false,

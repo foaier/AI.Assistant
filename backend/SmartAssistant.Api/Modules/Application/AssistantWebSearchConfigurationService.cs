@@ -11,6 +11,7 @@ using SmartAssistant.Modules.Domain;
 using SmartAssistant.Modules.Infrastructure;
 using SmartAssistant.Modules.Contracts;
 using SmartAssistant.Platform;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Modules.Application;
 
@@ -19,17 +20,46 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public sealed class AssistantWebSearchConfigurationService
 {
+    /// <summary>
+    /// 定义助手网络检索配置服务使用的配置标识配置值。
+    /// </summary>
     public const string ConfigId = "volc-agent-chat";
+    /// <summary>
+    /// 定义助手网络检索配置服务使用的配置种类配置值。
+    /// </summary>
     public const string ConfigKind = "websearch";
+    /// <summary>
+    /// 定义助手网络检索配置服务使用的默认值服务地址配置值。
+    /// </summary>
     public const string DefaultEndpoint = "https://open.feedcoopapi.com/agent_api/agent/chat/completion";
+    /// <summary>
+    /// 定义助手网络检索配置服务使用的默认值服务名称配置值。
+    /// </summary>
     public const string DefaultServiceName = "ask_echo";
+    /// <summary>
+    /// 定义助手网络检索配置服务使用的默认值机器人标识配置值。
+    /// </summary>
     public const string DefaultBotId = "7602814290642355738";
+    /// <summary>
+    /// 定义助手网络检索配置服务使用的凭据配置值。
+    /// </summary>
     private const string MaskedCredential = "••••••••••••";
-    private static readonly string PlatformScope = AssistantPolicyService.PlatformScope;
+    /// <summary>
+    /// 保存用于助手网络检索配置服务事件编解码的序列化器。
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = AssistantPolicyService.JsonOptions;
+    /// <summary>
+    /// 保存助手策略仓储依赖，供助手网络检索配置服务执行相关操作。
+    /// </summary>
     private readonly IAssistantPolicyRepository _repository;
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手网络检索配置服务执行相关操作。
+    /// </summary>
     private readonly IDbContext _db;
 
+    /// <summary>
+    /// 接收并保存助手网络检索配置服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantWebSearchConfigurationService(IAssistantPolicyRepository repository, IDbContext db)
         => (_repository, _db) = (repository, db);
 
@@ -74,23 +104,16 @@ public sealed class AssistantWebSearchConfigurationService
         if (string.IsNullOrWhiteSpace(apiKey)) throw Invalid("assistant_web_search_credential_required");
 
         var settings = Validate(submitted with { ApiKey = apiKey });
-        var now = DateTime.UtcNow;
-        record ??= new AssistantPolicyRecord
+        record ??= new AssistantPolicyEntity
         {
             Id = ConfigId,
-            TenantId = PlatformScope,
-            OrgId = PlatformScope,
             Kind = ConfigKind,
-            Name = "Volcengine Web Search Agent",
-            CreatedAt = now,
-            CreatedBy = actor
+            Name = "Volcengine Web Search Agent"
         };
         record.Name = "Volcengine Web Search Agent";
         record.Revision = command.ExpectedRevision + 1;
         record.Enabled = record.Revision == 1 || record.Enabled;
         record.SettingsJson = JsonSerializer.Serialize(settings, JsonOptions);
-        record.UpdatedAt = now;
-        record.UpdatedBy = actor;
         await _repository.SaveAsync(record, command.ExpectedRevision, ct);
         await _db.CommitAsync(ct);
         return Map(record, settings);
@@ -112,13 +135,14 @@ public sealed class AssistantWebSearchConfigurationService
 
         record.Revision++;
         record.Enabled = command.Enabled;
-        record.UpdatedAt = DateTime.UtcNow;
-        record.UpdatedBy = actor;
         await _repository.SaveAsync(record, command.ExpectedRevision, ct);
         await _db.CommitAsync(ct);
         return Map(record, settings);
     }
 
+    /// <summary>
+    /// 解析本次运行应使用的搜索配置；未配置或不可用时返回受控结果。
+    /// </summary>
     internal async Task<(AssistantWebSearchSettings Settings, long Revision)> ResolveForRunAsync(
         string? configRef, CancellationToken ct = default)
     {
@@ -128,12 +152,15 @@ public sealed class AssistantWebSearchConfigurationService
             throw Unavailable();
         var current = await GetRecordAsync(ct);
         if (current is null || !current.Enabled) throw Unavailable();
-        var frozen = await _repository.GetRevisionAsync(PlatformScope, PlatformScope, ConfigKind, ConfigId, revision, ct);
+        var frozen = await _repository.GetRevisionAsync(ConfigKind, ConfigId, revision, ct);
         if (frozen is null || !frozen.Enabled) throw Unavailable();
         var settings = Validate(AssistantPolicyService.Read<AssistantWebSearchSettings>(frozen.SettingsJson));
         return (settings, revision);
     }
 
+    /// <summary>
+    /// 读取当前启用搜索配置的版本引用，供运行快照冻结使用。
+    /// </summary>
     internal async Task<string> GetCurrentExecutionRefAsync(CancellationToken ct = default)
     {
         var value = await GetForAdminAsync(ct);
@@ -142,9 +169,15 @@ public sealed class AssistantWebSearchConfigurationService
         return $"{ConfigId}@{value.Revision.ToString(CultureInfo.InvariantCulture)}";
     }
 
-    private Task<AssistantPolicyRecord?> GetRecordAsync(CancellationToken ct)
-        => _repository.GetAsync(PlatformScope, PlatformScope, ConfigKind, ConfigId, ct);
+    /// <summary>
+    /// 读取当前平台搜索服务的配置记录。
+    /// </summary>
+    private Task<AssistantPolicyEntity?> GetRecordAsync(CancellationToken ct)
+        => _repository.GetAsync(ConfigKind, ConfigId, ct);
 
+    /// <summary>
+    /// 检查设置中的必填字段、格式和取值范围，不符合约束时拒绝保存或执行。
+    /// </summary>
     private static AssistantWebSearchSettings Validate(AssistantWebSearchSettings value)
     {
         if (!Uri.TryCreate(value.Endpoint?.Trim(), UriKind.Absolute, out var uri)
@@ -175,20 +208,32 @@ public sealed class AssistantWebSearchConfigurationService
         };
     }
 
-    private static AssistantWebSearchConfigDto Map(AssistantPolicyRecord record, AssistantWebSearchSettings settings)
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
+    private static AssistantWebSearchConfigDto Map(AssistantPolicyEntity record, AssistantWebSearchSettings settings)
     {
         var configured = !string.IsNullOrWhiteSpace(settings.ApiKey);
         return new(record.Id, record.Revision, record.Enabled, settings.Endpoint, settings.BotId,
             settings.ServiceName, configured, configured ? MaskedCredential : string.Empty,
-            settings.TimeoutSeconds, record.UpdatedAt);
+            settings.TimeoutSeconds);
     }
 
+    /// <summary>
+    /// 生成不含可用配置的助手网络检索配置空数据传输对象。
+    /// </summary>
     private static AssistantWebSearchConfigDto EmptyDto()
-        => new(ConfigId, 0, false, DefaultEndpoint, DefaultBotId, DefaultServiceName, false, string.Empty, 60, DateTime.UnixEpoch);
+        => new(ConfigId, 0, false, DefaultEndpoint, DefaultBotId, DefaultServiceName, false, string.Empty, 60);
 
+    /// <summary>
+    /// 构造包含稳定业务错误码和消息的参数校验异常。
+    /// </summary>
     private static BizResultException Invalid(string code)
         => new(BusinessCodes.BusinessException, code);
 
+    /// <summary>
+    /// 构造助手网络检索配置当前不可用时返回的稳定状态或错误结果。
+    /// </summary>
     private static BizResultException Unavailable()
         => new(BusinessCodes.Forbidden, "assistant_web_search_config_unavailable");
 }

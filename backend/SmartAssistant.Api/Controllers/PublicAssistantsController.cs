@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace SmartAssistant.Modules.Controllers;
+namespace SmartAssistant.Controllers;
 
 /// <summary>
 /// 提供匿名公开聊天接口，以及受票据保护的 SSE 和 WebSocket 订阅入口。
@@ -23,12 +23,30 @@ namespace SmartAssistant.Modules.Controllers;
 [Route("api/public/assistants/{assistantKey}")]
 public sealed class PublicAssistantsController : ControllerBase
 {
+    /// <summary>
+    /// 保存助手公开运行时服务依赖，供公开助手控制器执行相关操作。
+    /// </summary>
     private readonly IAssistantPublicRuntimeService _runtime;
+    /// <summary>
+    /// 保存执行事件事件代理依赖，供公开助手控制器执行相关操作。
+    /// </summary>
     private readonly IRunEventBroker _broker;
+    /// <summary>
+    /// 保存流式输出票据服务依赖，供公开助手控制器执行相关操作。
+    /// </summary>
     private readonly IStreamTicketService _tickets;
+    /// <summary>
+    /// 保存助手SSE流式输出适配器依赖，供公开助手控制器执行相关操作。
+    /// </summary>
     private readonly AssistantSseStreamAdapter _sse;
+    /// <summary>
+    /// 保存助手网络套接字流式输出适配器依赖，供公开助手控制器执行相关操作。
+    /// </summary>
     private readonly AssistantWebSocketStreamAdapter _webSocket;
 
+    /// <summary>
+    /// 接收并保存公开助手控制器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public PublicAssistantsController(
         IAssistantPublicRuntimeService runtime,
         IRunEventBroker broker,
@@ -215,12 +233,18 @@ public sealed class PublicAssistantsController : ControllerBase
             cancellationToken);
     }
 
+    /// <summary>
+    /// 读取并校验当前请求绑定的会话标识；标识缺失时拒绝继续处理。
+    /// </summary>
     private string RequireSessionId()
         => Request.Headers.TryGetValue("X-Assistant-Session-Id", out var value)
            && !string.IsNullOrWhiteSpace(value)
             ? value.ToString().Trim()
             : throw new BizResultException(BusinessCodes.Forbidden, "assistant_session_required");
 
+    /// <summary>
+    /// 读取并校验请求中的 Bearer 访问令牌；令牌缺失或格式错误时拒绝继续处理。
+    /// </summary>
     private string RequireBearerToken()
     {
         var header = Request.Headers.Authorization.ToString();
@@ -231,6 +255,9 @@ public sealed class PublicAssistantsController : ControllerBase
             : throw new BizResultException(BusinessCodes.Forbidden, "assistant_bearer_required");
     }
 
+    /// <summary>
+    /// 读取并规范化必填检索文本；查询为空时返回输入校验错误。
+    /// </summary>
     private string RequireQuery(string name)
         => Request.Query.TryGetValue(name, out var value)
            && !string.IsNullOrWhiteSpace(value)
@@ -243,7 +270,13 @@ public sealed class PublicAssistantsController : ControllerBase
 /// </summary>
 public sealed class CreatePublicSessionRequest
 {
+    /// <summary>
+    /// 保存会话主体标识的摘要。
+    /// </summary>
     public string? SubjectHash { get; set; }
+    /// <summary>
+    /// 记录会话或请求使用的语言区域。
+    /// </summary>
     public string? Locale { get; set; }
 }
 
@@ -252,6 +285,9 @@ public sealed class CreatePublicSessionRequest
 /// </summary>
 public sealed class CreatePublicConversationRequest
 {
+    /// <summary>
+    /// 记录会话或请求使用的语言区域。
+    /// </summary>
     public string? Locale { get; set; }
 }
 
@@ -260,8 +296,20 @@ public sealed class CreatePublicConversationRequest
 /// </summary>
 public sealed class SubmitPublicTurnRequest
 {
+    /// <summary>
+    /// 保留客户端幂等标识，用于识别同一消息的重试。
+    /// </summary>
     public string ClientMessageId { get; set; } = string.Empty;
+    /// <summary>
+    /// 保存请求中的消息类型字段。
+    /// </summary>
     public string? MessageType { get; set; }
+    /// <summary>
+    /// 保存请求中的文本字段。
+    /// </summary>
     public string Text { get; set; } = string.Empty;
+    /// <summary>
+    /// 记录会话或请求使用的语言区域。
+    /// </summary>
     public string? Locale { get; set; }
 }

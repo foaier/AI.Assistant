@@ -19,13 +19,22 @@ namespace SmartAssistant.Modules.Infrastructure.AssistantTransport;
 /// </summary>
 public sealed class SignedAssistantStreamTicketService : IStreamTicketService
 {
+    /// <summary>
+    /// 保存用于助手流式输出票据服务事件编解码的序列化器。
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    /// <summary>
+    /// 保存助手流式输出票据服务在处理签名密钥时所需的数据或状态。
+    /// </summary>
     private readonly byte[] _signingKey;
 
+    /// <summary>
+    /// 接收并保存助手流式输出票据服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public SignedAssistantStreamTicketService(ReadOnlySpan<byte> signingKey)
     {
         if (signingKey.Length < 32)
@@ -138,6 +147,9 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
             expiresAt));
     }
 
+    /// <summary>
+    /// 解析并验证签名、有效期、范围与传输权限后返回流票据内容。
+    /// </summary>
     private TicketPayload DecodeAndVerify(string? ticket)
     {
         if (string.IsNullOrWhiteSpace(ticket))
@@ -179,17 +191,26 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
         }
     }
 
+    /// <summary>
+    /// 校验字符串必填，并在返回前去除首尾空白。
+    /// </summary>
     private static string Required(string? value, string field)
         => string.IsNullOrWhiteSpace(value)
             ? throw new BizResultException(BusinessCodes.BusinessException, $"{field} required")
             : value.Trim();
 
+    /// <summary>
+    /// 将字节序列编码为不含 URL 保留字符的 Base64 表示。
+    /// </summary>
     private static string Base64Url(ReadOnlySpan<byte> bytes)
         => Convert.ToBase64String(bytes)
             .TrimEnd('=')
             .Replace('+', '-')
             .Replace('/', '_');
 
+    /// <summary>
+    /// 校验并解码 URL 安全格式的 Base64 字符串。
+    /// </summary>
     private static byte[] FromBase64Url(string value)
     {
         var normalized = value.Replace('-', '+').Replace('_', '/');
@@ -210,19 +231,58 @@ public sealed class SignedAssistantStreamTicketService : IStreamTicketService
         return bytes;
     }
 
+    /// <summary>
+    /// 封装票据相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed class TicketPayload
     {
+        /// <summary>
+        /// 表示票据的版本信息。
+        /// </summary>
         public int Version { get; init; }
+        /// <summary>
+        /// 记录流票据的用途，以便校验其允许执行的操作。
+        /// </summary>
         public string Purpose { get; init; } = string.Empty;
+        /// <summary>
+        /// 关联此数据所属的助手。
+        /// </summary>
         public string AssistantId { get; init; } = string.Empty;
+        /// <summary>
+        /// 绑定创建此会话或运行时使用的固定发布版本。
+        /// </summary>
         public string PublishedVersionId { get; init; } = string.Empty;
+        /// <summary>
+        /// 关联创建该对话或请求的匿名会话。
+        /// </summary>
         public string SessionId { get; init; } = string.Empty;
+        /// <summary>
+        /// 关联此消息、轮次或运行所属的对话。
+        /// </summary>
         public string ConversationId { get; init; } = string.Empty;
+        /// <summary>
+        /// 关联此记录所属的用户请求轮次。
+        /// </summary>
         public string TurnId { get; init; } = string.Empty;
+        /// <summary>
+        /// 关联产生此事件、消息或工具调用的执行运行。
+        /// </summary>
         public string RunId { get; init; } = string.Empty;
+        /// <summary>
+        /// 区分公开执行和管理端预览执行。
+        /// </summary>
         public AssistantExecutionMode ExecutionMode { get; init; }
+        /// <summary>
+        /// 表示票据的传输信息。
+        /// </summary>
         public AssistantTransportKind[] AllowedTransports { get; init; } = Array.Empty<AssistantTransportKind>();
+        /// <summary>
+        /// 以 Unix 秒数记录票据失效时间。
+        /// </summary>
         public long ExpiresAtUnixSeconds { get; init; }
+        /// <summary>
+        /// 保存票据中的随机标识，使不同签发结果具有不同的负载。
+        /// </summary>
         public string Nonce { get; init; } = string.Empty;
     }
 }

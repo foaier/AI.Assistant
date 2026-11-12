@@ -13,7 +13,7 @@ the new host boundary independently:
 - Direct management and asset upload without login/cookies, retired auth routes,
   no generated password file, and a fixed actor for audit fields.
 - Assistant creation idempotency, stale revision rejection, restart persistence,
-  and tombstone read behavior.
+  and physical deletion and cascade behavior.
 - Model/policy configuration, published snapshots, draft isolation, and revocation.
 - Knowledge questions and local document uploads.
 - Atomic aggregate/outbox rollback and successful retry after a queued failure.

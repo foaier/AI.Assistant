@@ -13,8 +13,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手事件事件代理行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantEventBrokerTests
 {
+    /// <summary>
+    /// 验证事件代理能够回放历史，并在终态事件之后结束订阅。
+    /// </summary>
     [Fact]
     public async Task Broker_replays_events_and_completes_after_terminal_event()
     {
@@ -33,6 +39,9 @@ public sealed class AssistantEventBrokerTests
         Assert.Equal(AssistantRunEventTypes.RunCompleted, received[^1].Type);
     }
 
+    /// <summary>
+    /// 验证游标超出回放窗口时会返回明确的回放缺口。
+    /// </summary>
     [Fact]
     public async Task Broker_emits_explicit_replay_gap_when_cursor_falls_outside_window()
     {
@@ -54,6 +63,9 @@ public sealed class AssistantEventBrokerTests
         Assert.Equal(2L, gap.Payload.GetProperty("AvailableFromSequence").GetInt64());
     }
 
+    /// <summary>
+    /// 验证实时订阅无需重复执行模型供应商调用。
+    /// </summary>
     [Fact]
     public async Task Broker_supports_live_subscriber_without_replaying_provider_work()
     {
@@ -77,6 +89,9 @@ public sealed class AssistantEventBrokerTests
             received.Select(item => item.Type));
     }
 
+    /// <summary>
+    /// 验证事件代理拒绝运行或轮次范围不匹配的事件。
+    /// </summary>
     [Fact]
     public async Task Broker_rejects_wrong_run_or_turn_scope()
     {
@@ -87,6 +102,9 @@ public sealed class AssistantEventBrokerTests
             broker.PublishAsync(Event(2, AssistantRunEventTypes.MessageDelta, turnId: "turn-other")));
     }
 
+    /// <summary>
+    /// 验证回放缺口不会占用正常事件序号。
+    /// </summary>
     [Fact]
     public async Task Broker_does_not_emit_replay_gap_as_a_canonical_sequence_event()
     {
@@ -102,6 +120,9 @@ public sealed class AssistantEventBrokerTests
         Assert.NotEqual(2, item.Sequence);
     }
 
+    /// <summary>
+    /// 验证事件相关行为、预期结果及错误边界。
+    /// </summary>
     private static AssistantRunEventEnvelope Event(
         long sequence,
         string type,

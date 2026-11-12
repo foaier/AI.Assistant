@@ -21,6 +21,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
      * Redis 4.0 不支持 Streams，因此使用独立的 v2 列表键空间。
      * 旧的 Stream 键可自然过期，不会混入当前事件回放。
      */
+    /// <summary>
+    /// 定义Redis助手执行事件事件代理使用的发布配置值。
+    /// </summary>
     private const string PublishScript = """
         local turn_id = redis.call('HGET', KEYS[2], 'turnId')
         local sequence = tonumber(redis.call('HGET', KEYS[2], 'sequence') or '0')
@@ -45,21 +48,42 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
      * 事件列表与终态元数据必须一起读取。
      * 否则在 LRANGE 和 HMGET 之间完成的运行可能使订阅漏掉最后一个事件。
      */
+    /// <summary>
+    /// 定义Redis助手执行事件事件代理使用的回放配置值。
+    /// </summary>
     private const string ReplayScript = """
         return {redis.call('LRANGE', KEYS[1], 0, -1),
                 redis.call('HMGET', KEYS[2], 'turnId', 'sequence', 'status', 'terminal')}
         """;
 
+    /// <summary>
+    /// 保存用于Redis助手执行事件事件代理事件编解码的序列化器。
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    /// <summary>
+    /// 保存数据库依赖，供Redis助手执行事件事件代理执行相关操作。
+    /// </summary>
     private readonly IDatabase _database;
+    /// <summary>
+    /// 保存Redis助手执行事件事件代理在处理回放窗口大小时所需的数据或状态。
+    /// </summary>
     private readonly int _replayWindowSize;
+    /// <summary>
+    /// 保存相关内容依赖，供Redis助手执行事件事件代理执行相关操作。
+    /// </summary>
     private readonly TimeSpan _eventTtl;
+    /// <summary>
+    /// 保存相关内容依赖，供Redis助手执行事件事件代理执行相关操作。
+    /// </summary>
     private readonly TimeSpan _pollInterval;
 
+    /// <summary>
+    /// 接收并保存Redis助手执行事件事件代理执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public RedisAssistantRunEventBroker(
         IConnectionMultiplexer connection,
         int replayWindowSize = 256,
@@ -175,6 +199,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
         }
     }
 
+    /// <summary>
+    /// 通过单次 Redis 脚本读取事件窗口与终态元数据，避免漏掉末尾事件。
+    /// </summary>
     private async Task<ReplaySnapshot> ReadReplayAsync(
         RedisKeys keys,
         long afterSequence,
@@ -230,6 +257,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
             null);
     }
 
+    /// <summary>
+    /// 读取并校验 Redis 中运行事件窗口的元数据。
+    /// </summary>
     private static MetaSnapshot ReadMeta(RedisValue[] values)
     {
         var sequence = long.TryParse(values[1].ToString(), out var parsedSequence) ? parsedSequence : -1;
@@ -244,6 +274,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
             values[3] == "1");
     }
 
+    /// <summary>
+    /// 将 Redis 中的事件负载解析为统一事件信封，格式错误时报告数据损坏。
+    /// </summary>
     private static AssistantRunEventEnvelope Deserialize(RedisValue entry)
     {
         if (!entry.HasValue)
@@ -260,6 +293,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
         }
     }
 
+    /// <summary>
+    /// 创建包含当前回放边界和运行状态的序号缺口事件。
+    /// </summary>
     private static AssistantRunEventEnvelope CreateReplayGapEnvelope(
         string runId,
         string turnId,
@@ -273,6 +309,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
             DateTime.UtcNow,
             gap);
 
+    /// <summary>
+    /// 生成同一运行使用的 Redis 键集合，并保持键空间版本隔离。
+    /// </summary>
     private static RedisKeys Keys(string runId, string eventId)
     {
         var keySegment = Uri.EscapeDataString(runId);
@@ -284,6 +323,9 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
             $"assistant:run:replay-v2:{{{keySegment}}}:event-id:{eventSegment}");
     }
 
+    /// <summary>
+    /// 从已记录的终态事件推断运行的当前持久状态。
+    /// </summary>
     private static AssistantRunStatus InferStatus(string type)
         => type switch
         {
@@ -295,16 +337,28 @@ public sealed class RedisAssistantRunEventBroker : IRunEventBroker
             _ => AssistantRunStatus.Accepted
         };
 
+    /// <summary>
+    /// 判断事件类型或运行状态是否已经进入不可逆终态。
+    /// </summary>
     private static bool IsTerminal(string type)
         => type is AssistantRunEventTypes.RunCompleted
             or AssistantRunEventTypes.RunFailed
             or AssistantRunEventTypes.RunCancelled
             or AssistantRunEventTypes.RunExpired;
 
+    /// <summary>
+    /// 封装Redis密钥相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed record RedisKeys(string RunId, RedisKey List, RedisKey Meta, RedisKey EventId);
 
+    /// <summary>
+    /// 封装元数据快照相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed record MetaSnapshot(string TurnId, long Sequence, AssistantRunStatus Status, bool Terminal);
 
+    /// <summary>
+    /// 封装回放快照相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed record ReplaySnapshot(
         IReadOnlyList<AssistantRunEventEnvelope> Events,
         string TurnId,

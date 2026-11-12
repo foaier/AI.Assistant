@@ -40,9 +40,21 @@ public interface IAssistantWebSearchClient
 /// </summary>
 public sealed class VolcengineAssistantWebSearchClient(IHttpClientFactory clients) : IAssistantWebSearchClient
 {
+    /// <summary>
+    /// 定义火山引擎助手网络检索客户端使用的最大响应配置值。
+    /// </summary>
     private const int MaxResponseBytes = 1_048_576;
+    /// <summary>
+    /// 定义火山引擎助手网络检索客户端使用的最大回答长度配置值。
+    /// </summary>
     private const int MaxAnswerLength = 12_000;
+    /// <summary>
+    /// 定义火山引擎助手网络检索客户端使用的最大引用配置值。
+    /// </summary>
     private const int MaxReferences = 8;
+    /// <summary>
+    /// 定义火山引擎助手网络检索客户端使用的最大引用文本长度配置值。
+    /// </summary>
     private const int MaxReferenceTextLength = 1200;
 
     /// <summary>
@@ -91,6 +103,9 @@ public sealed class VolcengineAssistantWebSearchClient(IHttpClientFactory client
         }
     }
 
+    /// <summary>
+    /// 按服务器发送事件格式读取响应流，并在结束或取消时释放读取资源。
+    /// </summary>
     private static async Task<AssistantWebSearchResult> ReadSseAsync(Stream stream, CancellationToken ct)
     {
         var answer = new StringBuilder();
@@ -143,6 +158,9 @@ public sealed class VolcengineAssistantWebSearchClient(IHttpClientFactory client
         return new(answer.ToString(), references.Take(MaxReferences).ToArray());
     }
 
+    /// <summary>
+    /// 处理火山引擎助手网络检索客户端数据。
+    /// </summary>
     private static bool ProcessLine(
         string line,
         StringBuilder frame,
@@ -161,6 +179,9 @@ public sealed class VolcengineAssistantWebSearchClient(IHttpClientFactory client
         return false;
     }
 
+    /// <summary>
+    /// 解析流式响应帧，并将有效内容追加到对应的结果集合。
+    /// </summary>
     private static bool ProcessFrame(string data, StringBuilder answer, List<AssistantWebSearchReference> references)
     {
         var payload = data.Trim();
@@ -207,6 +228,9 @@ public sealed class VolcengineAssistantWebSearchClient(IHttpClientFactory client
         }
     }
 
+    /// <summary>
+    /// 从检索响应中提取引用，并限制返回内容符合公开契约。
+    /// </summary>
     private static void AddReferences(JsonElement root, string property, List<AssistantWebSearchReference> references)
     {
         if (references.Count >= MaxReferences || !root.TryGetProperty(property, out var values)
@@ -226,6 +250,9 @@ public sealed class VolcengineAssistantWebSearchClient(IHttpClientFactory client
         }
     }
 
+    /// <summary>
+    /// 读取 JSON 字段中的字符串，并统一处理缺失值和空白内容。
+    /// </summary>
     private static string ReadString(JsonElement value, params string[] names)
     {
         foreach (var name in names)
@@ -242,9 +269,18 @@ public sealed class AssistantVolcengineWebSearchToolHandler(
     AssistantWebSearchConfigurationService configuration,
     IAssistantWebSearchClient client) : IAssistantToolHandler
 {
+    /// <summary>
+    /// 关联当前使用的工具定义。
+    /// </summary>
     public string ToolId => "assistant.web_search";
+    /// <summary>
+    /// 表示助手火山引擎网络检索工具处理器的契约版本信息。
+    /// </summary>
     public string ContractVersion => "v1";
 
+    /// <summary>
+    /// 执行助手火山引擎网络检索工具操作，并响应调用方的取消请求。
+    /// </summary>
     public async Task<JsonElement> ExecuteAsync(
         JsonElement input, AssistantScopeSnapshot scope, CancellationToken cancellationToken = default)
     {

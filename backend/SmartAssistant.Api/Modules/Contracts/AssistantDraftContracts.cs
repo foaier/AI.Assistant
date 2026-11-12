@@ -9,18 +9,14 @@ using System.Threading.Tasks;
 namespace SmartAssistant.Modules.Contracts;
 
 /// <summary>
-/// 助手草稿的原始配置与审计信息，供应用层传递草稿状态。
+/// 助手草稿的原始配置与修订号，供应用层传递草稿状态。
 /// </summary>
 public sealed record AssistantDraftDto(
     string Id,
-    string TenantId,
-    string OrgId,
     string Name,
     string? Description,
     string DraftJson,
-    long DraftRevision,
-    DateTime UpdatedAt,
-    string UpdatedBy);
+    long DraftRevision);
 
 /// <summary>
 /// 助手列表所需的名称、描述、草稿修订号和最近修改信息。
@@ -29,9 +25,7 @@ public sealed record AssistantListItemDto(
     string Id,
     string Name,
     string? Description,
-    long DraftRevision,
-    DateTime UpdatedAt,
-    string UpdatedBy);
+    long DraftRevision);
 
 /// <summary>
 /// 管理端使用的助手详情，将草稿配置转换为可直接读取的 JSON 对象。
@@ -41,8 +35,6 @@ public sealed record AssistantDto(
     string Name,
     string? Description,
     long DraftRevision,
-    DateTime UpdatedAt,
-    string UpdatedBy,
     JsonElement Configuration);
 
 /// <summary>
@@ -53,16 +45,24 @@ public sealed record AssistantKnowledgeBaseDto(
     string Name,
     string? Description,
     int QnaCount,
-    int DocumentCount,
-    DateTime UpdatedAt);
+    int DocumentCount);
 
 /// <summary>
 /// 知识文档的分块模式：按标题、固定长度或混合方式切分。
 /// </summary>
 public enum AssistantKnowledgeChunkingMode
 {
+    /// <summary>
+    /// 按文档标题结构切分。
+    /// </summary>
     Heading = 0,
+    /// <summary>
+    /// 按固定文本长度切分。
+    /// </summary>
     Fixed = 1,
+    /// <summary>
+    /// 结合标题结构和片段长度的混合模式。
+    /// </summary>
     Hybrid = 2
 }
 
@@ -155,8 +155,7 @@ public sealed record AssistantKnowledgeQnaDto(
     string? Answer,
     bool Enabled,
     int SortOrder,
-    bool ShowAsSuggestion,
-    DateTime UpdatedAt);
+    bool ShowAsSuggestion);
 
 /// <summary>
 /// 固定问答测试结果，说明是否命中以及是否调用了模型供应商。
@@ -218,10 +217,25 @@ public sealed record AssistantKnowledgeRetrievalTestResult(
 /// </summary>
 public enum AssistantKnowledgeDocumentStatus
 {
+    /// <summary>
+    /// 文件已上传，尚待解析。
+    /// </summary>
     Uploaded = 0,
+    /// <summary>
+    /// 任务正在处理。
+    /// </summary>
     Processing = 1,
+    /// <summary>
+    /// 资源已就绪，可供运行使用。
+    /// </summary>
     Ready = 2,
+    /// <summary>
+    /// 处理以失败状态结束。
+    /// </summary>
     Failed = 3,
+    /// <summary>
+    /// 资源已归档，不再作为当前活动资源。
+    /// </summary>
     Archived = 4
 }
 
@@ -230,10 +244,25 @@ public enum AssistantKnowledgeDocumentStatus
 /// </summary>
 public enum AssistantKnowledgeIndexJobStatus
 {
+    /// <summary>
+    /// 任务等待处理。
+    /// </summary>
     Queued = 0,
+    /// <summary>
+    /// 任务正在处理。
+    /// </summary>
     Processing = 1,
+    /// <summary>
+    /// 表示成功这一业务状态、事件类型或处理结果。
+    /// </summary>
     Succeeded = 2,
+    /// <summary>
+    /// 处理以失败状态结束。
+    /// </summary>
     Failed = 3,
+    /// <summary>
+    /// 表示嵌入配置这一业务状态、事件类型或处理结果。
+    /// </summary>
     NeedsEmbeddingConfig = 4
 }
 
@@ -252,7 +281,6 @@ public sealed record AssistantKnowledgeDocumentDto(
     int ChunkCount,
     AssistantKnowledgeIndexJobStatus? LastIndexJobStatus,
     string? LastErrorCode,
-    DateTime UpdatedAt,
     string IndexStatus = "unknown",
     long? IndexGeneration = null);
 
@@ -267,7 +295,6 @@ public sealed record AssistantKnowledgeIndexJobDto(
     int AttemptCount,
     int ChunkCount,
     string? ErrorCode,
-    DateTime CreatedAt,
     DateTime? CompletedAt,
     long? Generation = null,
     string? EmbeddingModel = null,
@@ -321,37 +348,37 @@ public sealed record TestAssistantKnowledgeRetrievalCommand(string Question);
 public interface IAssistantKnowledgeService
 {
     /// <summary>
-    /// 列出当前租户和组织范围内的知识库及问答、文档数量。
+    /// 列出知识库及其问答、文档数量。
     /// </summary>
     Task<IReadOnlyList<AssistantKnowledgeBaseDto>> ListKnowledgeBasesAsync(
-        string actorUserId, string tenantId, string orgId, CancellationToken cancellationToken = default);
+        string actorUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 校验名称与范围后创建知识库。
     /// </summary>
     Task<AssistantKnowledgeBaseDto> CreateKnowledgeBaseAsync(
-        string actorUserId, string tenantId, string orgId, CreateAssistantKnowledgeBaseCommand command,
+        string actorUserId, CreateAssistantKnowledgeBaseCommand command,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 检查草稿和有效发布的知识库引用后执行删除，避免破坏已绑定的助手。
     /// </summary>
     Task DeleteKnowledgeBaseAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 读取知识库当前分块策略与是否存在待重处理文档的信息。
     /// </summary>
     Task<AssistantKnowledgeChunkingPolicyDto> GetChunkingPolicyAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 校验并保存分块参数，按请求决定是否为现有文档启动重新处理。
     /// </summary>
     Task<AssistantKnowledgeChunkingPolicyDto> SaveChunkingPolicyAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         SaveAssistantKnowledgeChunkingPolicyCommand command,
         CancellationToken cancellationToken = default);
 
@@ -359,21 +386,21 @@ public interface IAssistantKnowledgeService
     /// 读取目标与生效嵌入配置、文档完成进度和可选模型。
     /// </summary>
     Task<AssistantKnowledgeEmbeddingProfileDto> GetEmbeddingProfileAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 校验嵌入模型与预期修订号后保存目标配置，并维护相应索引代次。
     /// </summary>
     Task<AssistantKnowledgeEmbeddingProfileDto> SaveEmbeddingProfileAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         SaveAssistantKnowledgeEmbeddingProfileCommand command, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 按当前分块策略预览文档切分结果。
     /// </summary>
     Task<AssistantKnowledgeChunkPreviewDto> PreviewChunkingAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string documentId,
+        string actorUserId, string knowledgeBaseId, string documentId,
         SaveAssistantKnowledgeChunkingPolicyCommand command,
         CancellationToken cancellationToken = default);
 
@@ -381,70 +408,70 @@ public interface IAssistantKnowledgeService
     /// 读取知识库固定问答列表。
     /// </summary>
     Task<IReadOnlyList<AssistantKnowledgeQnaDto>> ListQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 标准化问题并保存问答内容、排序、启用状态和推荐设置。
     /// </summary>
     Task<AssistantKnowledgeQnaDto> SaveQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         SaveAssistantKnowledgeQnaCommand command, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 在所属知识库范围内删除指定固定问答。
     /// </summary>
     Task DeleteQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string qnaId,
+        string actorUserId, string knowledgeBaseId, string qnaId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 按固定问答匹配规则验证问题是否命中，返回直接回答结果。
     /// </summary>
     Task<AssistantKnowledgeQnaTestResult> TestQnaAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string qnaId,
+        string actorUserId, string knowledgeBaseId, string qnaId,
         TestAssistantKnowledgeQnaCommand command, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 列出知识库文档及其处理状态。
     /// </summary>
     Task<IReadOnlyList<AssistantKnowledgeDocumentDto>> ListDocumentsAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 将文档保存为私有资产，并创建知识文档记录。
     /// </summary>
     Task<AssistantKnowledgeDocumentDto> UploadDocumentAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         AssistantKnowledgeDocumentUpload file, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 为指定文档执行解析、分块和向量索引流程，保存版本及任务状态。
     /// </summary>
     Task<AssistantKnowledgeDocumentProcessResult> ProcessDocumentAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string documentId,
+        string actorUserId, string knowledgeBaseId, string documentId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 读取文档原文、结构和片段，供管理端预览。
     /// </summary>
     Task<AssistantKnowledgeDocumentPreviewDto> GetDocumentPreviewAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId, string documentId,
+        string actorUserId, string knowledgeBaseId, string documentId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 在知识库生效的索引代次上执行检索测试，返回命中片段及来源。
     /// </summary>
     Task<AssistantKnowledgeRetrievalTestResult> TestRetrievalAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         TestAssistantKnowledgeRetrievalCommand command, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 读取知识库索引任务及进度、失败信息。
     /// </summary>
     Task<IReadOnlyList<AssistantKnowledgeIndexJobDto>> ListIndexJobsAsync(
-        string actorUserId, string tenantId, string orgId, string knowledgeBaseId,
+        string actorUserId, string knowledgeBaseId,
         CancellationToken cancellationToken = default);
 }
 
@@ -456,21 +483,21 @@ public interface IAssistantAnalyticsService
     /// <summary>
     /// 在指定助手范围内读取会话消息，供管理端查看会话内容。
     /// </summary>
-    Task<AssistantMessagesPage> GetMessagesAsync(string actorUserId, string tenantId, string orgId, string assistantId,
+    Task<AssistantMessagesPage> GetMessagesAsync(string actorUserId, string assistantId,
         string conversationId, int limit, string? cursor, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 分页读取助手的会话活动信息。
     /// </summary>
     Task<AssistantConversationsPage> ListConversationsAsync(
-        string actorUserId, string tenantId, string orgId, string assistantId, int limit, int page,
+        string actorUserId, string assistantId, int limit, int page,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 汇总助手的会话数量、轮次结果和回答来源等统计数据。
     /// </summary>
     Task<AssistantAnalyticsSummaryDto> GetSummaryAsync(
-        string actorUserId, string tenantId, string orgId, string assistantId,
+        string actorUserId, string assistantId,
         CancellationToken cancellationToken = default);
 }
 
@@ -497,7 +524,13 @@ public sealed record SaveAssistantDraftCommand(
 /// </summary>
 public enum AssistantPublicationStatus
 {
+    /// <summary>
+    /// 权限或发布状态已撤回。
+    /// </summary>
     Revoked = 0,
+    /// <summary>
+    /// 当前处于可访问或生效状态。
+    /// </summary>
     Active = 1
 }
 
@@ -508,8 +541,6 @@ public sealed record AssistantPublishedVersionDto(
     string Id,
     string AssistantKey,
     string AssistantId,
-    string TenantId,
-    string OrgId,
     long VersionNo,
     string Name,
     string? Description,
@@ -568,14 +599,12 @@ public interface IAssistantPublicationService
     /// <summary>
     /// 读取助手当前的发布状态、指针修订和公开访问标识。
     /// </summary>
-    Task<AssistantPublicationState> GetStateAsync(string tenantId, string orgId, string assistantId, CancellationToken cancellationToken = default);
+    Task<AssistantPublicationState> GetStateAsync(string assistantId, CancellationToken cancellationToken = default);
     /// <summary>
     /// 校验草稿与指针修订，冻结执行配置并在同一事务中保存发布版本、指针和领域事件。
     /// </summary>
     Task<AssistantPublicationResult> PublishAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         PublishAssistantCommand command,
         CancellationToken cancellationToken = default);
@@ -585,8 +614,6 @@ public interface IAssistantPublicationService
     /// </summary>
     Task<AssistantPublicationResult> RevokeAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         RevokeAssistantPublicationCommand command,
         CancellationToken cancellationToken = default);
@@ -595,8 +622,6 @@ public interface IAssistantPublicationService
     /// 读取当前指针指向的有效发布版本；未发布或已撤回时返回空值。
     /// </summary>
     Task<AssistantPublishedVersionDto?> GetCurrentAsync(
-        string tenantId,
-        string orgId,
         string assistantId,
         CancellationToken cancellationToken = default);
 }
@@ -620,12 +645,10 @@ public interface IAssistantPublicAuthorityResolver
 public interface IAssistantDraftService
 {
     /// <summary>
-    /// 读取当前租户和组织范围内的助手列表。
+    /// 读取助手列表。
     /// </summary>
     Task<IReadOnlyList<AssistantListItemDto>> ListAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -633,8 +656,6 @@ public interface IAssistantDraftService
     /// </summary>
     Task<AssistantDto> CreateAssistantAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         CreateAssistantDraftCommand command,
         CancellationToken cancellationToken = default);
 
@@ -643,8 +664,6 @@ public interface IAssistantDraftService
     /// </summary>
     Task<AssistantDto> GetAssistantAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         CancellationToken cancellationToken = default);
 
@@ -653,8 +672,6 @@ public interface IAssistantDraftService
     /// </summary>
     Task<AssistantDto> SaveAssistantDraftAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         SaveAssistantDraftCommand command,
         CancellationToken cancellationToken = default);
@@ -663,10 +680,7 @@ public interface IAssistantDraftService
     /// 删除草稿前检查是否仍有有效发布，已发布助手必须先撤回。
     /// </summary>
     Task DeleteAssistantAsync(
-        string actorUserId,
-        string tenantId,
-        string orgId,
-        string assistantId,
+        string actorUserId, string assistantId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -674,8 +688,6 @@ public interface IAssistantDraftService
     /// </summary>
     Task<AssistantDraftDto> CreateAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         CreateAssistantDraftCommand command,
         CancellationToken cancellationToken = default);
 
@@ -684,8 +696,6 @@ public interface IAssistantDraftService
     /// </summary>
     Task<AssistantDraftDto> GetAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         CancellationToken cancellationToken = default);
 
@@ -694,8 +704,6 @@ public interface IAssistantDraftService
     /// </summary>
     Task<AssistantDraftDto> SaveAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         SaveAssistantDraftCommand command,
         CancellationToken cancellationToken = default);

@@ -4,15 +4,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using SmartAssistant.Extensions.Common;
 using SmartAssistant.Authentication;
-using SmartAssistant.Modules.Admin.Public.Contracts;
 using SmartAssistant.Modules.Contracts;
 using SmartAssistant.Platform;
-using SmartAssistant.Platform.Tenant;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace SmartAssistant.Modules.Controllers;
+namespace SmartAssistant.Controllers;
 
 /// <summary>
 /// 提供知识库、问答、文档、分块和索引管理接口。
@@ -22,25 +20,27 @@ namespace SmartAssistant.Modules.Controllers;
 [Route("api/admin/knowledge-bases")]
 public sealed class AssistantKnowledgeController : ControllerBase
 {
+    /// <summary>
+    /// 保存助手知识服务依赖，供助手知识控制器执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeService _service;
-    private readonly ITenantContext _tenantContext;
-    private readonly IAdminPermissionService _permissions;
 
-    public AssistantKnowledgeController(IAssistantKnowledgeService service, ITenantContext tenantContext, IAdminPermissionService permissions)
+    /// <summary>
+    /// 接收并保存助手知识控制器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
+    public AssistantKnowledgeController(IAssistantKnowledgeService service)
     {
-        _service = service; _tenantContext = tenantContext; _permissions = permissions;
+        _service = service;
     }
 
     /// <summary>
-    /// 校验读取权限后列出组织内的知识库。
+    /// 列出知识库及其摘要信息。
     /// </summary>
     [HttpGet]
     public async Task<BizResult<IReadOnlyList<AssistantKnowledgeBaseDto>>> ListAsync(CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.ListKnowledgeBasesAsync(actor, scope.TenantId, scope.OrgId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.ListKnowledgeBasesAsync(actor, cancellationToken));
     }
 
     /// <summary>
@@ -49,11 +49,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     [HttpPost]
     public async Task<BizResult<AssistantKnowledgeBaseDto>> CreateAsync([FromBody] CreateKnowledgeBaseRequest request, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
-        return BizResult.BusinessSuccess(await _service.CreateKnowledgeBaseAsync(actor, scope.TenantId, scope.OrgId,
-            new CreateAssistantKnowledgeBaseCommand(request.Name, request.Description), cancellationToken));
+        return BizResult.BusinessSuccess(await _service.CreateKnowledgeBaseAsync(actor, new CreateAssistantKnowledgeBaseCommand(request.Name, request.Description), cancellationToken));
     }
 
     /// <summary>
@@ -62,10 +59,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     [HttpDelete("{knowledgeBaseId}")]
     public async Task<BizResult<object>> DeleteAsync(string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
-        await _service.DeleteKnowledgeBaseAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, cancellationToken);
+        await _service.DeleteKnowledgeBaseAsync(actor, knowledgeBaseId, cancellationToken);
         return BizResult.BusinessSuccess<object>(new { deleted = true });
     }
 
@@ -75,10 +70,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     [HttpGet("{knowledgeBaseId}/chunking-policy")]
     public async Task<BizResult<AssistantKnowledgeChunkingPolicyDto>> GetChunkingPolicyAsync(string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.GetChunkingPolicyAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.GetChunkingPolicyAsync(actor, knowledgeBaseId, cancellationToken));
     }
 
     /// <summary>
@@ -88,10 +81,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeChunkingPolicyDto>> SaveChunkingPolicyAsync(
         string knowledgeBaseId, [FromBody] SaveChunkingPolicyRequest request, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
-        return BizResult.BusinessSuccess(await _service.SaveChunkingPolicyAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId,
+        return BizResult.BusinessSuccess(await _service.SaveChunkingPolicyAsync(actor, knowledgeBaseId,
             new SaveAssistantKnowledgeChunkingPolicyCommand(request.Mode, request.MaxChunkSize, request.MinChunkSize, request.OverlapSize,
                 request.MaxHeadingLevel, request.PreserveHeadingPath, request.MergeShortChunks, request.ReprocessDocuments), cancellationToken));
     }
@@ -103,11 +94,9 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeEmbeddingProfileDto>> GetEmbeddingProfileAsync(
         string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
         return BizResult.BusinessSuccess(await _service.GetEmbeddingProfileAsync(
-            actor, scope.TenantId, scope.OrgId, knowledgeBaseId, cancellationToken));
+            actor, knowledgeBaseId, cancellationToken));
     }
 
     /// <summary>
@@ -118,11 +107,9 @@ public sealed class AssistantKnowledgeController : ControllerBase
         string knowledgeBaseId, [FromBody] SaveAssistantKnowledgeEmbeddingProfileCommand command,
         CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
         return BizResult.BusinessSuccess(await _service.SaveEmbeddingProfileAsync(
-            actor, scope.TenantId, scope.OrgId, knowledgeBaseId, command, cancellationToken));
+            actor, knowledgeBaseId, command, cancellationToken));
     }
 
     /// <summary>
@@ -132,10 +119,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeChunkPreviewDto>> PreviewChunkingAsync(
         string knowledgeBaseId, string documentId, [FromBody] SaveChunkingPolicyRequest request, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.PreviewChunkingAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, documentId,
+        return BizResult.BusinessSuccess(await _service.PreviewChunkingAsync(actor, knowledgeBaseId, documentId,
             new SaveAssistantKnowledgeChunkingPolicyCommand(request.Mode, request.MaxChunkSize, request.MinChunkSize, request.OverlapSize,
                 request.MaxHeadingLevel, request.PreserveHeadingPath, request.MergeShortChunks, false), cancellationToken));
     }
@@ -146,10 +131,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     [HttpGet("{knowledgeBaseId}/qna")]
     public async Task<BizResult<IReadOnlyList<AssistantKnowledgeQnaDto>>> ListQnaAsync(string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.ListQnaAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.ListQnaAsync(actor, knowledgeBaseId, cancellationToken));
     }
 
     /// <summary>
@@ -158,10 +141,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     [HttpPut("{knowledgeBaseId}/qna")]
     public async Task<BizResult<AssistantKnowledgeQnaDto>> SaveQnaAsync(string knowledgeBaseId, [FromBody] SaveQnaRequest request, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
-        return BizResult.BusinessSuccess(await _service.SaveQnaAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId,
+        return BizResult.BusinessSuccess(await _service.SaveQnaAsync(actor, knowledgeBaseId,
             new SaveAssistantKnowledgeQnaCommand(request.Id, request.Question, request.Answer, request.Enabled, request.SortOrder, request.ShowAsSuggestion), cancellationToken));
     }
 
@@ -171,10 +152,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     [HttpDelete("{knowledgeBaseId}/qna/{qnaId}")]
     public async Task<BizResult<object>> DeleteQnaAsync(string knowledgeBaseId, string qnaId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
-        await _service.DeleteQnaAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, qnaId, cancellationToken);
+        await _service.DeleteQnaAsync(actor, knowledgeBaseId, qnaId, cancellationToken);
         return BizResult.BusinessSuccess<object>(new { deleted = true });
     }
 
@@ -185,10 +164,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeQnaTestResult>> TestQnaAsync(
         string knowledgeBaseId, string qnaId, [FromBody] TestQnaRequest request, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.TestQnaAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, qnaId,
+        return BizResult.BusinessSuccess(await _service.TestQnaAsync(actor, knowledgeBaseId, qnaId,
             new TestAssistantKnowledgeQnaCommand(request.Question), cancellationToken));
     }
 
@@ -199,10 +176,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<IReadOnlyList<AssistantKnowledgeDocumentDto>>> ListDocumentsAsync(
         string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.ListDocumentsAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.ListDocumentsAsync(actor, knowledgeBaseId, cancellationToken));
     }
 
     /// <summary>
@@ -213,15 +188,13 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeDocumentDto>> UploadDocumentAsync(
         string knowledgeBaseId, [FromForm] IFormFile file, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
         if (file is null)
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_document_file_required");
         var upload = new AssistantKnowledgeDocumentUpload(file.FileName, file.ContentType, file.Length, file.OpenReadStream());
         await using (upload.Content)
         {
-            return BizResult.BusinessSuccess(await _service.UploadDocumentAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, upload, cancellationToken));
+            return BizResult.BusinessSuccess(await _service.UploadDocumentAsync(actor, knowledgeBaseId, upload, cancellationToken));
         }
     }
 
@@ -232,10 +205,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeDocumentProcessResult>> ProcessDocumentAsync(
         string knowledgeBaseId, string documentId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await _permissions.RequireOrgPermissionAsync(actor, scope.OrgId, AdminPermissionConstants.OrgSettingsWrite);
-        return BizResult.BusinessSuccess(await _service.ProcessDocumentAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, documentId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.ProcessDocumentAsync(actor, knowledgeBaseId, documentId, cancellationToken));
     }
 
     /// <summary>
@@ -245,10 +216,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeDocumentPreviewDto>> PreviewDocumentAsync(
         string knowledgeBaseId, string documentId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.GetDocumentPreviewAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, documentId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.GetDocumentPreviewAsync(actor, knowledgeBaseId, documentId, cancellationToken));
     }
 
     /// <summary>
@@ -258,10 +227,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<AssistantKnowledgeRetrievalTestResult>> TestRetrievalAsync(
         string knowledgeBaseId, [FromBody] TestRetrievalRequest request, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.TestRetrievalAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId,
+        return BizResult.BusinessSuccess(await _service.TestRetrievalAsync(actor, knowledgeBaseId,
             new TestAssistantKnowledgeRetrievalCommand(request.Question), cancellationToken));
     }
 
@@ -272,24 +239,8 @@ public sealed class AssistantKnowledgeController : ControllerBase
     public async Task<BizResult<IReadOnlyList<AssistantKnowledgeIndexJobDto>>> ListIndexJobsAsync(
         string knowledgeBaseId, CancellationToken cancellationToken)
     {
-        var scope = RequireScope();
         var actor = User.GetUserId();
-        await RequireReadAsync(actor, scope.OrgId);
-        return BizResult.BusinessSuccess(await _service.ListIndexJobsAsync(actor, scope.TenantId, scope.OrgId, knowledgeBaseId, cancellationToken));
-    }
-
-    private (string TenantId, string OrgId) RequireScope()
-    {
-        if (string.IsNullOrWhiteSpace(_tenantContext.TenantId) || string.IsNullOrWhiteSpace(_tenantContext.OrgId))
-            throw new BizResultException(BusinessCodes.Forbidden, "knowledge_scope_required");
-        return (_tenantContext.TenantId, _tenantContext.OrgId);
-    }
-
-    private async Task RequireReadAsync(string actor, string orgId)
-    {
-        if (!await _permissions.HasOrgPermissionAsync(actor, orgId, AdminPermissionConstants.OrgRead)
-            && !await _permissions.HasOrgPermissionAsync(actor, orgId, AdminPermissionConstants.OrgSettingsWrite))
-            throw new BizResultException(BusinessCodes.Forbidden, "knowledge_read_permission_required");
+        return BizResult.BusinessSuccess(await _service.ListIndexJobsAsync(actor, knowledgeBaseId, cancellationToken));
     }
 }
 
@@ -298,7 +249,13 @@ public sealed class AssistantKnowledgeController : ControllerBase
 /// </summary>
 public sealed class CreateKnowledgeBaseRequest
 {
+    /// <summary>
+    /// 记录此资源的展示名称。
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>
+    /// 记录此资源的可选说明。
+    /// </summary>
     public string? Description { get; set; }
 }
 
@@ -307,13 +264,37 @@ public sealed class CreateKnowledgeBaseRequest
 /// </summary>
 public sealed class SaveChunkingPolicyRequest
 {
+    /// <summary>
+    /// 保存请求中的模式字段。
+    /// </summary>
     public AssistantKnowledgeChunkingMode Mode { get; set; } = AssistantKnowledgeChunkingMode.Hybrid;
+    /// <summary>
+    /// 限制单个文本片段的最大字符数。
+    /// </summary>
     public int MaxChunkSize { get; set; } = 1200;
+    /// <summary>
+    /// 指定短片段合并所依据的最小字符数。
+    /// </summary>
     public int MinChunkSize { get; set; } = 200;
+    /// <summary>
+    /// 指定相邻文本片段保留的重叠字符数。
+    /// </summary>
     public int OverlapSize { get; set; } = 160;
+    /// <summary>
+    /// 限制用于文档分段的 Markdown 标题层级。
+    /// </summary>
     public int MaxHeadingLevel { get; set; } = 3;
+    /// <summary>
+    /// 控制片段正文是否保留所属标题路径。
+    /// </summary>
     public bool PreserveHeadingPath { get; set; } = true;
+    /// <summary>
+    /// 控制是否合并长度不足的相邻片段。
+    /// </summary>
     public bool MergeShortChunks { get; set; } = true;
+    /// <summary>
+    /// 控制修改分块策略后是否重新处理已有文档。
+    /// </summary>
     public bool ReprocessDocuments { get; set; }
 }
 
@@ -322,11 +303,29 @@ public sealed class SaveChunkingPolicyRequest
 /// </summary>
 public sealed class SaveQnaRequest
 {
+    /// <summary>
+    /// 记录当前数据的唯一标识。
+    /// </summary>
     public string? Id { get; set; }
+    /// <summary>
+    /// 保存请求中的问题字段。
+    /// </summary>
     public string Question { get; set; } = string.Empty;
+    /// <summary>
+    /// 保存请求中的回答字段。
+    /// </summary>
     public string? Answer { get; set; }
+    /// <summary>
+    /// 标记对应能力或配置是否启用。
+    /// </summary>
     public bool Enabled { get; set; } = true;
+    /// <summary>
+    /// 记录问答项在列表中的显示顺序。
+    /// </summary>
     public int SortOrder { get; set; }
+    /// <summary>
+    /// 标记该问答是否可以作为建议问题展示。
+    /// </summary>
     public bool ShowAsSuggestion { get; set; }
 }
 
@@ -335,6 +334,9 @@ public sealed class SaveQnaRequest
 /// </summary>
 public sealed class TestQnaRequest
 {
+    /// <summary>
+    /// 保存请求中的问题字段。
+    /// </summary>
     public string Question { get; set; } = string.Empty;
 }
 
@@ -343,5 +345,8 @@ public sealed class TestQnaRequest
 /// </summary>
 public sealed class TestRetrievalRequest
 {
+    /// <summary>
+    /// 保存请求中的问题字段。
+    /// </summary>
     public string Question { get; set; } = string.Empty;
 }

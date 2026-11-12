@@ -13,6 +13,9 @@ namespace SmartAssistant.Modules.Domain;
 /// </summary>
 internal static class AssistantRuntimeGuard
 {
+    /// <summary>
+    /// 校验字符串必填，并在返回前去除首尾空白。
+    /// </summary>
     public static string Required(string? value, string field, int maxLength = 200)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -25,6 +28,9 @@ internal static class AssistantRuntimeGuard
         return normalized;
     }
 
+    /// <summary>
+    /// 将空白字符串转换为空值，并规范化有效字符串。
+    /// </summary>
     public static string Optional(string? value, int maxLength = 200)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -37,41 +43,39 @@ internal static class AssistantRuntimeGuard
         return normalized;
     }
 
+    /// <summary>
+    /// 规范化语言标识；不支持的语言回退到默认语言。
+    /// </summary>
     public static string NormalizeLocale(string? locale)
     {
         var normalized = Required(locale, "Locale", 32);
         return normalized.Replace('_', '-').ToLowerInvariant();
     }
 
+    /// <summary>
+    /// 校验助手、发布版本标识及执行模式有效。
+    /// </summary>
     public static void RequireScope(
         string assistantId,
-        string tenantId,
-        string orgId,
         string publishedVersionId,
         AssistantExecutionMode executionMode)
     {
         _ = Required(assistantId, "AssistantId");
-        _ = Required(tenantId, "TenantId");
-        _ = Required(orgId, "OrgId");
         _ = Required(publishedVersionId, "PublishedVersionId");
         if (!Enum.IsDefined(executionMode))
             throw new BizResultException(BusinessCodes.BusinessException, "ExecutionMode invalid");
     }
 
     /// <summary>
-    /// 比较助手、租户、组织、发布版本和执行模式，阻止跨运行范围访问。
+    /// 比较助手、发布版本和执行模式，阻止跨运行范围访问。
     /// </summary>
     public static void EnsureScope(
         string expectedAssistantId,
-        string expectedTenantId,
-        string expectedOrgId,
         string expectedPublishedVersionId,
         AssistantExecutionMode expectedExecutionMode,
         AssistantScopeSnapshot actual)
     {
         if (!string.Equals(expectedAssistantId, actual.AssistantId, StringComparison.Ordinal)
-            || !string.Equals(expectedTenantId, actual.TenantId, StringComparison.Ordinal)
-            || !string.Equals(expectedOrgId, actual.OrgId, StringComparison.Ordinal)
             || !string.Equals(expectedPublishedVersionId, actual.PublishedVersionId, StringComparison.Ordinal)
             || expectedExecutionMode != actual.ExecutionMode)
         {
@@ -79,12 +83,18 @@ internal static class AssistantRuntimeGuard
         }
     }
 
+    /// <summary>
+    /// 校验时间范围使用 UTC 且起止顺序有效。
+    /// </summary>
     public static void EnsureUtcWindow(DateTime now, DateTime expiresAt)
     {
         if (expiresAt <= now)
             throw new BizResultException(BusinessCodes.BusinessException, "expires_at_must_be_after_now");
     }
 
+    /// <summary>
+    /// 将输入规范化为请求文本，并统一相关格式。
+    /// </summary>
     public static string NormalizeRequestText(string? value)
         => (value ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace('\r', '\n')
@@ -104,6 +114,9 @@ internal static class AssistantRuntimeGuard
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// 将配置文本解析并重新序列化为规范 JSON；无效 JSON 按业务校验错误拒绝。
+    /// </summary>
     public static string NormalizeJson(string? value, string field)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? "{}" : value.Trim();
@@ -118,6 +131,9 @@ internal static class AssistantRuntimeGuard
         }
     }
 
+    /// <summary>
+    /// 确认目标资源处于启用或生效状态；失效资源不得继续参与处理。
+    /// </summary>
     public static void EnsureActive(AssistantSessionStatus status, DateTime now, DateTime expiresAt, string expiredCode)
     {
         if (status != AssistantSessionStatus.Active)
@@ -126,6 +142,9 @@ internal static class AssistantRuntimeGuard
             throw new BizResultException(BusinessCodes.Forbidden, expiredCode);
     }
 
+    /// <summary>
+    /// 确认目标运行尚未进入终态，避免重复写入完成或失败结果。
+    /// </summary>
     public static void EnsureNotTerminal<TStatus>(TStatus status, Func<TStatus, bool> terminal, string entity)
         where TStatus : struct, Enum
     {

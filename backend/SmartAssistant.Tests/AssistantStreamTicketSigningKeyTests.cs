@@ -9,10 +9,19 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手流式输出票据签名密钥行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantStreamTicketSigningKeyTests
 {
+    /// <summary>
+    /// 定义助手流式输出票据签名密钥测试使用的密钥配置值。
+    /// </summary>
     private const string RootKey = "assistant-test-root-key-with-at-least-32-bytes";
 
+    /// <summary>
+    /// 验证流票据从 JWT 根密钥派生独立密钥，并忽略旧配置。
+    /// </summary>
     [Fact]
     public void Derives_a_distinct_stream_ticket_key_from_the_jwt_root_and_ignores_legacy_setting()
     {
@@ -33,6 +42,9 @@ public sealed class AssistantStreamTicketSigningKeyTests
         Assert.NotNull(tickets);
     }
 
+    /// <summary>
+    /// 验证即使存在旧配置，缺少 JWT 根密钥仍会被拒绝。
+    /// </summary>
     [Fact]
     public void Rejects_missing_jwt_root_even_when_legacy_setting_exists()
     {

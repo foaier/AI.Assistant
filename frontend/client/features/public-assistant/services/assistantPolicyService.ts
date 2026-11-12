@@ -7,7 +7,7 @@ export interface ModelServiceSettings {
 }
 export interface ModelService {
   id: string; name: string; revision: number; enabled: boolean; models: ModelOption[];
-  settings: ModelServiceSettings | null; updatedAt: string;
+  settings: ModelServiceSettings | null;
 }
 export interface BusinessPolicySettings {
   name: string; businessCode: string; providerId: string; providerRevision: number; model: string;
@@ -15,12 +15,12 @@ export interface BusinessPolicySettings {
   knowledgeEnabled: boolean; retrievalLimit: number; requireEvidence: boolean; noAnswerMessage: string;
   webSearchEnabled: boolean; humanHandoffEnabled: boolean;
 }
-export interface BusinessPolicy { id: string; revision: number; enabled: boolean; settings: BusinessPolicySettings; updatedAt: string }
+export interface BusinessPolicy { id: string; revision: number; enabled: boolean; settings: BusinessPolicySettings; }
 export interface ModelConnectionCheck { success: boolean; message: string; checkedAt: string }
 export interface AssistantWebSearchConfig {
   id: string; revision: number; enabled: boolean; endpoint: string; botId: string;
   serviceName: string; credentialConfigured: boolean; credentialMasked: string;
-  timeoutSeconds: number; updatedAt: string;
+  timeoutSeconds: number;
 }
 export interface AssistantWebSearchAvailability { configured: boolean; enabled: boolean; revision: number | null }
 export interface AssistantWebSearchSettings {

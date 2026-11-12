@@ -60,8 +60,6 @@ function assistant(overrides: Partial<Assistant> = {}): Assistant {
     name: '默认客服',
     description: '默认描述',
     draftRevision: 1,
-    updatedAt: '2026-09-24T00:00:00.000Z',
-    updatedBy: 'admin-1',
     configuration,
     ...overrides,
   };
@@ -74,8 +72,6 @@ function listItem(overrides: Partial<AssistantListItem> = {}): AssistantListItem
     name: source.name,
     description: source.description,
     draftRevision: source.draftRevision,
-    updatedAt: source.updatedAt,
-    updatedBy: source.updatedBy,
   };
 }
 

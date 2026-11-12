@@ -7,16 +7,12 @@ export interface AssistantListItem {
   name: string;
   description?: string | null;
   draftRevision: number;
-  updatedAt: string;
-  updatedBy: string;
 }
 export interface Assistant {
   id: string;
   name: string;
   description?: string | null;
   draftRevision: number;
-  updatedAt: string;
-  updatedBy: string;
   configuration: AssistantConfiguration;
 }
 
@@ -102,7 +98,6 @@ export interface AssistantKnowledgeBase {
   description?: string | null;
   qnaCount: number;
   documentCount: number;
-  updatedAt: string;
 }
 
 export type AssistantKnowledgeChunkingMode =
@@ -184,7 +179,6 @@ export interface AssistantKnowledgeQna {
   enabled: boolean;
   sortOrder: number;
   showAsSuggestion: boolean;
-  updatedAt: string;
 }
 
 export interface AssistantKnowledgeDocument {
@@ -201,7 +195,6 @@ export interface AssistantKnowledgeDocument {
   lastErrorCode?: string | null;
   indexStatus: string;
   indexGeneration?: number | null;
-  updatedAt: string;
 }
 
 export interface AssistantKnowledgeDocumentPreview {
@@ -256,7 +249,6 @@ export interface AssistantConversationAnalytics {
   locale: string;
   status: number;
   lastTurnNo: number;
-  createdAt: string;
   lastActivityAt: string;
 }
 
@@ -487,7 +479,6 @@ export interface AssistantTranscript {
     role: number;
     status: number;
     contentJson: string;
-    createdAt: string;
   }>;
   nextCursor?: string | null;
   hasMore: boolean;
@@ -520,7 +511,6 @@ export interface AssistantPreviewMessages {
     role: number;
     status: number;
     contentJson: string;
-    createdAt: string;
   }>;
   running: boolean;
   failureCode?: string | null;

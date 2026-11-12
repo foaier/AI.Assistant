@@ -23,6 +23,9 @@ public sealed record AssistantAssembledToolCall(
 /// </summary>
 public sealed class AssistantProviderToolCallAssembler
 {
+    /// <summary>
+    /// 保存助手模型供应商工具调用组装器在处理调用时所需的数据或状态。
+    /// </summary>
     private readonly Dictionary<int, MutableToolCall> _calls = new();
 
     /// <summary>
@@ -70,6 +73,9 @@ public sealed class AssistantProviderToolCallAssembler
         return result;
     }
 
+    /// <summary>
+    /// 根据当前工具调用状态创建不可变快照，供后续执行或回放使用。
+    /// </summary>
     private static AssistantAssembledToolCall Snapshot(
         MutableToolCall call,
         bool requireComplete)
@@ -108,6 +114,9 @@ public sealed class AssistantProviderToolCallAssembler
             call.Arguments.ToString());
     }
 
+    /// <summary>
+    /// 规范化可选字符串；空白内容转换为空值，并校验长度限制。
+    /// </summary>
     private static string? NormalizeOptional(string? value, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -118,13 +127,31 @@ public sealed class AssistantProviderToolCallAssembler
         return normalized;
     }
 
+    /// <summary>
+    /// 封装工具调用相关的内部状态或数据，供所属组件完成相应处理。
+    /// </summary>
     private sealed class MutableToolCall
     {
+        /// <summary>
+        /// 接收并保存工具调用执行所需的依赖，建立后续操作使用的运行状态。
+        /// </summary>
         public MutableToolCall(int index) => Index = index;
 
+        /// <summary>
+        /// 表示工具调用的索引信息。
+        /// </summary>
         public int Index { get; }
+        /// <summary>
+        /// 关联模型发起的具体工具调用。
+        /// </summary>
         public string? ToolCallId { get; set; }
+        /// <summary>
+        /// 记录此资源的展示名称。
+        /// </summary>
         public string? Name { get; set; }
+        /// <summary>
+        /// 保存模型生成的工具调用参数 JSON。
+        /// </summary>
         public StringBuilder Arguments { get; } = new();
     }
 }

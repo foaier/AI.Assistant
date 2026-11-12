@@ -10,7 +10,7 @@ using SmartAssistant.Modules.Contracts;
 
 using Microsoft.AspNetCore.Mvc;
 
-namespace SmartAssistant.Modules.Controllers;
+namespace SmartAssistant.Controllers;
 
 /// <summary>
 /// 提供系统级模型供应商和联网搜索配置接口。
@@ -19,14 +19,29 @@ namespace SmartAssistant.Modules.Controllers;
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public sealed class SystemAssistantModelsController : ControllerBase
 {
+    /// <summary>
+    /// 保存助手策略服务依赖，供助手模型控制器执行相关操作。
+    /// </summary>
     private readonly IAssistantPolicyService _service;
+    /// <summary>
+    /// 保存助手网络检索配置服务依赖，供助手模型控制器执行相关操作。
+    /// </summary>
     private readonly AssistantWebSearchConfigurationService _webSearch;
+    /// <summary>
+    /// 保存管理权限服务依赖，供助手模型控制器执行相关操作。
+    /// </summary>
     private readonly IAdminPermissionService _permissions;
 
+    /// <summary>
+    /// 接收并保存助手模型控制器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public SystemAssistantModelsController(IAssistantPolicyService service,
         AssistantWebSearchConfigurationService webSearch, IAdminPermissionService permissions)
         => (_service, _webSearch, _permissions) = (service, webSearch, permissions);
 
+    /// <summary>
+    /// 校验当前操作人具有平台超级管理员权限，否则拒绝访问管理接口。
+    /// </summary>
     private async Task<string> RequireSuperAdminAsync()
     {
         var actor = User.GetUserId();
@@ -69,6 +84,9 @@ public sealed class SystemAssistantModelsController : ControllerBase
     [HttpPut("providers/{id}")]
     public Task<BizResult<AssistantModelServiceDto>> UpdateProvider(string id, [FromBody] SaveAssistantModelServiceCommand command, CancellationToken ct) => SaveProvider(id, command, ct);
 
+    /// <summary>
+    /// 校验并保存模型供应商配置及其修订信息。
+    /// </summary>
     private async Task<BizResult<AssistantModelServiceDto>> SaveProvider(string? id, SaveAssistantModelServiceCommand command, CancellationToken ct)
     {
         var actor = await RequireSuperAdminAsync();

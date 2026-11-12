@@ -13,13 +13,34 @@ namespace SmartAssistant.Modules.Infrastructure.AssistantTransport;
 /// </summary>
 public sealed class AssistantRunEventReplay
 {
+    /// <summary>
+    /// 保存助手执行事件回放在处理事件时所需的数据或状态。
+    /// </summary>
     private readonly List<AssistantRunEventEnvelope> _events = new();
+    /// <summary>
+    /// 保存助手执行事件回放在处理执行时所需的数据或状态。
+    /// </summary>
     private readonly string _runId;
+    /// <summary>
+    /// 保存助手执行事件回放在处理轮次时所需的数据或状态。
+    /// </summary>
     private readonly string _turnId;
+    /// <summary>
+    /// 保存助手执行事件回放在处理序号时所需的数据或状态。
+    /// </summary>
     private long _sequenceHead;
+    /// <summary>
+    /// 保存助手执行事件回放在处理终态时所需的数据或状态。
+    /// </summary>
     private bool _terminal;
+    /// <summary>
+    /// 保存助手执行状态依赖，供助手执行事件回放执行相关操作。
+    /// </summary>
     private AssistantRunStatus _persistedStatus;
 
+    /// <summary>
+    /// 接收并保存助手执行事件回放执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantRunEventReplay(
         string runId,
         string turnId,
@@ -38,8 +59,17 @@ public sealed class AssistantRunEventReplay
         MaxEvents = maxEvents;
     }
 
+    /// <summary>
+    /// 记录当前已分配或处理的事件序号。
+    /// </summary>
     public long CurrentSequence => _sequenceHead;
+    /// <summary>
+    /// 记录事件回放窗口中最早可读取的序号。
+    /// </summary>
     public long AvailableFromSequence => _events.Count == 0 ? 0 : _events[0].Sequence;
+    /// <summary>
+    /// 限制单次回放或事件窗口保留的事件数量。
+    /// </summary>
     public int MaxEvents { get; }
 
     /// <summary>
@@ -95,11 +125,17 @@ public sealed class AssistantRunEventReplay
             null);
     }
 
+    /// <summary>
+    /// 校验字符串必填，并在返回前去除首尾空白。
+    /// </summary>
     private static string Required(string? value, string field)
         => string.IsNullOrWhiteSpace(value)
             ? throw new BizResultException(BusinessCodes.BusinessException, $"{field} required")
             : value.Trim();
 
+    /// <summary>
+    /// 判断是否满足终态事件。
+    /// </summary>
     private static bool IsTerminalEvent(string type)
         => string.Equals(type, AssistantRunEventTypes.RunCompleted, StringComparison.Ordinal)
             || string.Equals(type, AssistantRunEventTypes.RunFailed, StringComparison.Ordinal)

@@ -16,8 +16,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手执行行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantRunCancellationTests
 {
+    /// <summary>
+    /// 验证序号预留后发生取消，内容增量和终态事件仍能按顺序送达。
+    /// </summary>
     [Fact]
     public async Task Cancellation_after_sequence_reservation_preserves_delta_and_terminal_delivery()
     {
@@ -38,6 +44,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Contains("partial answer", fixture.Message.ContentJson);
     }
 
+    /// <summary>
+    /// 验证发布增量时停止运行，只会在增量之后发送一次终态事件。
+    /// </summary>
     [Fact]
     public async Task Stop_during_delta_publication_delivers_one_terminal_event_after_the_delta()
     {
@@ -72,6 +81,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Equal(AssistantTurnStatus.Cancelled, fixture.Turn.Status);
     }
 
+    /// <summary>
+    /// 验证工作线程在读取与提交终态之间启动时，停止操作会重试。
+    /// </summary>
     [Fact]
     public async Task Stop_retries_when_the_worker_starts_between_read_and_terminal_commit()
     {
@@ -82,6 +94,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Equal("run.cancelled", Assert.Single(await fixture.ReadEventsAsync()).Type);
     }
 
+    /// <summary>
+    /// 验证读取到活动运行后又读到终态轮次时，停止操作会重新核验状态。
+    /// </summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -89,7 +104,7 @@ public sealed class AssistantRunCancellationTests
     {
         var fixture = new Fixture();
         fixture.Run.Start(DateTime.UtcNow);
-        fixture.Turn.Start(DateTime.UtcNow);
+        fixture.Turn.Start();
         fixture.BeforeReadTurn = () =>
         {
             fixture.BeforeReadTurn = null;
@@ -112,6 +127,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Equal(0, fixture.Run.SequenceHead);
     }
 
+    /// <summary>
+    /// 验证停止能够取消模型流，并且重复停止保持幂等。
+    /// </summary>
     [Fact]
     public async Task Stop_cancels_the_submitted_provider_stream_and_repeated_stop_is_idempotent()
     {
@@ -132,6 +150,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Contains("partial answer", fixture.Message.ContentJson);
     }
 
+    /// <summary>
+    /// 验证持续终态冲突会报告失败，避免错误确认活动运行已经停止。
+    /// </summary>
     [Fact]
     public async Task Persistent_terminal_conflicts_are_reported_instead_of_acknowledging_an_active_run()
     {
@@ -141,6 +162,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Equal(0, fixture.TerminalConflictsRemaining);
     }
 
+    /// <summary>
+    /// 验证停止操作可以立即取消供应商，无需等待终态事件送达。
+    /// </summary>
     [Fact]
     public async Task Stop_cancels_provider_without_waiting_for_terminal_event_delivery()
     {
@@ -169,6 +193,9 @@ public sealed class AssistantRunCancellationTests
         Assert.Equal("run.cancelled", (await fixture.ReadEventsAsync())[^1].Type);
     }
 
+    /// <summary>
+    /// 验证取消时保留消息最新正文，成功完成时写入最终正文。
+    /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -213,7 +240,7 @@ public sealed class AssistantRunCancellationTests
         var fixture = new Fixture();
         var now = DateTime.UtcNow;
         fixture.Run.Start(now);
-        fixture.Turn.Start(now);
+        fixture.Turn.Start();
         fixture.Message.AppendAssistantText("earlier snapshot");
         if (cancelled)
         {
@@ -240,35 +267,82 @@ public sealed class AssistantRunCancellationTests
         Assert.Contains("`completed_at`", assignments);
         var guard = messageUpdate[assignments.Length..];
         Assert.Contains("`status`", guard);
-        Assert.Contains("`is_deleted`", guard);
+        Assert.Contains("`id`", guard);
     }
 
+    /// <summary>
+    /// 为助手执行测试相关测试提供隔离数据、受控依赖或固定 HTTP 响应。
+    /// </summary>
     private sealed class Fixture
     {
-        public readonly AssistantScopeSnapshot Scope = new("assistant", "tenant", "org", "published", AssistantExecutionMode.Public);
+        /// <summary>
+        /// 定义测试夹具使用的范围配置值。
+        /// </summary>
+        public readonly AssistantScopeSnapshot Scope = new("assistant", "published", AssistantExecutionMode.Public);
+        /// <summary>
+        /// 保存测试夹具在处理轮次时所需的数据或状态。
+        /// </summary>
         public AssistantTurn Turn;
+        /// <summary>
+        /// 保存测试夹具在处理执行时所需的数据或状态。
+        /// </summary>
         public AssistantRun Run;
+        /// <summary>
+        /// 保存测试夹具在处理消息时所需的数据或状态。
+        /// </summary>
         public AssistantMessage Message;
+        /// <summary>
+        /// 保存测试夹具在处理编排器时所需的数据或状态。
+        /// </summary>
         public readonly AssistantRunOrchestrator Orchestrator;
+        /// <summary>
+        /// 保存助手执行事件事件代理依赖，供测试夹具执行相关操作。
+        /// </summary>
         private readonly InMemoryAssistantRunEventBroker _broker = new();
+        /// <summary>
+        /// 保存测试夹具在处理预留时所需的数据或状态。
+        /// </summary>
         public Func<long, Task>? AfterReserve;
+        /// <summary>
+        /// 保存测试夹具在处理读取轮次时所需的数据或状态。
+        /// </summary>
         public Action? BeforeReadTurn;
+        /// <summary>
+        /// 保存测试夹具在处理启动首个取消时所需的数据或状态。
+        /// </summary>
         public bool StartDuringFirstCancel;
+        /// <summary>
+        /// 保存测试夹具在处理终态冲突时所需的数据或状态。
+        /// </summary>
         public int TerminalConflictsRemaining;
+        /// <summary>
+        /// 定义测试夹具使用的模型供应商配置值。
+        /// </summary>
         public readonly TaskCompletionSource ProviderStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        /// <summary>
+        /// 保存助手公开授权依赖，供测试夹具执行相关操作。
+        /// </summary>
         private readonly AssistantPublicAuthority _authority;
+        /// <summary>
+        /// 保存尚未完成的提交任务，供测试控制并发提交时序。
+        /// </summary>
         private Action? _pendingCommit;
+        /// <summary>
+        /// 保存助手策略依赖，供测试夹具执行相关操作。
+        /// </summary>
         private readonly AssistantResolvedPolicy _policy = new("policy", 1, "customer_service", "provider", "Provider", "model", "", 0.2, 100, false, 5, false, "");
 
+        /// <summary>
+        /// 初始化测试夹具测试依赖或隔离测试环境。
+        /// </summary>
         public Fixture()
         {
             var now = DateTime.UtcNow;
-            Turn = AssistantTurn.Create(Guid.NewGuid().ToString("N"), "conversation", "session", "assistant", "tenant", "org",
-                "published", "request", "text", "question", "zh-cn", 1, AssistantExecutionMode.Public, now);
-            Run = AssistantRun.Create(Guid.NewGuid().ToString("N"), Turn, "provider", "model", now);
+            Turn = AssistantTurn.Create(Guid.NewGuid().ToString("N"), "conversation", "session", "assistant", "published", "request", "text", "question", "zh-cn", 1, AssistantExecutionMode.Public);
+            Run = AssistantRun.Create(Guid.NewGuid().ToString("N"), Turn, "provider", "model");
             Message = AssistantMessage.CreateAssistant("message", "conversation", Turn.Id, Run.Id, now);
-            var session = AnonymousAssistantSession.Create("session", "assistant", "tenant", "org", "published", "subject", "zh-cn", AssistantExecutionMode.Public, now, now.AddHours(1));
-            var conversation = AssistantConversation.Create("conversation", "assistant", "session", "tenant", "org", "published", "zh-cn", AssistantExecutionMode.Public, now);
+            var session = AnonymousAssistantSession.Create("session", "assistant", "published", "subject", "zh-cn", AssistantExecutionMode.Public, now, now.AddHours(1));
+            var conversation = AssistantConversation.Create("conversation", "assistant", "session", "published", "zh-cn", AssistantExecutionMode.Public, now);
             _authority = new("key", Scope, "Assistant", null,
                 JsonSerializer.SerializeToElement(new { runtime = new AssistantExecutionSnapshot(1, _policy, null, [], []) }), 1, "hash");
             var runtime = Stub<IAssistantRuntimeRepository>((name, args) => name switch
@@ -297,9 +371,15 @@ public sealed class AssistantRunCancellationTests
                 NullLogger<AssistantRunOrchestrator>.Instance);
         }
 
+        /// <summary>
+        /// 验证测试夹具相关行为、预期结果及错误边界。
+        /// </summary>
         public Task<AssistantTurnAccepted> SubmitAsync() => Orchestrator.SubmitAuthorizedTurnAsync(
             new("key", "conversation", "request", "text", "question", "zh-cn"), "session", _authority);
 
+        /// <summary>
+        /// 验证创建相关行为、预期结果及错误边界。
+        /// </summary>
         private Task<bool> CreateBundle(object?[] args)
         {
             Turn = Clone((AssistantTurn)args[4]!);
@@ -308,21 +388,33 @@ public sealed class AssistantRunCancellationTests
             return Task.FromResult(true);
         }
 
+        /// <summary>
+        /// 验证执行相关行为、预期结果及错误边界。
+        /// </summary>
         public Task ExecuteAsync(CancellationToken token) => Orchestrator.ExecuteRunAsync(Scope, "session", "conversation", Turn.Id, Run.Id,
             "zh-cn", "question", null, _policy, new(1, _policy, null, [], []), token);
 
+        /// <summary>
+        /// 验证读取轮次相关行为、预期结果及错误边界。
+        /// </summary>
         private Task<AssistantTurn?> ReadTurn()
         {
             BeforeReadTurn?.Invoke();
             return Task.FromResult<AssistantTurn?>(Clone(Turn));
         }
 
+        /// <summary>
+        /// 在测试仓储中保存运行和轮次副本，并模拟成功启动运行。
+        /// </summary>
         private Task<bool> Start(AssistantRun run, AssistantTurn turn)
         {
             Run = Clone(run); Turn = Clone(turn);
             return Task.FromResult(true);
         }
 
+        /// <summary>
+        /// 验证保存相关行为、预期结果及错误边界。
+        /// </summary>
         private Task<int> Save(AssistantMessage message)
         {
             if (Message.Status != message.Status) return Task.FromResult(0);
@@ -330,24 +422,32 @@ public sealed class AssistantRunCancellationTests
             return Task.FromResult(1);
         }
 
+        /// <summary>
+        /// 验证预留相关行为、预期结果及错误边界。
+        /// </summary>
         private async Task<long?> ReserveAsync(long expected, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             if (Run.SequenceHead != expected) return null;
             var next = expected + 1;
-            Run = AssistantRun.Rehydrate(Run.Id, Run.TurnId, Run.ConversationId, Run.SessionId, Run.AssistantId, Run.TenantId,
-                Run.OrgId, Run.PublishedVersionId, Run.ExecutionMode, Run.ProviderProfileRef, Run.Model, Run.Status, next,
-                Run.CreatedAt, Run.StartedAt, Run.CompletedAt, Run.FailureCode, Run.PromptTokens, Run.CompletionTokens, Run.TotalTokens);
+            Run = AssistantRun.Rehydrate(Run.Id, Run.TurnId, Run.ConversationId, Run.SessionId, Run.AssistantId, Run.PublishedVersionId, Run.ExecutionMode, Run.ProviderProfileRef, Run.Model, Run.Status, next,
+                Run.StartedAt, Run.CompletedAt, Run.FailureCode, Run.PromptTokens, Run.CompletionTokens, Run.TotalTokens);
             if (AfterReserve is not null) await AfterReserve(next);
             return next;
         }
 
+        /// <summary>
+        /// 验证终态相关行为、预期结果及错误边界。
+        /// </summary>
         private Task<bool> Terminal(object?[] args)
         {
             _pendingCommit = () => ApplyTerminal(args);
             return Task.FromResult(true);
         }
 
+        /// <summary>
+        /// 验证提交相关行为、预期结果及错误边界。
+        /// </summary>
         private Task<int> Commit()
         {
             var command = _pendingCommit;
@@ -356,6 +456,9 @@ public sealed class AssistantRunCancellationTests
             return Task.FromResult(0);
         }
 
+        /// <summary>
+        /// 验证应用终态相关行为、预期结果及错误边界。
+        /// </summary>
         private void ApplyTerminal(object?[] args)
         {
             if (TerminalConflictsRemaining > 0)
@@ -366,7 +469,7 @@ public sealed class AssistantRunCancellationTests
             if (StartDuringFirstCancel)
             {
                 StartDuringFirstCancel = false;
-                Run.Start(DateTime.UtcNow); Turn.Start(DateTime.UtcNow);
+                Run.Start(DateTime.UtcNow); Turn.Start();
                 throw new AssistantRuntimeConcurrencyException();
             }
             if (Run.Status != (AssistantRunStatus)args[2]! || Turn.Status != (AssistantTurnStatus)args[4]!
@@ -375,16 +478,18 @@ public sealed class AssistantRunCancellationTests
             // Sequence belongs to the event writer, independently of terminal state writes.
             var sequence = Run.SequenceHead;
             Run = Clone((AssistantRun)args[1]!);
-            Run = AssistantRun.Rehydrate(Run.Id, Run.TurnId, Run.ConversationId, Run.SessionId, Run.AssistantId, Run.TenantId,
-                Run.OrgId, Run.PublishedVersionId, Run.ExecutionMode, Run.ProviderProfileRef, Run.Model, Run.Status, sequence,
-                Run.CreatedAt, Run.StartedAt, Run.CompletedAt, Run.FailureCode, Run.PromptTokens, Run.CompletionTokens, Run.TotalTokens);
+            Run = AssistantRun.Rehydrate(Run.Id, Run.TurnId, Run.ConversationId, Run.SessionId, Run.AssistantId, Run.PublishedVersionId, Run.ExecutionMode, Run.ProviderProfileRef, Run.Model, Run.Status, sequence,
+                Run.StartedAt, Run.CompletedAt, Run.FailureCode, Run.PromptTokens, Run.CompletionTokens, Run.TotalTokens);
             Turn = Clone((AssistantTurn)args[3]!);
             if (args[5] is AssistantMessage message)
                 Message = AssistantMessage.Rehydrate(message.Id, message.ConversationId, message.TurnId, message.RunId,
                     message.Role, message.Status, Run.Status == AssistantRunStatus.Cancelled ? Message.ContentJson : message.ContentJson,
-                    message.CreatedAt, message.CompletedAt);
+                    message.CompletedAt);
         }
 
+        /// <summary>
+        /// 验证读取事件相关行为、预期结果及错误边界。
+        /// </summary>
         public async Task<List<AssistantRunEventEnvelope>> ReadEventsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -393,16 +498,31 @@ public sealed class AssistantRunCancellationTests
             return events;
         }
 
+        /// <summary>
+        /// 验证测试夹具相关行为、预期结果及错误边界。
+        /// </summary>
         private static AssistantRun Clone(AssistantRun r) => AssistantRun.Rehydrate(r.Id, r.TurnId, r.ConversationId, r.SessionId,
-            r.AssistantId, r.TenantId, r.OrgId, r.PublishedVersionId, r.ExecutionMode, r.ProviderProfileRef, r.Model, r.Status,
-            r.SequenceHead, r.CreatedAt, r.StartedAt, r.CompletedAt, r.FailureCode, r.PromptTokens, r.CompletionTokens, r.TotalTokens);
+            r.AssistantId, r.PublishedVersionId, r.ExecutionMode, r.ProviderProfileRef, r.Model, r.Status,
+            r.SequenceHead, r.StartedAt, r.CompletedAt, r.FailureCode, r.PromptTokens, r.CompletionTokens, r.TotalTokens);
+        /// <summary>
+        /// 验证测试夹具相关行为、预期结果及错误边界。
+        /// </summary>
         private static AssistantTurn Clone(AssistantTurn t) => AssistantTurn.Rehydrate(t.Id, t.ConversationId, t.SessionId, t.AssistantId,
-            t.TenantId, t.OrgId, t.PublishedVersionId, t.ClientMessageId, t.RequestHash, t.TurnNo, t.ExecutionMode, t.Status, t.CreatedAt, t.CompletedAt, t.FailureCode);
-        private static AssistantMessage Clone(AssistantMessage m) => AssistantMessage.Rehydrate(m.Id, m.ConversationId, m.TurnId, m.RunId, m.Role, m.Status, m.ContentJson, m.CreatedAt, m.CompletedAt);
+            t.PublishedVersionId, t.ClientMessageId, t.RequestHash, t.TurnNo, t.ExecutionMode, t.Status, t.CompletedAt, t.FailureCode);
+        /// <summary>
+        /// 验证测试夹具相关行为、预期结果及错误边界。
+        /// </summary>
+        private static AssistantMessage Clone(AssistantMessage m) => AssistantMessage.Rehydrate(m.Id, m.ConversationId, m.TurnId, m.RunId, m.Role, m.Status, m.ContentJson, m.CompletedAt);
     }
 
+    /// <summary>
+    /// 仅供助手执行测试使用的测试辅助类型。
+    /// </summary>
     private sealed class WaitingProvider(TaskCompletionSource stopped) : IChatModelProvider
     {
+        /// <summary>
+        /// 验证流式输出相关行为、预期结果及错误边界。
+        /// </summary>
         public async IAsyncEnumerable<AssistantProviderChunk> StreamAsync(AssistantProviderRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             try
@@ -414,6 +534,9 @@ public sealed class AssistantRunCancellationTests
         }
     }
 
+    /// <summary>
+    /// 验证助手执行测试相关行为、预期结果及错误边界。
+    /// </summary>
     private static T Stub<T>(Func<string, object?[], object?> invoke) where T : class
     {
         var instance = DispatchProxy.Create<T, TestProxy>();
@@ -421,9 +544,18 @@ public sealed class AssistantRunCancellationTests
         return instance;
     }
 
+    /// <summary>
+    /// 在测试中替代服务依赖，用来记录调用或模拟特定响应。
+    /// </summary>
     public class TestProxy : DispatchProxy
     {
+        /// <summary>
+        /// 定义测试使用的处理器配置值。
+        /// </summary>
         public Func<string, object?[], object?> Handler = null!;
+        /// <summary>
+        /// 验证测试相关行为、预期结果及错误边界。
+        /// </summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => Handler(targetMethod!.Name, args ?? []);
     }
 }

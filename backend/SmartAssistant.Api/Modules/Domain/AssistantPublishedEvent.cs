@@ -8,27 +8,36 @@ namespace SmartAssistant.Modules.Domain;
 /// </summary>
 public sealed class AssistantPublishedEvent : DomainEvent, IDeterministicOutboxIdEvent
 {
+    /// <summary>
+    /// 接收并保存助手发布事件执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantPublishedEvent(
         string assistantId,
-        string tenantId,
-        string orgId,
         string publishedVersionId,
         long versionNo,
         string actorUserId)
     {
         Id = $"assistant-published:{assistantId}:{versionNo}";
         AssistantId = assistantId;
-        TenantId = tenantId;
-        OrgId = orgId;
         PublishedVersionId = publishedVersionId;
         VersionNo = versionNo;
         ActorUserId = actorUserId;
     }
 
+    /// <summary>
+    /// 关联此数据所属的助手。
+    /// </summary>
     public string AssistantId { get; }
-    public string TenantId { get; }
-    public string OrgId { get; }
+    /// <summary>
+    /// 绑定创建此会话或运行时使用的固定发布版本。
+    /// </summary>
     public string PublishedVersionId { get; }
+    /// <summary>
+    /// 记录发布版本或文档版本的递增编号。
+    /// </summary>
     public long VersionNo { get; }
+    /// <summary>
+    /// 记录当前操作人的用户标识。
+    /// </summary>
     public string ActorUserId { get; }
 }

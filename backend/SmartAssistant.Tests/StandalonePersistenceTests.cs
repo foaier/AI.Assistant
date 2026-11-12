@@ -4,11 +4,18 @@ using SmartAssistant.Modules.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using SmartAssistant.Persistence;
 using Xunit;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证独立项目持久化行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class StandalonePersistenceTests
 {
+    /// <summary>
+    /// 验证迁移增加注释后，已有数据库仍接受原始初始化脚本校验和。
+    /// </summary>
     [Fact]
     public void Existing_database_accepts_original_initial_migration_checksum_after_comments_are_added()
     {
@@ -34,6 +41,9 @@ public sealed class StandalonePersistenceTests
         Assert.Equal(1, reopened.Ado.GetInt("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'assistant_draft'"));
     }
 
+    /// <summary>
+    /// 验证任意待提交命令失败时，聚合和事件发件箱一并回滚。
+    /// </summary>
     [Fact]
     public async Task Aggregate_and_outbox_rollback_together_when_any_enqueued_command_fails()
     {
@@ -42,24 +52,27 @@ public sealed class StandalonePersistenceTests
         using var db = new LocalDbContext(config);
         var repository = new AssistantDraftRepository(db);
         var publisher = new LocalEventPublisher(db);
-        var draft = AssistantDraft.Create("rollback-draft", "tenant", "org", "事务助手", null, "{}", "actor", null, DateTime.UtcNow);
+        var draft = AssistantDraft.Create("rollback-draft", "事务助手", null, "{}", "actor", null);
         await repository.AddAsync(draft, CancellationToken.None);
-        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, "tenant", "org", 1, "actor"));
+        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, 1, "actor"));
         db.AddCommand(_ => Task.FromException<int>(new InvalidOperationException("forced-last-command-failure")));
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => db.CommitAsync());
         Assert.Equal("forced-last-command-failure", error.Message);
-        Assert.Null(await repository.GetAsync("tenant", "org", draft.Id, CancellationToken.None));
-        Assert.Equal(0, await db.GetSugarScope(ConnectionType.Master).Queryable<LocalOutboxEvent>().CountAsync());
+        Assert.Null(await repository.GetAsync(draft.Id, CancellationToken.None));
+        Assert.Equal(0, await db.GetSugarScope().Queryable<LocalOutboxEventEntity>().CountAsync());
 
         await repository.AddAsync(draft, CancellationToken.None);
-        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, "tenant", "org", 1, "actor"));
+        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, 1, "actor"));
         await db.CommitAsync();
-        Assert.NotNull(await repository.GetAsync("tenant", "org", draft.Id, CancellationToken.None));
-        var message = Assert.Single(await db.GetSugarScope(ConnectionType.Master).Queryable<LocalOutboxEvent>().ToListAsync());
+        Assert.NotNull(await repository.GetAsync(draft.Id, CancellationToken.None));
+        var message = Assert.Single(await db.GetSugarScope().Queryable<LocalOutboxEventEntity>().ToListAsync());
         Assert.Equal("assistant-draft-saved:rollback-draft:1", message.Id);
     }
 
+    /// <summary>
+    /// 验证重启后本地向量仍保持余弦排序、集合隔离及允许列表约束。
+    /// </summary>
     [Fact]
     public async Task Local_vectors_keep_cosine_order_collection_isolation_and_allowlist_after_restart()
     {
@@ -85,6 +98,9 @@ public sealed class StandalonePersistenceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => restarted.SearchAsync("one", new float[] { 1, 0, 0 }, 5, CancellationToken.None));
     }
 
+    /// <summary>
+    /// 验证配置相关行为、预期结果及错误边界。
+    /// </summary>
     private static IConfiguration NewConfiguration()
         => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

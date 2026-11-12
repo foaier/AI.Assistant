@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using SqlSugar;
 using SmartAssistant.Modules.Infrastructure;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Persistence;
 
@@ -11,7 +12,13 @@ namespace SmartAssistant.Persistence;
 /// </summary>
 public sealed class LocalVectorIndex(IConfiguration configuration) : IAssistantVectorIndexStore
 {
+    /// <summary>
+    /// 保存本地向量索引在处理目录时所需的数据或状态。
+    /// </summary>
     private readonly string _dataDirectory = LocalDatabase.DataDirectory(configuration);
+    /// <summary>
+    /// 串行化本地向量索引中的临界写入，避免共享状态并发损坏。
+    /// </summary>
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
     /// <summary>
@@ -34,16 +41,16 @@ public sealed class LocalVectorIndex(IConfiguration configuration) : IAssistantV
             await database.Ado.BeginTranAsync();
             try
             {
-                var collection = await database.Queryable<VectorCollection>().Where(row => row.Name == collectionName).FirstAsync();
+                var collection = await database.Queryable<VectorCollectionEntity>().Where(row => row.Name == collectionName).FirstAsync();
                 if (collection is null)
-                    await database.Insertable(new VectorCollection { Name = collectionName, Dimension = dimension }).ExecuteCommandAsync();
+                    await database.Insertable(new VectorCollectionEntity { Name = collectionName, Dimension = dimension }).ExecuteCommandAsync();
                 else if (collection.Dimension != dimension)
                     throw new InvalidOperationException("assistant_embedding_dimension_mismatch");
 
                 foreach (var chunk in chunks)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var row = new VectorPoint
+                    var row = new VectorPointEntity
                     {
                         CollectionName = collectionName,
                         ChunkId = chunk.ChunkId,
@@ -74,15 +81,14 @@ public sealed class LocalVectorIndex(IConfiguration configuration) : IAssistantV
     /// <summary>
     /// 回读指定片段的索引标识和内容哈希，供索引任务核对写入结果。
     /// </summary>
-    public async Task<IReadOnlyList<AssistantVectorPointReadback>> ReadBackAsync(string collectionName,
-        IReadOnlyList<AssistantVectorChunk> chunks, CancellationToken ct)
+    public async Task<IReadOnlyList<AssistantVectorPointReadback>> ReadBackAsync(string collectionName, IReadOnlyList<AssistantVectorChunk> chunks, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(collectionName);
         ct.ThrowIfCancellationRequested();
         if (chunks.Count == 0) return [];
         using var database = LocalDatabase.Open(_dataDirectory);
         var expected = chunks.ToDictionary(chunk => chunk.ChunkId, StringComparer.Ordinal);
-        var rows = await database.Queryable<VectorPoint>().Where(row => row.CollectionName == collectionName).ToListAsync();
+        var rows = await database.Queryable<VectorPointEntity>().Where(row => row.CollectionName == collectionName).ToListAsync();
         var result = new List<AssistantVectorPointReadback>();
         foreach (var row in rows)
         {
@@ -98,20 +104,19 @@ public sealed class LocalVectorIndex(IConfiguration configuration) : IAssistantV
     /// <summary>
     /// 在指定集合内检索相似向量；提供片段白名单时只返回允许范围内的候选。
     /// </summary>
-    public async Task<IReadOnlyList<AssistantVectorSearchHit>> SearchAsync(string collectionName,
-        ReadOnlyMemory<float> vector, int limit, CancellationToken ct, IReadOnlyCollection<string>? allowedChunkIds = null)
+    public async Task<IReadOnlyList<AssistantVectorSearchHit>> SearchAsync(string collectionName, ReadOnlyMemory<float> vector, int limit, CancellationToken ct, IReadOnlyCollection<string>? allowedChunkIds = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(collectionName);
         ct.ThrowIfCancellationRequested();
         if (vector.Length == 0 || allowedChunkIds is { Count: 0 }) return [];
         using var database = LocalDatabase.Open(_dataDirectory);
-        var collection = await database.Queryable<VectorCollection>().Where(row => row.Name == collectionName).FirstAsync();
+        var collection = await database.Queryable<VectorCollectionEntity>().Where(row => row.Name == collectionName).FirstAsync();
         if (collection is null) return [];
         var query = vector.ToArray();
         if (!AssistantEmbeddingValidation.IsValid(query, collection.Dimension))
             throw new InvalidOperationException("assistant_embedding_dimension_mismatch");
         var allowed = allowedChunkIds?.ToHashSet(StringComparer.Ordinal);
-        var rows = await database.Queryable<VectorPoint>().Where(row => row.CollectionName == collectionName).ToListAsync();
+        var rows = await database.Queryable<VectorPointEntity>().Where(row => row.CollectionName == collectionName).ToListAsync();
         var result = new List<AssistantVectorSearchHit>();
         var queryNorm = Math.Sqrt(query.Sum(value => (double)value * value));
         foreach (var row in rows)
@@ -132,30 +137,5 @@ public sealed class LocalVectorIndex(IConfiguration configuration) : IAssistantV
         }
         return result.OrderByDescending(hit => hit.Score).ThenBy(hit => hit.ChunkId, StringComparer.Ordinal)
             .Take(Math.Clamp(limit, 1, 100)).ToArray();
-    }
-
-    /// <summary>
-    /// 向量集合的持久化元数据，约束同一集合使用统一的向量维度。
-    /// </summary>
-    [SugarTable("assistant_vector_collection")]
-    public sealed class VectorCollection
-    {
-        [SugarColumn(ColumnName = "name", IsPrimaryKey = true)] public string Name { get; set; } = "";
-        [SugarColumn(ColumnName = "dimension")] public int Dimension { get; set; }
-    }
-
-    /// <summary>
-    /// 向量片段的持久化记录，关联文档版本、片段标识和内容哈希。
-    /// </summary>
-    [SugarTable("assistant_vector_point")]
-    public sealed class VectorPoint
-    {
-        [SugarColumn(ColumnName = "collection_name", IsPrimaryKey = true)] public string CollectionName { get; set; } = "";
-        [SugarColumn(ColumnName = "chunk_id", IsPrimaryKey = true)] public string ChunkId { get; set; } = "";
-        [SugarColumn(ColumnName = "content_hash")] public string ContentHash { get; set; } = "";
-        [SugarColumn(ColumnName = "document_id")] public string DocumentId { get; set; } = "";
-        [SugarColumn(ColumnName = "version_no")] public int VersionNo { get; set; }
-        [SugarColumn(ColumnName = "chunk_index")] public int ChunkIndex { get; set; }
-        [SugarColumn(ColumnName = "vector_json")] public string VectorJson { get; set; } = "";
     }
 }

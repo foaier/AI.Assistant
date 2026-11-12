@@ -8,6 +8,7 @@ using SmartAssistant.Extensions.Common;
 using SmartAssistant.Extensions.DAL;
 using SqlSugar;
 using SmartAssistant.Platform;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Modules.Infrastructure;
 
@@ -16,88 +17,160 @@ namespace SmartAssistant.Modules.Infrastructure;
 /// </summary>
 public interface IAssistantKnowledgeDocumentRepository
 {
-    Task<IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow>> ListDocumentsAsync(string tenantId, string orgId, string knowledgeBaseId, CancellationToken ct);
-    Task<AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow?> GetDocumentAsync(string tenantId, string orgId, string knowledgeBaseId, string documentId, CancellationToken ct);
-    Task AddDocumentAsync(AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow row, CancellationToken ct);
-    Task UpdateDocumentAsync(AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentRow row, CancellationToken ct);
-    Task AddVersionAsync(AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentVersionRow row, CancellationToken ct);
-    Task UpdateVersionAsync(AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentVersionRow row, CancellationToken ct);
-    Task<AssistantKnowledgeDocumentRepository.AssistantKnowledgeDocumentVersionRow?> GetVersionAsync(string tenantId, string orgId, string documentId, int versionNo, CancellationToken ct);
-    Task AddChunksAsync(IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow> rows, CancellationToken ct);
-    Task UpdateChunkPointIdsAsync(IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow> rows, CancellationToken ct);
-    Task<IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeChunkRow>> ListChunksAsync(string tenantId, string orgId, string versionId, CancellationToken ct);
-    Task AddIndexJobAsync(AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow row, CancellationToken ct);
-    Task UpdateIndexJobAsync(AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow row, CancellationToken ct);
-    Task<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow?> GetIndexJobAsync(string tenantId, string orgId, string knowledgeBaseId, string jobId, CancellationToken ct);
-    Task<IReadOnlyList<AssistantKnowledgeDocumentRepository.AssistantKnowledgeIndexJobRow>> ListIndexJobsAsync(string tenantId, string orgId, string knowledgeBaseId, CancellationToken ct);
+    /// <summary>
+    /// 列出文档，并响应调用方的取消请求。
+    /// </summary>
+    Task<IReadOnlyList<AssistantKnowledgeDocumentEntity>> ListDocumentsAsync(string knowledgeBaseId, CancellationToken ct);
+    /// <summary>
+    /// 获取文档，并响应调用方的取消请求。
+    /// </summary>
+    Task<AssistantKnowledgeDocumentEntity?> GetDocumentAsync(string knowledgeBaseId, string documentId, CancellationToken ct);
+    /// <summary>
+    /// 添加文档，并响应调用方的取消请求。
+    /// </summary>
+    Task AddDocumentAsync(AssistantKnowledgeDocumentEntity row, CancellationToken ct);
+    /// <summary>
+    /// 更新文档，并响应调用方的取消请求。
+    /// </summary>
+    Task UpdateDocumentAsync(AssistantKnowledgeDocumentEntity row, CancellationToken ct);
+    /// <summary>
+    /// 添加版本，并响应调用方的取消请求。
+    /// </summary>
+    Task AddVersionAsync(AssistantKnowledgeDocumentVersionEntity row, CancellationToken ct);
+    /// <summary>
+    /// 更新版本，并响应调用方的取消请求。
+    /// </summary>
+    Task UpdateVersionAsync(AssistantKnowledgeDocumentVersionEntity row, CancellationToken ct);
+    /// <summary>
+    /// 获取版本，并响应调用方的取消请求。
+    /// </summary>
+    Task<AssistantKnowledgeDocumentVersionEntity?> GetVersionAsync(string documentId, int versionNo, CancellationToken ct);
+    /// <summary>
+    /// 添加片段，并响应调用方的取消请求。
+    /// </summary>
+    Task AddChunksAsync(IReadOnlyList<AssistantKnowledgeChunkEntity> rows, CancellationToken ct);
+    /// <summary>
+    /// 更新片段点，并响应调用方的取消请求。
+    /// </summary>
+    Task UpdateChunkPointIdsAsync(IReadOnlyList<AssistantKnowledgeChunkEntity> rows, CancellationToken ct);
+    /// <summary>
+    /// 列出片段，并响应调用方的取消请求。
+    /// </summary>
+    Task<IReadOnlyList<AssistantKnowledgeChunkEntity>> ListChunksAsync(string versionId, CancellationToken ct);
+    /// <summary>
+    /// 添加索引任务，并响应调用方的取消请求。
+    /// </summary>
+    Task AddIndexJobAsync(AssistantKnowledgeIndexJobEntity row, CancellationToken ct);
+    /// <summary>
+    /// 更新索引任务，并响应调用方的取消请求。
+    /// </summary>
+    Task UpdateIndexJobAsync(AssistantKnowledgeIndexJobEntity row, CancellationToken ct);
+    /// <summary>
+    /// 获取索引任务，并响应调用方的取消请求。
+    /// </summary>
+    Task<AssistantKnowledgeIndexJobEntity?> GetIndexJobAsync(string knowledgeBaseId, string jobId, CancellationToken ct);
+    /// <summary>
+    /// 列出索引任务，并响应调用方的取消请求。
+    /// </summary>
+    Task<IReadOnlyList<AssistantKnowledgeIndexJobEntity>> ListIndexJobsAsync(string knowledgeBaseId, CancellationToken ct);
 }
 
 /// <summary>
-/// 保存知识文档及其版本、片段和索引任务，并按租户与组织隔离查询。
+/// 保存知识文档及其版本、片段和索引任务，并按知识库限定查询范围。
 /// </summary>
 public sealed class AssistantKnowledgeDocumentRepository : IAssistantKnowledgeDocumentRepository
 {
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手知识文档仓储执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
 
+    /// <summary>
+    /// 接收并保存助手知识文档仓储执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantKnowledgeDocumentRepository(IDbContext dbContext) => _dbContext = dbContext;
 
-    public async Task<IReadOnlyList<AssistantKnowledgeDocumentRow>> ListDocumentsAsync(string tenantId, string orgId, string knowledgeBaseId, CancellationToken ct)
+    /// <summary>
+    /// 列出文档，并响应调用方的取消请求。
+    /// </summary>
+    public async Task<IReadOnlyList<AssistantKnowledgeDocumentEntity>> ListDocumentsAsync(string knowledgeBaseId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return await _dbContext.GetSugarScope(ConnectionType.Master).Queryable<AssistantKnowledgeDocumentRow>()
-            .Where(x => x.TenantId == tenantId && x.OrgId == orgId && x.KnowledgeBaseId == knowledgeBaseId && !x.IsDeleted)
-            .OrderByDescending(x => x.UpdatedAt).ToListAsync();
+        return await _dbContext.GetSugarScope().Queryable<AssistantKnowledgeDocumentEntity>()
+            .Where(x => x.KnowledgeBaseId == knowledgeBaseId)
+            .OrderBy(x => x.FileName).OrderBy(x => x.Id).ToListAsync();
     }
 
-    public async Task<AssistantKnowledgeDocumentRow?> GetDocumentAsync(string tenantId, string orgId, string knowledgeBaseId, string documentId, CancellationToken ct)
+    /// <summary>
+    /// 获取文档，并响应调用方的取消请求。
+    /// </summary>
+    public async Task<AssistantKnowledgeDocumentEntity?> GetDocumentAsync(string knowledgeBaseId, string documentId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return await _dbContext.GetSugarScope(ConnectionType.Master).Queryable<AssistantKnowledgeDocumentRow>()
-            .Where(x => x.TenantId == tenantId && x.OrgId == orgId && x.KnowledgeBaseId == knowledgeBaseId && x.Id == documentId && !x.IsDeleted)
+        return await _dbContext.GetSugarScope().Queryable<AssistantKnowledgeDocumentEntity>()
+            .Where(x => x.KnowledgeBaseId == knowledgeBaseId && x.Id == documentId)
             .FirstAsync();
     }
 
-    public Task AddDocumentAsync(AssistantKnowledgeDocumentRow row, CancellationToken ct)
+    /// <summary>
+    /// 添加文档，并响应调用方的取消请求。
+    /// </summary>
+    public Task AddDocumentAsync(AssistantKnowledgeDocumentEntity row, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _dbContext.AddCommand(client => client.Insertable(row).ExecuteCommandAsync());
         return Task.CompletedTask;
     }
 
-    public Task UpdateDocumentAsync(AssistantKnowledgeDocumentRow row, CancellationToken ct)
+    /// <summary>
+    /// 更新文档，并响应调用方的取消请求。
+    /// </summary>
+    public Task UpdateDocumentAsync(AssistantKnowledgeDocumentEntity row, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _dbContext.AddCommand(client => client.Updateable(row)
-            .Where(x => x.Id == row.Id && x.TenantId == row.TenantId && x.OrgId == row.OrgId && !x.IsDeleted)
+            .Where(x => x.Id == row.Id)
             .ExecuteCommandAsync());
         return Task.CompletedTask;
     }
 
-    public Task AddVersionAsync(AssistantKnowledgeDocumentVersionRow row, CancellationToken ct)
+    /// <summary>
+    /// 添加版本，并响应调用方的取消请求。
+    /// </summary>
+    public Task AddVersionAsync(AssistantKnowledgeDocumentVersionEntity row, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _dbContext.AddCommand(client => client.Insertable(row).ExecuteCommandAsync());
         return Task.CompletedTask;
     }
 
-    public Task UpdateVersionAsync(AssistantKnowledgeDocumentVersionRow row, CancellationToken ct)
+    /// <summary>
+    /// 更新版本，并响应调用方的取消请求。
+    /// </summary>
+    public Task UpdateVersionAsync(AssistantKnowledgeDocumentVersionEntity row, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _dbContext.AddCommand(client => client.Updateable(row)
-            .Where(x => x.Id == row.Id && x.TenantId == row.TenantId && x.OrgId == row.OrgId && !x.IsDeleted)
+            .Where(x => x.Id == row.Id)
             .ExecuteCommandAsync());
         return Task.CompletedTask;
     }
 
-    public async Task<AssistantKnowledgeDocumentVersionRow?> GetVersionAsync(string tenantId, string orgId, string documentId, int versionNo, CancellationToken ct)
+    /// <summary>
+    /// 获取版本，并响应调用方的取消请求。
+    /// </summary>
+    public async Task<AssistantKnowledgeDocumentVersionEntity?> GetVersionAsync(string documentId, int versionNo, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return await _dbContext.GetSugarScope(ConnectionType.Master).Queryable<AssistantKnowledgeDocumentVersionRow>()
-            .Where(x => x.TenantId == tenantId && x.OrgId == orgId && x.DocumentId == documentId && x.VersionNo == versionNo && !x.IsDeleted)
+        return await _dbContext.GetSugarScope().Queryable<AssistantKnowledgeDocumentVersionEntity>()
+            .Where(x => x.DocumentId == documentId && x.VersionNo == versionNo)
             .FirstAsync();
     }
 
-    public Task AddChunksAsync(IReadOnlyList<AssistantKnowledgeChunkRow> rows, CancellationToken ct)
+    /// <summary>
+    /// 添加片段，并响应调用方的取消请求。
+    /// </summary>
+    public Task AddChunksAsync(IReadOnlyList<AssistantKnowledgeChunkEntity> rows, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (rows.Count > 0)
@@ -105,7 +178,10 @@ public sealed class AssistantKnowledgeDocumentRepository : IAssistantKnowledgeDo
         return Task.CompletedTask;
     }
 
-    public Task UpdateChunkPointIdsAsync(IReadOnlyList<AssistantKnowledgeChunkRow> rows, CancellationToken ct)
+    /// <summary>
+    /// 更新片段点，并响应调用方的取消请求。
+    /// </summary>
+    public Task UpdateChunkPointIdsAsync(IReadOnlyList<AssistantKnowledgeChunkEntity> rows, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (rows.Count > 0)
@@ -114,8 +190,8 @@ public sealed class AssistantKnowledgeDocumentRepository : IAssistantKnowledgeDo
                 var affected = 0;
                 foreach (var row in rows)
                     affected += await client.Updateable(row)
-                        .Where(value => value.Id == row.Id && value.TenantId == row.TenantId && value.OrgId == row.OrgId
-                            && value.DocumentVersionId == row.DocumentVersionId && !value.IsDeleted)
+                        .Where(value => value.Id == row.Id
+                            && value.DocumentVersionId == row.DocumentVersionId)
                         .ExecuteCommandAsync();
                 if (affected != rows.Count)
                     throw new BizResultException(BusinessCodes.Conflict, "knowledge_chunk_point_link_conflict");
@@ -124,149 +200,58 @@ public sealed class AssistantKnowledgeDocumentRepository : IAssistantKnowledgeDo
         return Task.CompletedTask;
     }
 
-    public async Task<IReadOnlyList<AssistantKnowledgeChunkRow>> ListChunksAsync(string tenantId, string orgId, string versionId, CancellationToken ct)
+    /// <summary>
+    /// 列出片段，并响应调用方的取消请求。
+    /// </summary>
+    public async Task<IReadOnlyList<AssistantKnowledgeChunkEntity>> ListChunksAsync(string versionId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return await _dbContext.GetSugarScope(ConnectionType.Master).Queryable<AssistantKnowledgeChunkRow>()
-            .Where(x => x.TenantId == tenantId && x.OrgId == orgId && x.DocumentVersionId == versionId && !x.IsDeleted)
+        return await _dbContext.GetSugarScope().Queryable<AssistantKnowledgeChunkEntity>()
+            .Where(x => x.DocumentVersionId == versionId)
             .OrderBy(x => x.ChunkIndex).ToListAsync();
     }
 
-    public Task AddIndexJobAsync(AssistantKnowledgeIndexJobRow row, CancellationToken ct)
+    /// <summary>
+    /// 添加索引任务，并响应调用方的取消请求。
+    /// </summary>
+    public Task AddIndexJobAsync(AssistantKnowledgeIndexJobEntity row, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _dbContext.AddCommand(client => client.Insertable(row).ExecuteCommandAsync());
         return Task.CompletedTask;
     }
 
-    public Task UpdateIndexJobAsync(AssistantKnowledgeIndexJobRow row, CancellationToken ct)
+    /// <summary>
+    /// 更新索引任务，并响应调用方的取消请求。
+    /// </summary>
+    public Task UpdateIndexJobAsync(AssistantKnowledgeIndexJobEntity row, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _dbContext.AddCommand(client => client.Updateable(row)
-            .Where(x => x.Id == row.Id && x.TenantId == row.TenantId && x.OrgId == row.OrgId)
+            .Where(x => x.Id == row.Id)
             .ExecuteCommandAsync());
         return Task.CompletedTask;
     }
 
-    public async Task<AssistantKnowledgeIndexJobRow?> GetIndexJobAsync(string tenantId, string orgId, string knowledgeBaseId, string jobId, CancellationToken ct)
+    /// <summary>
+    /// 获取索引任务，并响应调用方的取消请求。
+    /// </summary>
+    public async Task<AssistantKnowledgeIndexJobEntity?> GetIndexJobAsync(string knowledgeBaseId, string jobId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return await _dbContext.GetSugarScope(ConnectionType.Master).Queryable<AssistantKnowledgeIndexJobRow>()
-            .Where(x => x.TenantId == tenantId && x.OrgId == orgId && x.KnowledgeBaseId == knowledgeBaseId && x.Id == jobId)
+        return await _dbContext.GetSugarScope().Queryable<AssistantKnowledgeIndexJobEntity>()
+            .Where(x => x.KnowledgeBaseId == knowledgeBaseId && x.Id == jobId)
             .FirstAsync();
     }
 
-    public async Task<IReadOnlyList<AssistantKnowledgeIndexJobRow>> ListIndexJobsAsync(string tenantId, string orgId, string knowledgeBaseId, CancellationToken ct)
+    /// <summary>
+    /// 列出索引任务，并响应调用方的取消请求。
+    /// </summary>
+    public async Task<IReadOnlyList<AssistantKnowledgeIndexJobEntity>> ListIndexJobsAsync(string knowledgeBaseId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return await _dbContext.GetSugarScope(ConnectionType.Master).Queryable<AssistantKnowledgeIndexJobRow>()
-            .Where(x => x.TenantId == tenantId && x.OrgId == orgId && x.KnowledgeBaseId == knowledgeBaseId)
-            .OrderByDescending(x => x.CreatedAt).ToListAsync();
-    }
-
-    /// <summary>
-    /// 知识文档的数据库主记录。
-    /// </summary>
-    [SugarTable("assistant_knowledge_document")]
-    public sealed class AssistantKnowledgeDocumentRow
-    {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "knowledge_base_id")] public string KnowledgeBaseId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "asset_id")] public string AssetId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "file_name")] public string FileName { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "content_type")] public string ContentType { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "size_bytes")] public long SizeBytes { get; set; }
-        [SugarColumn(ColumnName = "current_version_no")] public int CurrentVersionNo { get; set; }
-        [SugarColumn(ColumnName = "status")] public string Status { get; set; } = "uploaded";
-        [SugarColumn(ColumnName = "last_error_code", IsNullable = true)] public string? LastErrorCode { get; set; }
-        [SugarColumn(ColumnName = "is_deleted")] public bool IsDeleted { get; set; }
-        [SugarColumn(ColumnName = "deleted_at", IsNullable = true)] public DateTime? DeletedAt { get; set; }
-        [SugarColumn(ColumnName = "deleted_by", IsNullable = true)] public string? DeletedBy { get; set; }
-        [SugarColumn(ColumnName = "created_at")] public DateTime CreatedAt { get; set; }
-        [SugarColumn(ColumnName = "created_by")] public string CreatedBy { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "updated_at")] public DateTime UpdatedAt { get; set; }
-        [SugarColumn(ColumnName = "updated_by")] public string UpdatedBy { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// 知识文档某次解析版本的数据库记录。
-    /// </summary>
-    [SugarTable("assistant_knowledge_document_version")]
-    public sealed class AssistantKnowledgeDocumentVersionRow
-    {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "document_id")] public string DocumentId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "version_no")] public int VersionNo { get; set; }
-        [SugarColumn(ColumnName = "content_hash")] public string ContentHash { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "parser_version")] public string ParserVersion { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "chunk_strategy")] public string ChunkStrategy { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "chunk_policy_json", ColumnDataType = "longtext")] public string ChunkPolicyJson { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "status")] public string Status { get; set; } = "uploaded";
-        [SugarColumn(ColumnName = "chunk_count")] public int ChunkCount { get; set; }
-        [SugarColumn(ColumnName = "index_status")] public string IndexStatus { get; set; } = "queued";
-        [SugarColumn(ColumnName = "indexed_at", IsNullable = true)] public DateTime? IndexedAt { get; set; }
-        [SugarColumn(ColumnName = "error_code", IsNullable = true)] public string? ErrorCode { get; set; }
-        [SugarColumn(ColumnName = "is_deleted")] public bool IsDeleted { get; set; }
-        [SugarColumn(ColumnName = "deleted_at", IsNullable = true)] public DateTime? DeletedAt { get; set; }
-        [SugarColumn(ColumnName = "deleted_by", IsNullable = true)] public string? DeletedBy { get; set; }
-        [SugarColumn(ColumnName = "created_at")] public DateTime CreatedAt { get; set; }
-        [SugarColumn(ColumnName = "created_by")] public string CreatedBy { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// 文档版本中的文本片段及其索引关联记录。
-    /// </summary>
-    [SugarTable("assistant_knowledge_chunk")]
-    public sealed class AssistantKnowledgeChunkRow
-    {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "document_version_id")] public string DocumentVersionId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "chunk_index")] public int ChunkIndex { get; set; }
-        [SugarColumn(ColumnName = "content_hash")] public string ContentHash { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "content", ColumnDataType = "longtext")] public string Content { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "token_count")] public int TokenCount { get; set; }
-        [SugarColumn(ColumnName = "point_id", IsNullable = true)] public string? PointId { get; set; }
-        [SugarColumn(ColumnName = "is_deleted")] public bool IsDeleted { get; set; }
-        [SugarColumn(ColumnName = "deleted_at", IsNullable = true)] public DateTime? DeletedAt { get; set; }
-        [SugarColumn(ColumnName = "deleted_by", IsNullable = true)] public string? DeletedBy { get; set; }
-        [SugarColumn(ColumnName = "created_at")] public DateTime CreatedAt { get; set; }
-        [SugarColumn(ColumnName = "created_by")] public string CreatedBy { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// 冻结嵌入配置与文档版本的索引任务记录。
-    /// </summary>
-    [SugarTable("assistant_knowledge_index_job")]
-    public sealed class AssistantKnowledgeIndexJobRow
-    {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "knowledge_base_id")] public string KnowledgeBaseId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "document_id")] public string DocumentId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "document_version_id")] public string DocumentVersionId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "version_no")] public int VersionNo { get; set; }
-        [SugarColumn(ColumnName = "status")] public string Status { get; set; } = "queued";
-        [SugarColumn(ColumnName = "attempt_count")] public int AttemptCount { get; set; }
-        [SugarColumn(ColumnName = "chunk_count")] public int ChunkCount { get; set; }
-        [SugarColumn(ColumnName = "error_code", IsNullable = true)] public string? ErrorCode { get; set; }
-        [SugarColumn(ColumnName = "created_at")] public DateTime CreatedAt { get; set; }
-        [SugarColumn(ColumnName = "started_at", IsNullable = true)] public DateTime? StartedAt { get; set; }
-        [SugarColumn(ColumnName = "completed_at", IsNullable = true)] public DateTime? CompletedAt { get; set; }
-        [SugarColumn(ColumnName = "generation", IsNullable = true)] public long? Generation { get; set; }
-        [SugarColumn(ColumnName = "embedding_provider_id", IsNullable = true)] public string? EmbeddingProviderId { get; set; }
-        [SugarColumn(ColumnName = "embedding_provider_revision", IsNullable = true)] public long? EmbeddingProviderRevision { get; set; }
-        [SugarColumn(ColumnName = "embedding_model", IsNullable = true)] public string? EmbeddingModel { get; set; }
-        [SugarColumn(ColumnName = "embedding_dimension", IsNullable = true)] public int? EmbeddingDimension { get; set; }
-        [SugarColumn(ColumnName = "chunk_policy_revision", IsNullable = true)] public long? ChunkPolicyRevision { get; set; }
-        [SugarColumn(ColumnName = "chunk_policy_json", ColumnDataType = "longtext", IsNullable = true)] public string? ChunkPolicyJson { get; set; }
-        [SugarColumn(ColumnName = "parser_version", IsNullable = true)] public string? ParserVersion { get; set; }
-        [SugarColumn(ColumnName = "content_hash", IsNullable = true)] public string? ContentHash { get; set; }
+        return await _dbContext.GetSugarScope().Queryable<AssistantKnowledgeIndexJobEntity>()
+            .Where(x => x.KnowledgeBaseId == knowledgeBaseId)
+            .OrderBy("rowid DESC").ToListAsync();
     }
 }

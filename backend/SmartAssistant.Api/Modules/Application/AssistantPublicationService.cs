@@ -18,12 +18,30 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public sealed class AssistantPublicationService : IAssistantPublicationService
 {
+    /// <summary>
+    /// 保存助手草稿仓储依赖，供助手发布服务执行相关操作。
+    /// </summary>
     private readonly IAssistantDraftRepository _drafts;
+    /// <summary>
+    /// 保存助手发布仓储依赖，供助手发布服务执行相关操作。
+    /// </summary>
     private readonly IAssistantPublicationRepository _publications;
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手发布服务执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
+    /// <summary>
+    /// 保存事件依赖，供助手发布服务执行相关操作。
+    /// </summary>
     private readonly IDomainEventPublisher _events;
+    /// <summary>
+    /// 保存助手执行快照服务依赖，供助手发布服务执行相关操作。
+    /// </summary>
     private readonly AssistantExecutionSnapshotService _snapshots;
 
+    /// <summary>
+    /// 接收并保存助手发布服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantPublicationService(
         IAssistantDraftRepository drafts,
         IAssistantPublicationRepository publications,
@@ -43,22 +61,20 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
     /// </summary>
     public async Task<AssistantPublicationResult> PublishAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         PublishAssistantCommand command,
         CancellationToken cancellationToken = default)
     {
-        RequireActorAndScope(actorUserId, tenantId, orgId, assistantId);
+        RequireActorAndScope(actorUserId, assistantId);
         if (command is null)
             throw new BizResultException(BusinessCodes.BusinessException, "assistant_publication_command_required");
 
-        var draft = await _drafts.GetAsync(tenantId, orgId, assistantId, cancellationToken)
+        var draft = await _drafts.GetAsync(assistantId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_draft_not_found");
         if (command.ExpectedDraftRevision != draft.DraftRevision)
             throw new BizResultException(BusinessCodes.Conflict, "assistant_draft_revision_conflict");
 
-        var pointer = await _publications.GetPointerAsync(tenantId, orgId, assistantId, cancellationToken);
+        var pointer = await _publications.GetPointerAsync(assistantId, cancellationToken);
         var expectedPointerRevision = command.ExpectedPointerRevision;
         if (pointer is null)
         {
@@ -81,7 +97,7 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
         if (pointer?.CurrentPublishedVersionId is { } currentVersionId
             && pointer.Status == AssistantPublicationPointerStatus.Active)
         {
-            var current = await _publications.GetVersionAsync(tenantId, orgId, currentVersionId, cancellationToken);
+            var current = await _publications.GetVersionAsync(currentVersionId, cancellationToken);
             if (current is not null && !current.IsRevoked
                 && string.Equals(current.SnapshotHash, version.SnapshotHash, StringComparison.Ordinal))
             {
@@ -92,19 +108,17 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
         await _publications.AddVersionAsync(version, cancellationToken);
         if (pointer is null)
         {
-            pointer = AssistantPublicationPointer.Create(version, actorUserId, now);
+            pointer = AssistantPublicationPointer.Create(version, actorUserId);
             await _publications.AddPointerAsync(pointer, cancellationToken);
         }
         else
         {
-            pointer.Advance(version, expectedPointerRevision!.Value, actorUserId, now);
+            pointer.Advance(version, expectedPointerRevision!.Value, actorUserId);
             await _publications.SavePointerAsync(pointer, expectedPointerRevision.Value, cancellationToken);
         }
 
         await _events.PublishAsync(new AssistantPublishedEvent(
             version.AssistantId,
-            version.TenantId,
-            version.OrgId,
             version.Id,
             version.VersionNo,
             actorUserId));
@@ -117,25 +131,23 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
     /// </summary>
     public async Task<AssistantPublicationResult> RevokeAsync(
         string actorUserId,
-        string tenantId,
-        string orgId,
         string assistantId,
         RevokeAssistantPublicationCommand command,
         CancellationToken cancellationToken = default)
     {
-        RequireActorAndScope(actorUserId, tenantId, orgId, assistantId);
+        RequireActorAndScope(actorUserId, assistantId);
         if (command is null)
             throw new BizResultException(BusinessCodes.BusinessException, "assistant_publication_command_required");
 
-        var pointer = await _publications.GetPointerAsync(tenantId, orgId, assistantId, cancellationToken)
+        var pointer = await _publications.GetPointerAsync(assistantId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_publication_not_found");
         var currentVersionId = pointer.CurrentPublishedVersionId
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_publication_not_found");
-        var version = await _publications.GetVersionAsync(tenantId, orgId, currentVersionId, cancellationToken)
+        var version = await _publications.GetVersionAsync(currentVersionId, cancellationToken)
             ?? throw new BizResultException(BusinessCodes.NotFound, "assistant_publication_not_found");
 
         var now = DateTime.UtcNow;
-        var revokedVersionId = pointer.Revoke(command.ExpectedPointerRevision, actorUserId, now);
+        var revokedVersionId = pointer.Revoke(command.ExpectedPointerRevision, actorUserId);
         if (!string.Equals(revokedVersionId, version.Id, StringComparison.Ordinal))
             throw new BizResultException(BusinessCodes.Conflict, "assistant_publication_pointer_version_conflict");
 
@@ -144,8 +156,6 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
         await _publications.SavePointerAsync(pointer, command.ExpectedPointerRevision, cancellationToken);
         await _events.PublishAsync(new AssistantPublicationRevokedEvent(
             pointer.AssistantId,
-            pointer.TenantId,
-            pointer.OrgId,
             version.Id,
             pointer.PointerRevision,
             actorUserId));
@@ -157,43 +167,40 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
     /// 读取当前指针指向的有效发布版本；未发布或已撤回时返回空值。
     /// </summary>
     public async Task<AssistantPublishedVersionDto?> GetCurrentAsync(
-        string tenantId,
-        string orgId,
         string assistantId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(tenantId)
-            || string.IsNullOrWhiteSpace(orgId)
-            || string.IsNullOrWhiteSpace(assistantId))
+        if (string.IsNullOrWhiteSpace(assistantId))
             return null;
-        var pointer = await _publications.GetPointerAsync(tenantId, orgId, assistantId, cancellationToken);
+        var pointer = await _publications.GetPointerAsync(assistantId, cancellationToken);
         if (pointer is null || pointer.Status != AssistantPublicationPointerStatus.Active
             || pointer.CurrentPublishedVersionId is null)
             return null;
-        var version = await _publications.GetVersionAsync(tenantId, orgId, pointer.CurrentPublishedVersionId, cancellationToken);
+        var version = await _publications.GetVersionAsync(pointer.CurrentPublishedVersionId, cancellationToken);
         return version is null || version.IsRevoked ? null : Map(version);
     }
 
     /// <summary>
     /// 读取助手当前的发布状态、指针修订和公开访问标识。
     /// </summary>
-    public async Task<AssistantPublicationState> GetStateAsync(string tenantId, string orgId, string assistantId, CancellationToken cancellationToken = default)
+    public async Task<AssistantPublicationState> GetStateAsync(string assistantId, CancellationToken cancellationToken = default)
     {
-        if (await _drafts.GetAsync(tenantId, orgId, assistantId, cancellationToken) is null)
+        if (await _drafts.GetAsync(assistantId, cancellationToken) is null)
             throw new BizResultException(BusinessCodes.NotFound, "assistant_not_found");
-        var pointer = await _publications.GetPointerAsync(tenantId, orgId, assistantId, cancellationToken);
-        var version = await GetCurrentAsync(tenantId, orgId, assistantId, cancellationToken);
+        var pointer = await _publications.GetPointerAsync(assistantId, cancellationToken);
+        var version = await GetCurrentAsync(assistantId, cancellationToken);
         return new(pointer?.PointerRevision ?? 0, version is not null, pointer?.AssistantKey ?? assistantId,
             version?.VersionNo ?? 0, version?.PublishedAt);
     }
 
+    /// <summary>
+    /// 将领域对象转换为应用层返回的数据传输对象。
+    /// </summary>
     private static AssistantPublishedVersionDto Map(AssistantPublishedVersion value)
         => new(
             value.Id,
             value.AssistantKey,
             value.AssistantId,
-            value.TenantId,
-            value.OrgId,
             value.VersionNo,
             value.Name,
             value.Description,
@@ -205,11 +212,12 @@ public sealed class AssistantPublicationService : IAssistantPublicationService
             value.RevokedAt,
             value.RevokedBy);
 
-    private static void RequireActorAndScope(string actorUserId, string tenantId, string orgId, string assistantId)
+    /// <summary>
+    /// 检查操作人标识已提供，缺少时拒绝执行写操作。
+    /// </summary>
+    private static void RequireActorAndScope(string actorUserId, string assistantId)
     {
         if (string.IsNullOrWhiteSpace(actorUserId)
-            || string.IsNullOrWhiteSpace(tenantId)
-            || string.IsNullOrWhiteSpace(orgId)
             || string.IsNullOrWhiteSpace(assistantId))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_scope_required");
     }

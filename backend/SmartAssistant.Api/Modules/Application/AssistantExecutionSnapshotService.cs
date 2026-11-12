@@ -50,11 +50,29 @@ public sealed record AssistantExecutionSnapshot(
 /// </summary>
 public sealed class AssistantExecutionSnapshotService
 {
+    /// <summary>
+    /// 保存助手策略服务依赖，供助手执行快照服务执行相关操作。
+    /// </summary>
     private readonly IAssistantPolicyService _policies;
+    /// <summary>
+    /// 保存助手知识仓储依赖，供助手执行快照服务执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeRepository _knowledge;
+    /// <summary>
+    /// 保存助手知识文档仓储依赖，供助手执行快照服务执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeDocumentRepository _documents;
+    /// <summary>
+    /// 保存助手知识嵌入配置仓储依赖，供助手执行快照服务执行相关操作。
+    /// </summary>
     private readonly IAssistantKnowledgeEmbeddingProfileRepository _embeddingProfiles;
+    /// <summary>
+    /// 保存助手网络检索配置服务依赖，供助手执行快照服务执行相关操作。
+    /// </summary>
     private readonly AssistantWebSearchConfigurationService? _webSearch;
+    /// <summary>
+    /// 接收并保存助手执行快照服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantExecutionSnapshotService(IAssistantPolicyService policies,
         IAssistantKnowledgeRepository knowledge, IAssistantKnowledgeDocumentRepository documents,
         IAssistantKnowledgeEmbeddingProfileRepository embeddingProfiles,
@@ -65,15 +83,15 @@ public sealed class AssistantExecutionSnapshotService
     /// <summary>
     /// 校验展示配置及策略、知识库和外部能力绑定，拒绝尚未接入或不可用的能力。
     /// </summary>
-    public async Task ValidateBindingsAsync(string tenantId, string orgId, string json, CancellationToken ct)
+    public async Task ValidateBindingsAsync(string json, CancellationToken ct)
     {
         var value = Parse(json);
         using var presentation = JsonDocument.Parse(json);
         AssistantPresentation.Validate(presentation.RootElement);
         var policyId = String(value, "businessPolicyId");
-        if (policyId is not null) await _policies.ResolveAsync(tenantId, orgId, policyId, ct);
+        if (policyId is not null) await _policies.ResolveAsync(policyId, ct);
         var knowledgeId = String(value, "knowledgeBaseId");
-        if (knowledgeId is not null && await _knowledge.GetBaseAsync(tenantId, orgId, knowledgeId, ct) is null)
+        if (knowledgeId is not null && await _knowledge.GetBaseAsync(knowledgeId, ct) is null)
             throw new BizResultException(BusinessCodes.NotFound, "assistant_knowledge_base_not_found");
         if (Enabled(value, "humanHandoff"))
             throw new BizResultException(BusinessCodes.BusinessException, "assistant_external_capability_not_ready");
@@ -93,8 +111,8 @@ public sealed class AssistantExecutionSnapshotService
         var value = Parse(draft.DraftJson);
         var policyId = String(value, "businessPolicyId")
             ?? throw new BizResultException(BusinessCodes.BusinessException, "assistant_policy_required");
-        var policy = await _policies.ResolveAsync(draft.TenantId, draft.OrgId, policyId, ct);
-        await ValidateBindingsAsync(draft.TenantId, draft.OrgId, draft.DraftJson, ct);
+        var policy = await _policies.ResolveAsync(policyId, ct);
+        await ValidateBindingsAsync(draft.DraftJson, ct);
         var knowledgeId = String(value, "knowledgeBaseId");
         var questions = new List<AssistantFrozenQuestion>();
         var documents = new List<AssistantFrozenDocument>();
@@ -128,27 +146,27 @@ public sealed class AssistantExecutionSnapshotService
         if (knowledgeId is not null)
         {
             if (Enabled(value, "customQa"))
-                questions.AddRange((await _knowledge.ListQnaAsync(draft.TenantId, draft.OrgId, knowledgeId, ct))
+                questions.AddRange((await _knowledge.ListQnaAsync(knowledgeId, ct))
                     .Where(q => q.Enabled).OrderBy(q => q.SortOrder).ThenBy(q => q.Id, StringComparer.Ordinal)
                     .Select(q => new AssistantFrozenQuestion(q.Id, q.Question, q.NormalizedQuestion, q.Answer, q.ShowAsSuggestion)));
             if (Enabled(value, "knowledgeQa") && policy.KnowledgeEnabled)
             {
-                var profile = await _embeddingProfiles.GetAsync(draft.TenantId, draft.OrgId, knowledgeId, ct);
+                var profile = await _embeddingProfiles.GetAsync(knowledgeId, ct);
                 if (profile is null || profile.ActiveGeneration < 1 || profile.ActiveProviderId is null
                     || profile.ActiveProviderRevision is null || profile.ActiveModel is null || profile.ActiveDimension is null)
                     throw new BizResultException(BusinessCodes.Conflict, "assistant_knowledge_index_not_ready");
                 embedding = new(profile.ActiveProviderId, profile.ActiveProviderRevision.Value, profile.ActiveModel,
                     profile.ActiveDimension.Value, profile.ActiveProfileRevision ?? profile.Revision, profile.ActiveGeneration);
                 await _policies.EnsureEmbeddingAvailableAsync(embedding, ct);
-                var jobs = await _documents.ListIndexJobsAsync(draft.TenantId, draft.OrgId, knowledgeId, ct);
-                foreach (var doc in (await _documents.ListDocumentsAsync(draft.TenantId, draft.OrgId, knowledgeId, ct))
+                var jobs = await _documents.ListIndexJobsAsync(knowledgeId, ct);
+                foreach (var doc in (await _documents.ListDocumentsAsync(knowledgeId, ct))
                     .OrderBy(d => d.Id, StringComparer.Ordinal))
                 {
                     var job = jobs.Where(j => j.DocumentId == doc.Id && j.Status == "succeeded"
                         && j.Generation == embedding.Generation && j.EmbeddingProviderId == embedding.ProviderId
                         && j.EmbeddingProviderRevision == embedding.ProviderRevision && j.EmbeddingModel == embedding.Model
                         && j.EmbeddingDimension == embedding.Dimension).OrderByDescending(j => j.VersionNo).FirstOrDefault();
-                    var version = job is null ? null : await _documents.GetVersionAsync(draft.TenantId, draft.OrgId, doc.Id, job.VersionNo, ct);
+                    var version = job is null ? null : await _documents.GetVersionAsync(doc.Id, job.VersionNo, ct);
                     if (version is null || version.Id != job!.DocumentVersionId || version.Status != "ready" || version.IndexStatus != "ready")
                         throw new BizResultException(BusinessCodes.Conflict, "assistant_knowledge_index_not_ready");
                     documents.Add(new(doc.Id, version.Id, version.VersionNo, doc.FileName));
@@ -193,20 +211,28 @@ public sealed class AssistantExecutionSnapshotService
         /*
          * 发布时冻结的问答正文保持不变，但当前撤回操作必须立即阻止继续使用。
          */
-        if (await _knowledge.GetBaseAsync(authority.Scope.TenantId, authority.Scope.OrgId, snapshot.KnowledgeBaseId, ct) is null)
+        if (await _knowledge.GetBaseAsync(snapshot.KnowledgeBaseId, ct) is null)
             return null;
-        var current = await _knowledge.GetQnaAsync(authority.Scope.TenantId, authority.Scope.OrgId,
-            snapshot.KnowledgeBaseId, question.Id, ct);
+        var current = await _knowledge.GetQnaAsync(snapshot.KnowledgeBaseId, question.Id, ct);
         return current?.Enabled == true ? question.Answer : null;
     }
 
+    /// <summary>
+    /// 将存储的配置 JSON 解析为可读取的对象结构。
+    /// </summary>
     private static JsonObject Parse(string json)
     {
         try { return JsonNode.Parse(json) as JsonObject ?? throw new JsonException(); }
         catch (JsonException) { throw new BizResultException(BusinessCodes.BusinessException, "assistant_configuration_invalid"); }
     }
+    /// <summary>
+    /// 读取 JSON 中指定名称的字符串字段，并统一空值处理方式。
+    /// </summary>
     private static string? String(JsonObject value, string key)
         => value[key] is JsonValue node && node.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
+    /// <summary>
+    /// 判断配置对象中指定的能力是否处于启用状态。
+    /// </summary>
     private static bool Enabled(JsonObject value, string key)
         => value["capabilities"] is JsonObject capabilities && capabilities[key] is JsonValue node
             && node.TryGetValue<bool>(out var enabled) && enabled;

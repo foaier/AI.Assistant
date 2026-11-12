@@ -1,4 +1,3 @@
-import { useDateTime } from '@/shared/hooks/useDateTime';
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +21,7 @@ export function AssistantTranscript({
   conversationId: string | null;
   onClose: () => void;
 }) {
-  const { formatDateTimeDisplay } = useDateTime();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const p = (key: string) => t(`publicAssistant.experience.${key}`);
   const query = useInfiniteQuery({
     queryKey: ["assistant-transcript", assistantId, conversationId],
@@ -74,9 +72,6 @@ export function AssistantTranscript({
                     <span className="font-medium">
                       {p(message.role === 1 ? "visitor" : "assistant")}
                     </span>
-                    <time dateTime={message.createdAt}>
-                      {formatDateTimeDisplay(message.createdAt, locale)}
-                    </time>
                     <span>{p(`status.${message.status}`)}</span>
                     {body.source && <span>{p(`source.${body.source}`)}</span>}
                   </div>

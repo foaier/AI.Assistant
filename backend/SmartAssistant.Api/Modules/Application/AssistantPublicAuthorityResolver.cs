@@ -13,8 +13,14 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public sealed class AssistantPublicAuthorityResolver : IAssistantPublicAuthorityResolver
 {
+    /// <summary>
+    /// 保存助手发布仓储依赖，供助手公开授权解析器执行相关操作。
+    /// </summary>
     private readonly IAssistantPublicationRepository _publications;
 
+    /// <summary>
+    /// 接收并保存助手公开授权解析器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantPublicAuthorityResolver(IAssistantPublicationRepository publications)
         => _publications = publications;
 
@@ -41,8 +47,6 @@ public sealed class AssistantPublicAuthorityResolver : IAssistantPublicAuthority
             version.AssistantKey,
             new AssistantScopeSnapshot(
                 version.AssistantId,
-                version.TenantId,
-                version.OrgId,
                 version.Id,
                 AssistantExecutionMode.Public),
             version.Name,

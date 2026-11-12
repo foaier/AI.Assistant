@@ -56,7 +56,6 @@ const message = (id: string, role = 2, text = fullAnswer) => ({
   role,
   status: 3,
   contentJson: JSON.stringify({ text }),
-  createdAt: "2026-11-09T03:00:00Z",
   turnId: `turn-${id}`,
   runId: null,
   conversationId: "conversation-1",

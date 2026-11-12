@@ -18,6 +18,9 @@ public sealed record AssistantKnowledgeEmbeddingExecutionProfile(
     long ProfileRevision,
     long Generation)
 {
+    /// <summary>
+    /// 保存本次执行使用的供应商配置及其修订引用。
+    /// </summary>
     public string ProviderProfileRef => $"{ProviderId}@{ProviderRevision.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
 }
 
@@ -26,7 +29,13 @@ public sealed record AssistantKnowledgeEmbeddingExecutionProfile(
 /// </summary>
 public enum AssistantExecutionMode
 {
+    /// <summary>
+    /// 对外公开执行模式。
+    /// </summary>
     Public = 1,
+    /// <summary>
+    /// 管理端草稿预览执行模式。
+    /// </summary>
     Preview = 2
 }
 
@@ -35,8 +44,17 @@ public enum AssistantExecutionMode
 /// </summary>
 public enum AssistantSessionStatus
 {
+    /// <summary>
+    /// 当前处于可访问或生效状态。
+    /// </summary>
     Active = 1,
+    /// <summary>
+    /// 有效期已结束。
+    /// </summary>
     Expired = 2,
+    /// <summary>
+    /// 权限或发布状态已撤回。
+    /// </summary>
     Revoked = 3
 }
 
@@ -45,8 +63,17 @@ public enum AssistantSessionStatus
 /// </summary>
 public enum AssistantConversationStatus
 {
+    /// <summary>
+    /// 当前处于可访问或生效状态。
+    /// </summary>
     Active = 1,
+    /// <summary>
+    /// 资源已归档，不再作为当前活动资源。
+    /// </summary>
     Archived = 2,
+    /// <summary>
+    /// 有效期已结束。
+    /// </summary>
     Expired = 3
 }
 
@@ -55,11 +82,29 @@ public enum AssistantConversationStatus
 /// </summary>
 public enum AssistantTurnStatus
 {
+    /// <summary>
+    /// 请求已受理，后续执行可能仍在进行。
+    /// </summary>
     Accepted = 1,
+    /// <summary>
+    /// 处理正在进行。
+    /// </summary>
     Running = 2,
+    /// <summary>
+    /// 处理已成功完成。
+    /// </summary>
     Completed = 3,
+    /// <summary>
+    /// 处理以失败状态结束。
+    /// </summary>
     Failed = 4,
+    /// <summary>
+    /// 处理已取消。
+    /// </summary>
     Cancelled = 5,
+    /// <summary>
+    /// 有效期已结束。
+    /// </summary>
     Expired = 6
 }
 
@@ -68,11 +113,29 @@ public enum AssistantTurnStatus
 /// </summary>
 public enum AssistantRunStatus
 {
+    /// <summary>
+    /// 请求已受理，后续执行可能仍在进行。
+    /// </summary>
     Accepted = 1,
+    /// <summary>
+    /// 处理正在进行。
+    /// </summary>
     Running = 2,
+    /// <summary>
+    /// 处理已成功完成。
+    /// </summary>
     Completed = 3,
+    /// <summary>
+    /// 处理以失败状态结束。
+    /// </summary>
     Failed = 4,
+    /// <summary>
+    /// 处理已取消。
+    /// </summary>
     Cancelled = 5,
+    /// <summary>
+    /// 有效期已结束。
+    /// </summary>
     Expired = 6
 }
 
@@ -81,8 +144,17 @@ public enum AssistantRunStatus
 /// </summary>
 public enum AssistantMessageRole
 {
+    /// <summary>
+    /// 用户发送的消息。
+    /// </summary>
     User = 1,
+    /// <summary>
+    /// 助手生成的消息。
+    /// </summary>
     Assistant = 2,
+    /// <summary>
+    /// 工具执行产生的消息。
+    /// </summary>
     Tool = 3
 }
 
@@ -91,9 +163,21 @@ public enum AssistantMessageRole
 /// </summary>
 public enum AssistantMessageStatus
 {
+    /// <summary>
+    /// 结果尚未完成。
+    /// </summary>
     Pending = 1,
+    /// <summary>
+    /// 正文正在持续输出。
+    /// </summary>
     Streaming = 2,
+    /// <summary>
+    /// 处理已成功完成。
+    /// </summary>
     Completed = 3,
+    /// <summary>
+    /// 处理以失败状态结束。
+    /// </summary>
     Failed = 4
 }
 
@@ -102,10 +186,25 @@ public enum AssistantMessageStatus
 /// </summary>
 public enum AssistantToolCallStatus
 {
+    /// <summary>
+    /// 工具调用已提交，尚未开始执行。
+    /// </summary>
     Requested = 1,
+    /// <summary>
+    /// 处理正在进行。
+    /// </summary>
     Running = 2,
+    /// <summary>
+    /// 处理已成功完成。
+    /// </summary>
     Completed = 3,
+    /// <summary>
+    /// 工具调用因权限或策略被拒绝。
+    /// </summary>
     Denied = 4,
+    /// <summary>
+    /// 处理以失败状态结束。
+    /// </summary>
     Failed = 5
 }
 
@@ -114,7 +213,13 @@ public enum AssistantToolCallStatus
 /// </summary>
 public enum AssistantTransportKind
 {
+    /// <summary>
+    /// 使用服务器发送事件传输。
+    /// </summary>
     Sse = 1,
+    /// <summary>
+    /// 使用 WebSocket 双向连接传输。
+    /// </summary>
     WebSocket = 2
 }
 
@@ -123,8 +228,17 @@ public enum AssistantTransportKind
 /// </summary>
 public enum AssistantIdempotencyOutcome
 {
+    /// <summary>
+    /// 请求创建了新的业务操作。
+    /// </summary>
     Created = 1,
+    /// <summary>
+    /// 请求复用了已保存的操作结果。
+    /// </summary>
     Replayed = 2,
+    /// <summary>
+    /// 请求内容或并发状态与原操作冲突。
+    /// </summary>
     Conflict = 3
 }
 
@@ -133,10 +247,25 @@ public enum AssistantIdempotencyOutcome
 /// </summary>
 public enum AssistantProviderChunkKind
 {
+    /// <summary>
+    /// 模型产生的文本增量。
+    /// </summary>
     TextDelta = 1,
+    /// <summary>
+    /// 模型产生的工具调用参数增量。
+    /// </summary>
     ToolCallDelta = 2,
+    /// <summary>
+    /// 处理已成功完成。
+    /// </summary>
     Completed = 3,
+    /// <summary>
+    /// 模型报告的令牌用量。
+    /// </summary>
     Usage = 4,
+    /// <summary>
+    /// 模型或下游服务返回错误。
+    /// </summary>
     Error = 5
 }
 
@@ -145,27 +274,61 @@ public enum AssistantProviderChunkKind
 /// </summary>
 public static class AssistantRunEventTypes
 {
+    /// <summary>
+    /// 定义执行已接受事件的协议类型名称。
+    /// </summary>
     public const string RunAccepted = "run.accepted";
+    /// <summary>
+    /// 定义执行开始事件的协议类型名称。
+    /// </summary>
     public const string RunStarted = "run.started";
+    /// <summary>
+    /// 定义消息增量事件的协议类型名称。
+    /// </summary>
     public const string MessageDelta = "message.delta";
+    /// <summary>
+    /// 定义消息已完成事件的协议类型名称。
+    /// </summary>
     public const string MessageCompleted = "message.completed";
+    /// <summary>
+    /// 定义工具调用开始事件的协议类型名称。
+    /// </summary>
     public const string ToolCallStarted = "tool.call.started";
+    /// <summary>
+    /// 定义工具调用已完成事件的协议类型名称。
+    /// </summary>
     public const string ToolCallCompleted = "tool.call.completed";
+    /// <summary>
+    /// 定义执行已完成事件的协议类型名称。
+    /// </summary>
     public const string RunCompleted = "run.completed";
+    /// <summary>
+    /// 定义执行失败事件的协议类型名称。
+    /// </summary>
     public const string RunFailed = "run.failed";
+    /// <summary>
+    /// 定义执行已取消事件的协议类型名称。
+    /// </summary>
     public const string RunCancelled = "run.cancelled";
+    /// <summary>
+    /// 定义执行已过期事件的协议类型名称。
+    /// </summary>
     public const string RunExpired = "run.expired";
+    /// <summary>
+    /// 定义心跳事件的协议类型名称。
+    /// </summary>
     public const string Heartbeat = "heartbeat";
+    /// <summary>
+    /// 定义回放事件的协议类型名称。
+    /// </summary>
     public const string ReplayGap = "replay.gap";
 }
 
 /// <summary>
-/// 运行授权范围，绑定助手、租户、组织、发布版本和执行模式。
+/// 运行授权范围，绑定助手、发布版本和执行模式。
 /// </summary>
 public sealed record AssistantScopeSnapshot(
     string AssistantId,
-    string TenantId,
-    string OrgId,
     string PublishedVersionId,
     AssistantExecutionMode ExecutionMode,
     string? WebSearchConfigRef = null);
@@ -176,14 +339,11 @@ public sealed record AssistantScopeSnapshot(
 public sealed record AnonymousAssistantSessionSnapshot(
     string Id,
     string AssistantId,
-    string TenantId,
-    string OrgId,
     string PublishedVersionId,
     string SubjectHash,
     string Locale,
     AssistantExecutionMode ExecutionMode,
     AssistantSessionStatus Status,
-    DateTime CreatedAt,
     DateTime LastSeenAt,
     DateTime ExpiresAt);
 
@@ -194,14 +354,11 @@ public sealed record AssistantConversationSnapshot(
     string Id,
     string AssistantId,
     string SessionId,
-    string TenantId,
-    string OrgId,
     string PublishedVersionId,
     string Locale,
     AssistantExecutionMode ExecutionMode,
     AssistantConversationStatus Status,
     long LastTurnNo,
-    DateTime CreatedAt,
     DateTime LastActivityAt);
 
 /// <summary>
@@ -212,15 +369,12 @@ public sealed record AssistantTurnSnapshot(
     string ConversationId,
     string SessionId,
     string AssistantId,
-    string TenantId,
-    string OrgId,
     string PublishedVersionId,
     string ClientMessageId,
     string RequestHash,
     long TurnNo,
     AssistantExecutionMode ExecutionMode,
     AssistantTurnStatus Status,
-    DateTime CreatedAt,
     DateTime? CompletedAt,
     string? FailureCode);
 
@@ -233,15 +387,12 @@ public sealed record AssistantRunSnapshot(
     string ConversationId,
     string SessionId,
     string AssistantId,
-    string TenantId,
-    string OrgId,
     string PublishedVersionId,
     AssistantExecutionMode ExecutionMode,
     string ProviderProfileRef,
     string Model,
     AssistantRunStatus Status,
     long SequenceHead,
-    DateTime CreatedAt,
     DateTime? StartedAt,
     DateTime? CompletedAt,
     string? FailureCode,
@@ -260,7 +411,6 @@ public sealed record AssistantMessageSnapshot(
     AssistantMessageRole Role,
     AssistantMessageStatus Status,
     string ContentJson,
-    DateTime CreatedAt,
     DateTime? CompletedAt,
     string? ClientMessageId = null,
     AssistantTurnStatus? TurnStatus = null);
@@ -277,7 +427,6 @@ public sealed record AssistantToolCallSnapshot(
     AssistantToolCallStatus Status,
     string? OutputJson,
     string? FailureCode,
-    DateTime CreatedAt,
     DateTime? CompletedAt);
 
 /// <summary>
@@ -376,7 +525,6 @@ public sealed record AssistantConversationAnalyticsDto(
     string Locale,
     AssistantConversationStatus Status,
     long LastTurnNo,
-    DateTime CreatedAt,
     DateTime LastActivityAt);
 
 /// <summary>
@@ -469,6 +617,9 @@ public sealed record AssistantRunEventEnvelope(
     DateTime OccurredAt,
     JsonElement Payload)
 {
+    /// <summary>
+    /// 根据校验后的输入创建助手执行事件信封领域对象，并初始化其状态和时间字段。
+    /// </summary>
     public static AssistantRunEventEnvelope Create<TPayload>(
         string eventId,
         string runId,
@@ -542,8 +693,6 @@ public sealed record AssistantProviderRequest(
     string? ToolChoice = null,
     bool? ParallelToolCalls = null,
     bool IncludeUsage = true,
-    string TenantId = "",
-    string OrgId = "",
     string? Instructions = null);
 
 /// <summary>
@@ -603,10 +752,16 @@ public interface IChatModelProvider
 /// </summary>
 public interface IAssistantOrchestrator
 {
+    /// <summary>
+    /// 受理并提交轮次，并响应调用方的取消请求。
+    /// </summary>
     Task<AssistantTurnAccepted> SubmitTurnAsync(
         SubmitAssistantTurnCommand command,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 请求取消指定运行，并将取消信号传递到正在执行的模型调用。
+    /// </summary>
     Task CancelRunAsync(
         string assistantKey,
         string runId,
@@ -695,9 +850,18 @@ public interface IAssistantToolRegistry
 /// </summary>
 public interface IAssistantToolHandler
 {
+    /// <summary>
+    /// 关联当前使用的工具定义。
+    /// </summary>
     string ToolId { get; }
+    /// <summary>
+    /// 表示助手工具处理器的契约版本信息。
+    /// </summary>
     string ContractVersion { get; }
 
+    /// <summary>
+    /// 执行助手工具操作，并响应调用方的取消请求。
+    /// </summary>
     Task<JsonElement> ExecuteAsync(
         JsonElement input,
         AssistantScopeSnapshot scope,
@@ -709,6 +873,9 @@ public interface IAssistantToolHandler
 /// </summary>
 public interface IHumanHandoffProvider
 {
+    /// <summary>
+    /// 向人工接管服务提交运行标识和转接原因，并响应调用方的取消请求。
+    /// </summary>
     Task RequestAsync(
         string runId,
         string reason,

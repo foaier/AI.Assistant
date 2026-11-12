@@ -1,4 +1,3 @@
-import { useDateTime } from '@/shared/hooks/useDateTime';
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
@@ -47,8 +46,7 @@ export function KnowledgeQnaPanel({
 }: {
   knowledgeBaseId: string;
 }) {
-  const { formatDateTimeDisplay } = useDateTime();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const p = (key: string) => t(`publicAssistant.p0.${key}`);
   const client = useQueryClient();
   const [search, setSearch] = useState("");
@@ -85,7 +83,6 @@ export function KnowledgeQnaPanel({
     enabled: true,
     showAsSuggestion: false,
     sortOrder: (query.data?.length ?? 0) + 1,
-    updatedAt: "",
   });
   const beginEdit = (item: AssistantKnowledgeQna) => {
     trigger.current = document.activeElement as HTMLElement;
@@ -251,10 +248,6 @@ export function KnowledgeQnaPanel({
                       {p("recommendation")} · {item.sortOrder}
                     </span>
                   )}
-                  <span>
-                    {p("updated")}{" "}
-                    {formatDateTimeDisplay(item.updatedAt, locale)}
-                  </span>
                 </div>
               </div>
               <div className="flex gap-2">

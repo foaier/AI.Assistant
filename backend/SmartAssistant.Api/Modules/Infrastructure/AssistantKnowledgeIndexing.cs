@@ -60,6 +60,9 @@ public sealed class AssistantDocumentParser : IAssistantDocumentParser
         return new AssistantParsedDocument(text.Replace("\r\n", "\n", StringComparison.Ordinal), "text-v1");
     }
 
+    /// <summary>
+    /// 解析助手文档解析器，并响应调用方的取消请求。
+    /// </summary>
     private static async Task<AssistantParsedDocument> ParseDocxAsync(Stream content, CancellationToken ct)
     {
         await using var buffer = new MemoryStream();
@@ -88,6 +91,9 @@ public sealed class AssistantDocumentParser : IAssistantDocumentParser
         return new AssistantParsedDocument(text, "docx-v1");
     }
 
+    /// <summary>
+    /// 读取助手文档解析器数据。
+    /// </summary>
     private static string ReadParagraph(XElement paragraph, XNamespace w)
     {
         var builder = new StringBuilder();
@@ -118,8 +124,7 @@ public interface IAssistantEmbeddingProvider
     /// <summary>
     /// 按执行配置为输入文本生成对应向量，并校验返回数量和维度。
     /// </summary>
-    Task<AssistantEmbeddingResult> EmbedAsync(IReadOnlyList<string> inputs, string tenantId, string orgId,
-        AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct);
+    Task<AssistantEmbeddingResult> EmbedAsync(IReadOnlyList<string> inputs, AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct);
 }
 
 /// <summary>
@@ -128,11 +133,19 @@ public interface IAssistantEmbeddingProvider
 /// </summary>
 public sealed class DeterministicHashEmbeddingProvider : IAssistantEmbeddingProvider
 {
+    /// <summary>
+    /// 定义相关内容摘要嵌入模型供应商使用的默认值维度配置值。
+    /// </summary>
     public const int DefaultDimension = 128;
+    /// <summary>
+    /// 定义相关内容摘要嵌入模型供应商使用的默认值配置标识配置值。
+    /// </summary>
     public const string DefaultProfileId = "hash-v1";
 
-    public Task<AssistantEmbeddingResult> EmbedAsync(IReadOnlyList<string> inputs, string tenantId, string orgId,
-        AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
+    /// <summary>
+    /// 使用文本摘要生成确定性测试向量；该实现不提供语义检索嵌入。
+    /// </summary>
+    public Task<AssistantEmbeddingResult> EmbedAsync(IReadOnlyList<string> inputs, AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (profile.Dimension != DefaultDimension)
@@ -141,6 +154,9 @@ public sealed class DeterministicHashEmbeddingProvider : IAssistantEmbeddingProv
         return Task.FromResult<AssistantEmbeddingResult>(new(vectors, profile.ProviderProfileRef, profile.Dimension));
     }
 
+    /// <summary>
+    /// 根据文本摘要构造固定维度的归一化测试向量。
+    /// </summary>
     private static float[] CreateVector(string input)
     {
         var vector = new float[DefaultDimension];
@@ -166,9 +182,21 @@ public sealed class OpenAiCompatibleEmbeddingProvider : IAssistantEmbeddingProvi
      * DashScope 兼容嵌入接口每次请求最多接受 20 条文本。
      * 此处限制传输批次，独立于文档解析和分块策略。
      */
+    /// <summary>
+    /// 定义打开兼容嵌入模型供应商使用的最大批次大小配置值。
+    /// </summary>
     private const int MaxBatchSize = 20;
+    /// <summary>
+    /// 保存复用的 HTTP 传输依赖，用于访问配置的模型或搜索服务。
+    /// </summary>
     private readonly IHttpClientFactory _httpClientFactory;
+    /// <summary>
+    /// 保存相关内容.助手模型供应商凭据解析器依赖，供打开兼容嵌入模型供应商执行相关操作。
+    /// </summary>
     private readonly AI.IAssistantProviderCredentialResolver _credentialResolver;
+    /// <summary>
+    /// 接收并保存打开兼容嵌入模型供应商执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public OpenAiCompatibleEmbeddingProvider(
         IHttpClientFactory httpClientFactory,
         AI.IAssistantProviderCredentialResolver credentialResolver)
@@ -180,13 +208,12 @@ public sealed class OpenAiCompatibleEmbeddingProvider : IAssistantEmbeddingProvi
     /// <summary>
     /// 按执行配置为输入文本生成对应向量，并校验返回数量和维度。
     /// </summary>
-    public async Task<AssistantEmbeddingResult> EmbedAsync(IReadOnlyList<string> inputs, string tenantId, string orgId,
-        AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
+    public async Task<AssistantEmbeddingResult> EmbedAsync(IReadOnlyList<string> inputs, AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
     {
         if (inputs.Count == 0 || profile.Dimension is < 1 or > 32768)
             throw new InvalidOperationException("assistant_embedding_request_invalid");
         var credential = await _credentialResolver.ResolveAsync(
-            new AI.AssistantProviderAccess(profile.ProviderProfileRef, tenantId, orgId, profile.Model, "embedding", profile.Dimension), ct);
+            new AI.AssistantProviderAccess(profile.ProviderProfileRef, profile.Model, "embedding", profile.Dimension), ct);
         using var client = _httpClientFactory.CreateClient("assistant-provider");
         var vectors = new List<float[]>(inputs.Count);
         foreach (var batch in inputs.Chunk(MaxBatchSize))
@@ -201,6 +228,9 @@ public sealed class OpenAiCompatibleEmbeddingProvider : IAssistantEmbeddingProvi
         return new AssistantEmbeddingResult(vectors, profile.ProviderProfileRef, profile.Dimension);
     }
 
+    /// <summary>
+    /// 分批请求兼容 OpenAI 的嵌入接口，并校验返回数量、顺序和向量维度。
+    /// </summary>
     private static async Task<IReadOnlyList<float[]>> EmbedBatchAsync(HttpClient client, IReadOnlyList<string> inputs,
         AI.OpenAiCompatibleProviderCredential credential, AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
     {
@@ -300,8 +330,19 @@ public static class AssistantEmbeddingValidation
 /// </summary>
 public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
 {
+    /// <summary>
+    /// 保存Qdrant客户端依赖，供Qdrant助手向量索引执行相关操作。
+    /// </summary>
     private readonly IQdrantClient _client;
 
+    /// <summary>
+    /// 缓存实际集合名，使移除旧范围摘要后仍能读取既有远程索引。
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _collectionNames = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 接收并保存Qdrant助手向量索引执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public QdrantAssistantVectorIndexStore(IQdrantClient client) => _client = client;
 
     /// <summary>
@@ -313,6 +354,7 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
         if (dimension < 1 || chunks.Any(chunk => !AssistantEmbeddingValidation.IsValid(chunk.Vector, dimension))
             || chunks.Select(chunk => chunk.ChunkId).Distinct(StringComparer.Ordinal).Count() != chunks.Count)
             throw new InvalidOperationException("assistant_embedding_dimension_mismatch");
+        collectionName = await ResolveCollectionNameAsync(collectionName, ct);
         try
         {
             await _client.CreateCollectionAsync(collectionName, new VectorParams
@@ -351,6 +393,7 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
         string collectionName, IReadOnlyList<AssistantVectorChunk> chunks, CancellationToken ct)
     {
         if (chunks.Count == 0) return Array.Empty<AssistantVectorPointReadback>();
+        collectionName = await ResolveCollectionNameAsync(collectionName, ct);
         var pointIds = chunks.Select(chunk => new PointId
         {
             Uuid = AssistantKnowledgeIndexNaming.PointId(chunk.ChunkId)
@@ -389,6 +432,7 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
                 return Array.Empty<AssistantVectorSearchHit>();
             filter = Conditions.Match("chunk_id", ids);
         }
+        collectionName = await ResolveCollectionNameAsync(collectionName, ct);
         var points = await _client.QueryAsync(
             collectionName,
             query: vector.ToArray(),
@@ -407,12 +451,42 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
             .ToArray();
     }
 
+    /// <summary>
+    /// 优先使用新命名集合，缺少时复用唯一匹配的旧集合，不搬运远程向量数据。
+    /// </summary>
+    private async Task<string> ResolveCollectionNameAsync(string collectionName, CancellationToken ct)
+    {
+        const string prefix = "assistant_kb_";
+        if (!collectionName.StartsWith(prefix, StringComparison.Ordinal)) return collectionName;
+        if (_collectionNames.TryGetValue(collectionName, out var resolved)) return resolved;
+
+        var collections = await _client.ListCollectionsAsync(ct);
+        if (collections.Contains(collectionName, StringComparer.Ordinal))
+            return _collectionNames.GetOrAdd(collectionName, collectionName);
+
+        var pattern = "^assistant_kb_[0-9a-f]{12}_[0-9a-f]{12}_"
+            + System.Text.RegularExpressions.Regex.Escape(collectionName[prefix.Length..]) + "$";
+        var matches = collections.Where(name => System.Text.RegularExpressions.Regex.IsMatch(name, pattern)).ToArray();
+        if (matches.Length > 1)
+            throw new InvalidOperationException("assistant_vector_collection_name_conflict");
+
+        return matches.Length == 1
+            ? _collectionNames.GetOrAdd(collectionName, matches[0])
+            : collectionName;
+    }
+
+    /// <summary>
+    /// 读取Qdrant助手向量索引记录。
+    /// </summary>
     private static string? GetString(
         Google.Protobuf.Collections.MapField<string, Value> payload, string key)
         => payload.TryGetValue(key, out var value) && value.KindCase == Value.KindOneofCase.StringValue
             ? value.StringValue
             : null;
 
+    /// <summary>
+    /// 读取Qdrant助手向量索引记录。
+    /// </summary>
     private static int? GetInt32(
         Google.Protobuf.Collections.MapField<string, Value> payload, string key)
         => payload.TryGetValue(key, out var value) && value.KindCase == Value.KindOneofCase.IntegerValue
@@ -426,17 +500,32 @@ public sealed class QdrantAssistantVectorIndexStore : IAssistantVectorIndexStore
 /// </summary>
 public static class AssistantKnowledgeIndexNaming
 {
+    /// <summary>
+    /// 根据片段标识生成稳定的向量索引点标识。
+    /// </summary>
     public static string PointId(string chunkId) => GuidFromHash(chunkId);
 
+    /// <summary>
+    /// 组合供应商配置引用、模型和向量维度，生成稳定的嵌入配置标识。
+    /// </summary>
     public static string ProfileId(AssistantKnowledgeEmbeddingExecutionProfile profile)
         => $"{profile.ProviderProfileRef}:{profile.Model}:{profile.Dimension.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
 
-    public static string Collection(string tenantId, string orgId, string knowledgeBaseId, string profileId, long generation = 1)
+    /// <summary>
+    /// 对知识库和配置标识生成摘要，结合代次构造向量集合名称。
+    /// </summary>
+    public static string Collection(string knowledgeBaseId, string profileId, long generation = 1)
     {
+        /*
+         * 计算字符串的 SHA-256 摘要并截取固定长度，用于集合名称隔离。
+         */
         static string Short(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant()[..12];
-        return $"assistant_kb_{Short(tenantId)}_{Short(orgId)}_{Short(knowledgeBaseId)}_{Short(profileId)}_g{generation}";
+        return $"assistant_kb_{Short(knowledgeBaseId)}_{Short(profileId)}_g{generation}";
     }
 
+    /// <summary>
+    /// 根据输入摘要生成稳定 GUID，并设置标准版本和变体位。
+    /// </summary>
     private static string GuidFromHash(string value)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));

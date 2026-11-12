@@ -2,7 +2,7 @@
 
 从 Glevent 的 Assistant 功能抽离的独立前后端项目。保留助手管理、工作台、外观设置、模型服务和业务策略、知识库、发布管理、公开聊天、会话记录，以及 SSE / WebSocket 流式响应。
 
-运行和构建均不依赖 Glevent 源目录，不连接原项目数据库。打开页面即可管理助手，无需登录。此项目使用单组织身份、本地 SQLite 数据库和文件存储；前端保留原助手页面和中英文文案。
+运行和构建均不依赖 Glevent 源目录，不连接原项目数据库。打开页面即可管理助手，无需登录。此项目使用本地 SQLite 数据库和文件存储，不设租户或组织；前端保留原助手页面和中英文文案。
 
 ## 快速启动（Windows PowerShell）
 
@@ -39,14 +39,15 @@ cd D:\MyCode\SmartAssistant
 ```text
 backend/
   SmartAssistant.Api/
-    Modules/          原 Assistant 业务、契约、仓储、控制器
-    Platform/         单组织身份、事务、文件、凭据、向量存储适配
-    Migrations/       冻结的 SQLite 初始迁移及校验
+    Controllers/      助手管理与公开聊天接口
+    Modules/          Assistant 业务、契约、仓储及 Domain/Entities 实体
+    Platform/         固定操作人、事务、文件、凭据、向量存储适配
+    Migrations/       SQLite 版本迁移及校验
     Program.cs        独立 ASP.NET Core 宿主
   SmartAssistant.Tests/    抽离的原测试及独立 HTTP/SQLite 集成测试
 frontend/
   client/features/public-assistant/  原助手页面、组件、服务
-  client/context/                   单组织与界面语言上下文
+  client/context/                   界面语言与本地权限适配
   e2e/                              浏览器联调
 docs/                               来源清单及验证说明
 data/                               本机数据库、资产、加密密钥
@@ -100,6 +101,6 @@ pnpm test:e2e
 - 模型、Embedding 和联网搜索保留真实服务调用。知识文档支持文本、Markdown、JSON、DOCX，与抽离时原解析器一致。
 - 默认 SQLite、本地向量索引和内存事件代理适合单机运行。本地向量检索按集合扫描；更大规模可配置 Qdrant。多副本部署还需要共享文件和会话运行状态，本项目默认部署方式为单进程。
 - 领域事件在事务内写入本地 Outbox，当前独立项目没有外部事件订阅者；没有复制原系统消息总线和业务消费者。
-- 保留原问答表的唯一约束：同一问题的多次删除/重建存在历史墓碑唯一键限制，未在抽离时变更业务规则。
+- 助手、知识库和问答采用物理删除；关联运行、文档及索引记录级联清理，同一问题可以删除后重新创建。
 
 来源记录见 `docs/backend-source-manifest.json`、`frontend/source-manifest.json` 和 `backend/SmartAssistant.Tests/source-manifest.json`。来源清单只用于追溯；构建与运行没有源项目路径依赖。

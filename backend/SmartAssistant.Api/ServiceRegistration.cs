@@ -8,7 +8,6 @@ using SmartAssistant.Modules.Admin.Public.Contracts;
 using SmartAssistant.Platform.Assets;
 using SmartAssistant.Platform.Events;
 using SmartAssistant.Platform.Security;
-using SmartAssistant.Platform.Tenant;
 using Qdrant.Client;
 using SmartAssistant.Persistence;
 
@@ -27,7 +26,6 @@ public static class ServiceRegistration
         services.AddScoped<LocalDbContext>();
         services.AddScoped<IDbContext>(sp => sp.GetRequiredService<LocalDbContext>());
         services.AddScoped<IDomainEventPublisher, LocalEventPublisher>();
-        services.AddSingleton<ITenantContext, LocalTenantContext>();
         services.AddScoped<IAdminPermissionService, LocalAdminPermissionService>();
         services.AddSingleton<ICredentialMaterialResolver, ConfigurationCredentialMaterialResolver>();
         services.AddSingleton<AssetApplicationService>();

@@ -10,13 +10,22 @@ namespace SmartAssistant.Platform.Security
     /// </summary>
     public static class JwtKeyResolver
     {
+        /// <summary>
+        /// 定义JWT密钥解析器使用的HMAC密钥配置值。
+        /// </summary>
         private const int MinimumHmacSha256KeyBytes = 32;
 
+        /// <summary>
+        /// 解析并返回管理密钥。
+        /// </summary>
         public static byte[] ResolveAdminKeyBytes(IConfiguration configuration)
         {
             return ResolvePurposeKeyBytes(configuration, "admin");
         }
 
+        /// <summary>
+        /// 解析并返回密钥。
+        /// </summary>
         public static byte[] ResolveConsumerKeyBytes(IConfiguration configuration)
         {
             return ResolvePurposeKeyBytes(configuration, "consumer");
@@ -52,6 +61,9 @@ namespace SmartAssistant.Platform.Security
             return Encoding.UTF8.GetBytes(explicitKey!);
         }
 
+        /// <summary>
+        /// 校验签名密钥已配置且达到 HS256 所需的最小字节长度。
+        /// </summary>
         private static void ValidateKey(string key, string keyName)
         {
             if (string.IsNullOrWhiteSpace(key))

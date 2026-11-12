@@ -14,4 +14,7 @@
     <Compile Remove="Modules/Infrastructure/AssistantPublicFactToolHandlers.cs" />
     <Content Include="Migrations/*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Modules\Domain\Entities\" />
+  </ItemGroup>
 </Project>

@@ -14,8 +14,14 @@ namespace SmartAssistant.Modules.Infrastructure.AssistantTransport;
 /// </summary>
 public sealed class AssistantWebSocketStreamAdapter
 {
+    /// <summary>
+    /// 保存用于助手网络套接字流式输出适配器事件编解码的序列化器。
+    /// </summary>
     private readonly AssistantRunEventTransportSerializer _serializer;
 
+    /// <summary>
+    /// 接收并保存助手网络套接字流式输出适配器执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantWebSocketStreamAdapter(AssistantRunEventTransportSerializer serializer)
         => _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
 

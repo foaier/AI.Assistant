@@ -9,8 +9,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手模型供应商工具调用组装器行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantProviderToolCallAssemblerTests
 {
+    /// <summary>
+    /// 验证分段工具参数按索引组装，并规范化为有效 JSON。
+    /// </summary>
     [Fact]
     public void Split_deltas_assemble_in_index_order_and_normalize_json()
     {
@@ -42,6 +48,9 @@ public sealed class AssistantProviderToolCallAssemblerTests
         Assert.Equal("{\"locale\":\"zh-CN\"}", completed[1].ArgumentsJson);
     }
 
+    /// <summary>
+    /// 验证工具参数不完整或无效时无法完成工具调用。
+    /// </summary>
     [Fact]
     public void Incomplete_or_invalid_arguments_fail_closed_at_completion()
     {
@@ -56,6 +65,9 @@ public sealed class AssistantProviderToolCallAssemblerTests
         Assert.Equal("assistant_tool_call_arguments_invalid_json", error.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证缺少供应商调用标识的工具调用不会被当作已完成结果。
+    /// </summary>
     [Fact]
     public void Missing_provider_identity_is_not_accepted_as_a_completed_call()
     {

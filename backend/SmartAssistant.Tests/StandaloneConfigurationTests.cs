@@ -5,8 +5,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证独立项目配置行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class StandaloneConfigurationTests
 {
+    /// <summary>
+    /// 验证凭据引用可从本地应用配置中解析。
+    /// </summary>
     [Theory]
     [InlineData("config://AssistantSecrets:ModelKey")]
     [InlineData("appsettings://AssistantSecrets:ModelKey")]
@@ -22,6 +28,9 @@ public sealed class StandaloneConfigurationTests
         Assert.Equal("fixture-local-override", await resolver.ResolveRequiredAsync(reference, "v1"));
     }
 
+    /// <summary>
+    /// 验证凭据不可用时报告失败，且不泄漏引用或配置内容。
+    /// </summary>
     [Theory]
     [InlineData("config://AssistantSecrets:Missing")]
     [InlineData("apollo://AssistantSecrets:Missing")]
@@ -41,6 +50,9 @@ public sealed class StandaloneConfigurationTests
         Assert.DoesNotContain("sensitive-test-value", error.Message);
     }
 
+    /// <summary>
+    /// 验证环境变量凭据引用始终使用明确指定的环境来源。
+    /// </summary>
     [Fact]
     public async Task Environment_references_keep_the_explicit_environment_source()
     {
@@ -58,6 +70,9 @@ public sealed class StandaloneConfigurationTests
         finally { Environment.SetEnvironmentVariable(variable, null); }
     }
 
+    /// <summary>
+    /// 验证可选空引用返回空值，必填凭据读取会响应取消。
+    /// </summary>
     [Fact]
     public async Task Optional_blank_references_return_null_and_required_reads_honor_cancellation()
     {

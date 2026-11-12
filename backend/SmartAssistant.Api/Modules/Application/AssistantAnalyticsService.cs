@@ -15,41 +15,49 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public sealed class AssistantAnalyticsService : IAssistantAnalyticsService
 {
+    /// <summary>
+    /// 保存助手分析仓储依赖，供助手分析服务执行相关操作。
+    /// </summary>
     private readonly IAssistantAnalyticsRepository _repository;
+    /// <summary>
+    /// 保存助手草稿仓储依赖，供助手分析服务执行相关操作。
+    /// </summary>
     private readonly IAssistantDraftRepository _drafts;
+    /// <summary>
+    /// 接收并保存助手分析服务执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantAnalyticsService(IAssistantAnalyticsRepository repository, IAssistantDraftRepository drafts)
         => (_repository, _drafts) = (repository, drafts);
 
     /// <summary>
     /// 在指定助手范围内读取会话消息，供管理端查看会话内容。
     /// </summary>
-    public async Task<AssistantMessagesPage> GetMessagesAsync(string actorUserId, string tenantId, string orgId,
-        string assistantId, string conversationId, int limit, string? cursor, CancellationToken cancellationToken = default)
+    public async Task<AssistantMessagesPage> GetMessagesAsync(string actorUserId, string assistantId, string conversationId, int limit, string? cursor, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(actorUserId) || string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(orgId))
+        if (string.IsNullOrWhiteSpace(actorUserId))
             throw new BizResultException(BusinessCodes.Forbidden, "assistant_scope_required");
-        if (await _drafts.GetAsync(tenantId, orgId, assistantId, cancellationToken) is null)
+        if (await _drafts.GetAsync(assistantId, cancellationToken) is null)
             throw new BizResultException(BusinessCodes.NotFound, "assistant_conversation_not_found");
-        return await _repository.GetMessagesAsync(tenantId, orgId, assistantId, conversationId, limit, cursor, cancellationToken);
+        return await _repository.GetMessagesAsync(assistantId, conversationId, limit, cursor, cancellationToken);
     }
 
     /// <summary>
     /// 分页读取助手的会话活动信息。
     /// </summary>
-    public async Task<AssistantConversationsPage> ListConversationsAsync(string actorUserId, string tenantId, string orgId, string assistantId, int limit, int page, CancellationToken cancellationToken = default)
+    public async Task<AssistantConversationsPage> ListConversationsAsync(string actorUserId, string assistantId, int limit, int page, CancellationToken cancellationToken = default)
     {
-        var result = await _repository.ListConversationsAsync(tenantId, orgId, assistantId, limit, page, cancellationToken);
+        var result = await _repository.ListConversationsAsync(assistantId, limit, page, cancellationToken);
         var items = result.Items.Select(x => new AssistantConversationAnalyticsDto(x.Id, x.Locale,
-            (AssistantConversationStatus)x.Status, x.LastTurnNo, x.CreatedAt, x.LastActivityAt)).ToArray();
+            (AssistantConversationStatus)x.Status, x.LastTurnNo, x.LastActivityAt)).ToArray();
         return new(items, result.TotalCount, result.Page, result.PageSize);
     }
 
     /// <summary>
     /// 汇总助手的会话数量、轮次结果和回答来源等统计数据。
     /// </summary>
-    public async Task<AssistantAnalyticsSummaryDto> GetSummaryAsync(string actorUserId, string tenantId, string orgId, string assistantId, CancellationToken cancellationToken = default)
+    public async Task<AssistantAnalyticsSummaryDto> GetSummaryAsync(string actorUserId, string assistantId, CancellationToken cancellationToken = default)
     {
-        var counts = await _repository.GetCountsAsync(tenantId, orgId, assistantId, cancellationToken);
+        var counts = await _repository.GetCountsAsync(assistantId, cancellationToken);
         return new AssistantAnalyticsSummaryDto(
             counts.Conversations,
             counts.Turns,

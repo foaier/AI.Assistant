@@ -8,19 +8,27 @@ namespace SmartAssistant.Modules.Domain;
 /// </summary>
 public sealed class AssistantDraftSavedEvent : DomainEvent, IDeterministicOutboxIdEvent
 {
-    public AssistantDraftSavedEvent(string assistantId, string tenantId, string orgId, long revision, string actorUserId)
+    /// <summary>
+    /// 接收并保存助手草稿保存事件执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
+    public AssistantDraftSavedEvent(string assistantId, long revision, string actorUserId)
     {
         Id = $"assistant-draft-saved:{assistantId}:{revision}";
         AssistantId = assistantId;
-        TenantId = tenantId;
-        OrgId = orgId;
         Revision = revision;
         ActorUserId = actorUserId;
     }
 
+    /// <summary>
+    /// 关联此数据所属的助手。
+    /// </summary>
     public string AssistantId { get; }
-    public string TenantId { get; }
-    public string OrgId { get; }
+    /// <summary>
+    /// 记录当前配置修订号，用于乐观并发控制。
+    /// </summary>
     public long Revision { get; }
+    /// <summary>
+    /// 记录当前操作人的用户标识。
+    /// </summary>
     public string ActorUserId { get; }
 }

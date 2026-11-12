@@ -17,7 +17,7 @@ it.each([
   ['assistant_embedding_provider_failed', '模型服务未能完成文档整理'],
   ['https://secret.internal supplier-private-detail', '文档整理未完成'],
 ])('shows safe retry guidance for a failed document (%s)', async (lastErrorCode, message) => {
-  vi.mocked(listKnowledgeDocuments).mockResolvedValue([{ id: 'failed-doc', knowledgeBaseId: 'kb', assetId: 'asset', fileName: 'guide.md', contentType: 'text/markdown', sizeBytes: 16559, currentVersionNo: 1, status: 3, indexStatus: 'failed', chunkCount: 0, lastErrorCode, updatedAt: '2026-11-09' }]);
+  vi.mocked(listKnowledgeDocuments).mockResolvedValue([{ id: 'failed-doc', knowledgeBaseId: 'kb', assetId: 'asset', fileName: 'guide.md', contentType: 'text/markdown', sizeBytes: 16559, currentVersionNo: 1, status: 3, indexStatus: 'failed', chunkCount: 0, lastErrorCode, }]);
   setup(<KnowledgeDocumentsPanel knowledgeBaseId="kb" />);
   expect(await screen.findByText(new RegExp(message))).toHaveTextContent('请重试');
   expect(screen.getByTestId('knowledge-document-process-failed-doc')).toBeEnabled();
@@ -78,7 +78,7 @@ it.each([[0, 'empty.docx'], [1024, 'unsupported.pdf']] as const)('still blocks i
 });
 
 it('never labels parsed content as available without a successful index', async () => {
-  vi.mocked(listKnowledgeDocuments).mockResolvedValue([{ id: 'd1', knowledgeBaseId: 'kb', assetId: 'asset', fileName: 'guide.md', contentType: 'text/markdown', sizeBytes: 20, currentVersionNo: 1, status: 2, indexStatus: 'needs_embedding_config', chunkCount: 3, updatedAt: '2026-10-09' }]);
+  vi.mocked(listKnowledgeDocuments).mockResolvedValue([{ id: 'd1', knowledgeBaseId: 'kb', assetId: 'asset', fileName: 'guide.md', contentType: 'text/markdown', sizeBytes: 20, currentVersionNo: 1, status: 2, indexStatus: 'needs_embedding_config', chunkCount: 3, }]);
   setup(<KnowledgeDocumentsPanel knowledgeBaseId="kb" />);
   expect(await screen.findByTestId('knowledge-document-state-d1')).toHaveTextContent('内容已分段 · 待选择模型');
   expect(screen.queryByText('可用于回答')).not.toBeInTheDocument();

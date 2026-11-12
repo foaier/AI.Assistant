@@ -6,8 +6,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手展示配置行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantPresentationTests
 {
+    /// <summary>
+    /// 验证站内和外部导航地址校验会拒绝可执行脚本链接。
+    /// </summary>
     [Fact]
     public void Validates_external_and_same_site_navigation_without_accepting_active_urls()
     {
@@ -30,6 +36,9 @@ public sealed class AssistantPresentationTests
         Assert.False(AssistantPresentation.IsSafeLink("/\\\\evil.test"));
     }
 
+    /// <summary>
+    /// 验证不安全图标地址被拒绝，并从公开返回内容中移除。
+    /// </summary>
     [Fact]
     public void Rejects_unsafe_custom_icon_urls_and_omits_them_from_public_readback()
     {
@@ -47,6 +56,9 @@ public sealed class AssistantPresentationTests
             () => AssistantPresentation.Validate(insecureIcon.RootElement));
     }
 
+    /// <summary>
+    /// 验证重复导航标识被拒绝，建议问题按助手自有、知识库的顺序合并。
+    /// </summary>
     [Fact]
     public void Rejects_duplicate_navigation_ids_and_merges_owned_then_knowledge_questions()
     {
@@ -64,6 +76,9 @@ public sealed class AssistantPresentationTests
             AssistantPresentation.Questions(configuration.RootElement, ["Knowledge base question?", " Registration status? "]));
     }
 
+    /// <summary>
+    /// 验证聊天背景色的格式，并在未设置时保留旧版渐变行为。
+    /// </summary>
     [Fact]
     public void Validates_chat_background_color_and_preserves_legacy_gradient_when_unset()
     {

@@ -10,13 +10,18 @@ using SmartAssistant.Platform;
 using SmartAssistant.Platform.Security;
 using Microsoft.Extensions.Configuration;
 using Xunit;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手模型供应商数据库令牌行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantProviderDatabaseTokenTests
 {
-    private const string PlatformScope = "__assistant_platform__";
-
+    /// <summary>
+    /// 验证保存策略时会准确报告供应商当前的可用条件。
+    /// </summary>
     [Theory]
     [InlineData("missing", "assistant_provider_not_found")]
     [InlineData("disabled", "assistant_provider_disabled")]
@@ -27,12 +32,14 @@ public sealed class AssistantProviderDatabaseTokenTests
         var repository = new MemoryRepository();
         var providerSettings = new AssistantModelServiceSettings("模型", "https://models.example.test/v1", "env://TOKEN", "v1",
             new[] { new AssistantModelOption("chat-v1", "chat") });
-        if (condition != "missing") repository.Seed(new AssistantPolicyRecord
+        if (condition != "missing") repository.Seed(new AssistantPolicyEntity
         {
-            Id = "provider", TenantId = PlatformScope, OrgId = PlatformScope, Kind = "provider",
-            Enabled = condition != "disabled", SettingsJson = JsonSerializer.Serialize(providerSettings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            Id = "provider",
+            Kind = "provider",
+            Enabled = condition != "disabled",
+            SettingsJson = JsonSerializer.Serialize(providerSettings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         });
-        if (condition is not ("revision-missing" or "missing")) repository.Version = new AssistantPolicyRevisionRecord
+        if (condition is not ("revision-missing" or "missing")) repository.Version = new AssistantPolicyRevisionEntity
         {
             Enabled = condition != "revision-disabled",
             SettingsJson = JsonSerializer.Serialize(providerSettings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
@@ -40,39 +47,47 @@ public sealed class AssistantProviderDatabaseTokenTests
         var service = new AssistantPolicyService(repository, DispatchProxy.Create<IDbContext, NoopDbContext>(),
             new NoSecrets(), new NoHttp(), new AssistantProviderSecretProtector(new ConfigurationBuilder().Build()));
 
-        var error = await Assert.ThrowsAsync<BizResultException>(() => service.SavePolicyAsync("editor", "tenant", "org", null,
+        var error = await Assert.ThrowsAsync<BizResultException>(() => service.SavePolicyAsync("editor", null,
             new(new AssistantBusinessPolicySettings("客服", "customer_service", "provider", 10, "chat-v1", "礼貌回答"), 0)));
 
         Assert.Equal(expectedMessage, error.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证运行时策略解析对外仅返回统一的供应商不可用错误。
+    /// </summary>
     [Fact]
     public async Task Runtime_policy_resolution_keeps_provider_unavailability_generic()
     {
         var repository = new MemoryRepository();
         var providerSettings = new AssistantModelServiceSettings("模型", "https://models.example.test/v1", "env://TOKEN", "v1",
             new[] { new AssistantModelOption("chat-v1", "chat") });
-        repository.Seed(new AssistantPolicyRecord
+        repository.Seed(new AssistantPolicyEntity
         {
-            Id = "provider", TenantId = PlatformScope, OrgId = PlatformScope, Kind = "provider", Revision = 1,
+            Id = "provider",
+            Kind = "provider",
+            Revision = 1,
             SettingsJson = JsonSerializer.Serialize(providerSettings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         });
-        repository.Version = new AssistantPolicyRevisionRecord
+        repository.Version = new AssistantPolicyRevisionEntity
         {
             Enabled = true,
             SettingsJson = JsonSerializer.Serialize(providerSettings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         };
         var service = new AssistantPolicyService(repository, DispatchProxy.Create<IDbContext, NoopDbContext>(),
             new NoSecrets(), new NoHttp(), new AssistantProviderSecretProtector(new ConfigurationBuilder().Build()));
-        var policy = await service.SavePolicyAsync("editor", "tenant", "org", null,
+        var policy = await service.SavePolicyAsync("editor", null,
             new(new AssistantBusinessPolicySettings("客服", "customer_service", "provider", 10, "chat-v1", "礼貌回答"), 0));
         await service.SetProviderStatusAsync("admin", "provider", new(false, 1));
 
-        var error = await Assert.ThrowsAsync<BizResultException>(() => service.ResolveAsync("tenant", "org", policy.Id));
+        var error = await Assert.ThrowsAsync<BizResultException>(() => service.ResolveAsync(policy.Id));
 
         Assert.Equal("assistant_provider_unavailable", error.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证未配置加密密钥时仍能保存及保留令牌，普通返回内容不会泄漏原文。
+    /// </summary>
     [Fact]
     public async Task Provider_token_is_saved_and_preserved_without_encryption_key_but_never_returned()
     {
@@ -88,8 +103,7 @@ public sealed class AssistantProviderDatabaseTokenTests
 
         Assert.Equal(AssistantPolicyService.ConfiguredCredentialMarker, created.Settings!.SecretReference);
         Assert.DoesNotContain("sk-db-token", JsonSerializer.Serialize(created));
-        var stored = await repository.GetAsync(PlatformScope, PlatformScope,
-            "provider", created.Id, default);
+        var stored = await repository.GetAsync("provider", created.Id, default);
         Assert.Contains("sk-db-token", stored!.SettingsJson);
         var listed = await service.ListProvidersAsync(true);
         Assert.Equal(AssistantPolicyService.ConfiguredCredentialMarker, listed.Single().Settings!.SecretReference);
@@ -98,16 +112,22 @@ public sealed class AssistantProviderDatabaseTokenTests
         Assert.Equal("sk-db-token", edit.Settings!.SecretReference);
 
         var updated = await service.SaveProviderAsync("admin", created.Id,
-            new(created.Settings with { Name = "更新名称", SecretReference = AssistantPolicyService.ConfiguredCredentialMarker }, created.Revision));
+            new(created.Settings with
+            {
+                Name = "更新名称",
+                SecretReference = AssistantPolicyService.ConfiguredCredentialMarker
+            }, created.Revision));
 
         Assert.Equal(2, updated.Revision);
         Assert.Equal(AssistantPolicyService.ConfiguredCredentialMarker, updated.Settings!.SecretReference);
-        stored = await repository.GetAsync(PlatformScope, PlatformScope,
-            "provider", created.Id, default);
+        stored = await repository.GetAsync("provider", created.Id, default);
         Assert.Contains("sk-db-token", stored!.SettingsJson);
         Assert.Equal("更新名称", JsonDocument.Parse(stored.SettingsJson).RootElement.GetProperty("name").GetString());
     }
 
+    /// <summary>
+    /// 验证编辑读取能够还原数据库中保存的受保护令牌。
+    /// </summary>
     [Fact]
     public async Task Provider_edit_readback_unprotects_database_token()
     {
@@ -121,9 +141,11 @@ public sealed class AssistantProviderDatabaseTokenTests
         var settings = new AssistantModelServiceSettings("模型", "https://models.example.test/v1",
             protector.Protect("sk-encrypted-token", "provider-1", "v3"), "v3",
             new[] { new AssistantModelOption("chat-v1", "chat") });
-        repository.Seed(new AssistantPolicyRecord
+        repository.Seed(new AssistantPolicyEntity
         {
-            Id = "provider-1", TenantId = PlatformScope, OrgId = PlatformScope, Kind = "provider", Revision = 3,
+            Id = "provider-1",
+            Kind = "provider",
+            Revision = 3,
             SettingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         });
         var service = new AssistantPolicyService(repository, DispatchProxy.Create<IDbContext, NoopDbContext>(),
@@ -135,15 +157,20 @@ public sealed class AssistantProviderDatabaseTokenTests
         Assert.DoesNotContain("sk-encrypted-token", (await service.ListProvidersAsync(true)).Select(x => JsonSerializer.Serialize(x)));
     }
 
+    /// <summary>
+    /// 验证编辑读取能够解析外部凭据引用。
+    /// </summary>
     [Fact]
     public async Task Provider_edit_readback_resolves_external_credential_reference()
     {
         var repository = new MemoryRepository();
         var settings = new AssistantModelServiceSettings("模型", "https://models.example.test/v1", "env://MODEL_TOKEN", "v2",
             new[] { new AssistantModelOption("chat-v1", "chat") });
-        repository.Seed(new AssistantPolicyRecord
+        repository.Seed(new AssistantPolicyEntity
         {
-            Id = "provider-1", TenantId = PlatformScope, OrgId = PlatformScope, Kind = "provider", Revision = 2,
+            Id = "provider-1",
+            Kind = "provider",
+            Revision = 2,
             SettingsJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         });
         var secrets = new FixedSecrets();
@@ -160,64 +187,127 @@ public sealed class AssistantProviderDatabaseTokenTests
 
         await service.SaveProviderAsync("admin", "provider-1",
             new(edit.Settings! with { Name = "更新名称" }, edit.Revision));
-        var stored = await repository.GetAsync(PlatformScope, PlatformScope, "provider", "provider-1", default);
+        var stored = await repository.GetAsync("provider", "provider-1", default);
         Assert.Contains("env://MODEL_TOKEN", stored!.SettingsJson);
         Assert.DoesNotContain("resolved-token", stored.SettingsJson);
     }
 
+    /// <summary>
+    /// 测试用仓储替身，按预设数据实现所需查询并避免连接外部数据库。
+    /// </summary>
     private sealed class MemoryRepository : IAssistantPolicyRepository
     {
-        private readonly Dictionary<string, AssistantPolicyRecord> _records = new();
-        public AssistantPolicyRevisionRecord? Version { get; set; }
-        public void Seed(AssistantPolicyRecord record) => _records[record.Id] = record;
-        public Task<IReadOnlyList<AssistantPolicyRecord>> ListAsync(string tenantId, string orgId, string kind, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<AssistantPolicyRecord>>(_records.Values.ToArray());
-        public Task<AssistantPolicyRecord?> GetAsync(string tenantId, string orgId, string kind, string id, CancellationToken ct)
+        /// <summary>
+        /// 保存仓储在处理记录时所需的数据或状态。
+        /// </summary>
+        private readonly Dictionary<string, AssistantPolicyEntity> _records = new();
+        /// <summary>
+        /// 表示仓储的版本信息。
+        /// </summary>
+        public AssistantPolicyRevisionEntity? Version { get; set; }
+        /// <summary>
+        /// 验证仓储相关行为、预期结果及错误边界。
+        /// </summary>
+        public void Seed(AssistantPolicyEntity record) => _records[record.Id] = record;
+        /// <summary>
+        /// 验证列出相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<IReadOnlyList<AssistantPolicyEntity>> ListAsync(string kind, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<AssistantPolicyEntity>>(_records.Values.ToArray());
+        /// <summary>
+        /// 验证获取相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyEntity?> GetAsync(string kind, string id, CancellationToken ct)
         {
             _records.TryGetValue(id, out var record);
-            return Task.FromResult(record is not null && record.TenantId == tenantId && record.OrgId == orgId && record.Kind == kind
+            return Task.FromResult(record is not null && record.Kind == kind
                 ? record : null);
         }
-        public Task<AssistantPolicyRecord?> GetProviderAsync(string id, CancellationToken ct)
+        /// <summary>
+        /// 验证获取模型供应商相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyEntity?> GetProviderAsync(string id, CancellationToken ct)
             => Task.FromResult(_records.GetValueOrDefault(id));
-        public Task<AssistantPolicyRevisionRecord?> GetRevisionAsync(string tenantId, string orgId, string kind, string id, long revision, CancellationToken ct)
+        /// <summary>
+        /// 验证获取修订相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyRevisionEntity?> GetRevisionAsync(string kind, string id, long revision, CancellationToken ct)
             => Task.FromResult(Version);
-        public Task SaveAsync(AssistantPolicyRecord record, long expectedRevision, CancellationToken ct)
+        /// <summary>
+        /// 验证保存相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task SaveAsync(AssistantPolicyEntity record, long expectedRevision, CancellationToken ct)
         {
             _records[record.Id] = record;
             return Task.CompletedTask;
         }
     }
 
+    /// <summary>
+    /// 仅供助手模型供应商数据库令牌测试使用的测试辅助类型。
+    /// </summary>
     private sealed class NoSecrets : ICredentialMaterialResolver
     {
+        /// <summary>
+        /// 验证解析相关行为、预期结果及错误边界。
+        /// </summary>
         public Task<string> ResolveRequiredAsync(string reference, string version, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("Direct database credentials must not require the reference resolver.");
+        /// <summary>
+        /// 验证解析相关行为、预期结果及错误边界。
+        /// </summary>
         public Task<string?> ResolveOptionalAsync(string? reference, string? version, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("Direct database credentials must not require the reference resolver.");
     }
 
+    /// <summary>
+    /// 仅供助手模型供应商数据库令牌测试使用的测试辅助类型。
+    /// </summary>
     private sealed class FixedSecrets : ICredentialMaterialResolver
     {
+        /// <summary>
+        /// 表示密钥的引用信息。
+        /// </summary>
         public string? Reference { get; private set; }
+        /// <summary>
+        /// 表示密钥的版本信息。
+        /// </summary>
         public string? Version { get; private set; }
+        /// <summary>
+        /// 验证解析相关行为、预期结果及错误边界。
+        /// </summary>
         public Task<string> ResolveRequiredAsync(string reference, string version, CancellationToken cancellationToken = default)
         {
             Reference = reference;
             Version = version;
             return Task.FromResult("resolved-token");
         }
+        /// <summary>
+        /// 验证解析相关行为、预期结果及错误边界。
+        /// </summary>
         public Task<string?> ResolveOptionalAsync(string? reference, string? version, CancellationToken cancellationToken = default)
             => Task.FromResult<string?>(null);
     }
 
+    /// <summary>
+    /// 仅供助手模型供应商数据库令牌测试使用的测试辅助类型。
+    /// </summary>
     private sealed class NoHttp : IHttpClientFactory
     {
+        /// <summary>
+        /// 验证创建客户端相关行为、预期结果及错误边界。
+        /// </summary>
         public HttpClient CreateClient(string name) => throw new InvalidOperationException("Saving a provider must not call a model service.");
     }
 
+    /// <summary>
+    /// 仅供助手模型供应商数据库令牌测试使用的测试辅助类型。
+    /// </summary>
     public class NoopDbContext : DispatchProxy
     {
+        /// <summary>
+        /// 验证数据库上下文相关行为、预期结果及错误边界。
+        /// </summary>
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
             => targetMethod!.Name switch
             {

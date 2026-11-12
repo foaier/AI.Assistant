@@ -13,7 +13,13 @@ namespace SmartAssistant.Modules.Application;
 /// </summary>
 public static class AssistantPresentation
 {
+    /// <summary>
+    /// 定义助手展示配置使用的默认值颜色配置值。
+    /// </summary>
     private const string DefaultPrimaryColor = "#2563eb";
+    /// <summary>
+    /// 定义助手展示配置使用的聊天文本颜色配置值。
+    /// </summary>
     private const string ChatTextColor = "#172033";
 
     /// <summary>
@@ -28,6 +34,9 @@ public static class AssistantPresentation
             && string.IsNullOrEmpty(uri.UserInfo) && !string.IsNullOrEmpty(uri.Host);
     }
 
+    /// <summary>
+    /// 仅允许安全的本地图标地址或受限 HTTPS 链接用于公开展示。
+    /// </summary>
     private static bool IsSafeIconUrl(string? value)
     {
         if (!IsSafeLink(value)) return false;
@@ -121,6 +130,9 @@ public static class AssistantPresentation
                 throw new BizResultException(BusinessCodes.BusinessException, "assistant_configuration_invalid");
     }
 
+    /// <summary>
+    /// 校验聊天外观颜色和主题组合，拒绝不可读或格式错误的设置。
+    /// </summary>
     private static void ValidateTheme(JsonElement configuration)
     {
         if (configuration.ValueKind != JsonValueKind.Object
@@ -138,10 +150,16 @@ public static class AssistantPresentation
             throw new BizResultException(BusinessCodes.BusinessException, "assistant_theme_contrast_invalid");
     }
 
+    /// <summary>
+    /// 判断输入是否为格式有效的十六进制颜色值。
+    /// </summary>
     private static bool IsHexColor(string? value)
         => value is { Length: 7 } && value[0] == '#'
             && value.AsSpan(1).ToString().All(Uri.IsHexDigit);
 
+    /// <summary>
+    /// 根据相对亮度计算前景色与背景色之间的对比度。
+    /// </summary>
     private static double ContrastRatio(string first, string second)
     {
         var firstLuminance = RelativeLuminance(first);
@@ -150,8 +168,14 @@ public static class AssistantPresentation
             / (Math.Min(firstLuminance, secondLuminance) + 0.05);
     }
 
+    /// <summary>
+    /// 按颜色通道的线性亮度计算相对亮度。
+    /// </summary>
     private static double RelativeLuminance(string color)
     {
+        /*
+         * 从十六进制颜色值中读取指定颜色通道的数值。
+         */
         double Channel(int offset)
         {
             var value = Convert.ToInt32(color.Substring(offset, 2), 16) / 255d;
@@ -161,8 +185,14 @@ public static class AssistantPresentation
         return 0.2126 * Channel(1) + 0.7152 * Channel(3) + 0.0722 * Channel(5);
     }
 
+    /// <summary>
+    /// 从 JSON 配置读取文本字段，并统一空值和空白字符处理。
+    /// </summary>
     private static string Text(JsonElement value, string key)
         => value.ValueKind == JsonValueKind.Object && value.TryGetProperty(key, out var text) && text.ValueKind == JsonValueKind.String
             ? text.GetString()!.Trim() : string.Empty;
+    /// <summary>
+    /// 构造包含稳定业务错误码和消息的参数校验异常。
+    /// </summary>
     private static BizResultException Invalid() => new(BusinessCodes.BusinessException, "assistant_quick_links_invalid");
 }

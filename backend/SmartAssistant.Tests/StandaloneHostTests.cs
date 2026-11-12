@@ -13,8 +13,14 @@ namespace SmartAssistant.Tests;
 
 // Exercise the real host, controllers, SQLite migrations and repositories. All
 // files belong to a unique temporary test directory; the donor tree is unused.
+/// <summary>
+/// 验证独立项目行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class StandaloneHostTests
 {
+    /// <summary>
+    /// 验证管理操作和文件上传无需登录或身份 Cookie。
+    /// </summary>
     [Fact]
     public async Task Management_and_uploads_work_without_login_or_authentication_cookies()
     {
@@ -26,7 +32,8 @@ public sealed class StandaloneHostTests
         Assert.False(listed.Headers.Contains("Set-Cookie"));
 
         var assistant = await Data(await client.PostAsJsonAsync("/api/admin/assistants", new { name = "无需登录助手", configuration = new { } }));
-        Assert.Equal("administrator", assistant.GetProperty("updatedBy").GetString());
+        Assert.False(assistant.TryGetProperty("updatedBy", out _));
+        Assert.False(assistant.TryGetProperty("updatedAt", out _));
         var id = assistant.GetProperty("id").GetString();
         Assert.Equal(id, (await Data(await client.GetAsync($"/api/admin/assistants/{id}"))).GetProperty("id").GetString());
 
@@ -47,8 +54,11 @@ public sealed class StandaloneHostTests
         Assert.False(File.Exists(Path.Combine(directory, "admin-password.txt")));
     }
 
+    /// <summary>
+    /// 验证草稿的幂等、修订和物理删除，并确认重启后数据仍存在。
+    /// </summary>
     [Fact]
-    public async Task Drafts_preserve_idempotency_revisions_tombstones_and_restart_persistence()
+    public async Task Drafts_preserve_idempotency_revisions_and_restart_persistence_with_physical_deletion()
     {
         var directory = TestHost.NewDirectory();
         string id;
@@ -85,6 +95,9 @@ public sealed class StandaloneHostTests
         }
     }
 
+    /// <summary>
+    /// 验证发布冻结公开配置，撤回后公开访问失效。
+    /// </summary>
     [Fact]
     public async Task Publishing_freezes_the_public_configuration_and_revoking_removes_access()
     {
@@ -103,6 +116,15 @@ public sealed class StandaloneHostTests
         var configuration = new { businessPolicyId = policy.GetProperty("id").GetString(), welcomeMessage = "发布时欢迎", anonymousChatEnabled = true };
         var assistant = await Data(await client.PostAsJsonAsync("/api/admin/assistants", new { name = "公开助手", configuration }));
         var id = assistant.GetProperty("id").GetString();
+        var preview = await Data(await client.PostAsJsonAsync($"/api/admin/assistants/{id}/previews", new { expectedDraftRevision = 1 }));
+        var previewId = preview.GetProperty("id").GetString();
+        Assert.True(preview.GetProperty("expiresAt").GetDateTime() > DateTime.UtcNow);
+        var previewMessages = await Data(await client.GetAsync($"/api/admin/assistants/{id}/previews/{previewId}/messages"));
+        Assert.Empty(previewMessages.GetProperty("items").EnumerateArray());
+        var otherAssistant = await Data(await client.PostAsJsonAsync("/api/admin/assistants", new { name = "其他助手", configuration }));
+        var otherId = otherAssistant.GetProperty("id").GetString();
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/admin/assistants/{otherId}/previews/{previewId}/messages")).StatusCode);
         var publication = await Data(await client.PostAsJsonAsync($"/api/admin/assistants/{id}/publish", new { expectedDraftRevision = 1, expectedPointerRevision = 0 }));
         Assert.Equal(1, publication.GetProperty("pointerRevision").GetInt64());
 
@@ -119,6 +141,9 @@ public sealed class StandaloneHostTests
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/assistants/{id}/bootstrap")).StatusCode);
     }
 
+    /// <summary>
+    /// 验证知识问答和文档上传使用独立项目的存储。
+    /// </summary>
     [Fact]
     public async Task Knowledge_questions_and_document_uploads_use_the_independent_storage()
     {
@@ -144,6 +169,9 @@ public sealed class StandaloneHostTests
         Assert.Equal(1, listed.GetProperty("documentCount").GetInt32());
     }
 
+    /// <summary>
+    /// 验证公开聊天持久化完整回答、流式返回内容并生成统计数据。
+    /// </summary>
     [Fact]
     public async Task Public_chat_persists_a_completed_model_answer_streams_it_and_reports_analytics()
     {
@@ -223,6 +251,9 @@ public sealed class StandaloneHostTests
         Assert.Equal(HttpStatusCode.NotFound, (await publicClient.PostAsJsonAsync($"/api/public/assistants/{id}/conversations", new { locale = "zh-cn" })).StatusCode);
     }
 
+    /// <summary>
+    /// 确认 HTTP 响应成功并拆取统一业务响应中的返回对象。
+    /// </summary>
     private static async Task<JsonElement> Data(HttpResponseMessage response)
     {
         var json = await response.Content.ReadAsStringAsync();
@@ -234,10 +265,22 @@ public sealed class StandaloneHostTests
         return root.GetProperty("returnObj").Clone();
     }
 
+    /// <summary>
+    /// 仅供独立项目测试使用的测试辅助类型。
+    /// </summary>
     private sealed class TestHost(string? directory = null, HttpMessageHandler? upstream = null) : WebApplicationFactory<Program>
     {
+        /// <summary>
+        /// 保存测试在处理目录时所需的数据或状态。
+        /// </summary>
         private readonly string _directory = directory ?? NewDirectory();
+        /// <summary>
+        /// 在测试输出目录下创建隔离的临时数据路径。
+        /// </summary>
         public static string NewDirectory() => Path.Combine(AppContext.BaseDirectory, "TestResults", "test-data", Guid.NewGuid().ToString("N"));
+        /// <summary>
+        /// 验证网络相关行为、预期结果及错误边界。
+        /// </summary>
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Test");
@@ -251,12 +294,30 @@ public sealed class StandaloneHostTests
         }
     }
 
+    /// <summary>
+    /// 为独立项目测试相关测试提供隔离数据、受控依赖或固定 HTTP 响应。
+    /// </summary>
     private sealed class ChatProviderFixture : HttpMessageHandler
     {
+        /// <summary>
+        /// 定义聊天模型供应商测试夹具使用的测试令牌配置值。
+        /// </summary>
         public const string TestToken = "fixture-only-no-real-provider-key";
+        /// <summary>
+        /// 定义聊天模型供应商测试夹具使用的问题配置值。
+        /// </summary>
         public const string Question = "What does the standalone assistant verify?";
+        /// <summary>
+        /// 定义聊天模型供应商测试夹具使用的回答配置值。
+        /// </summary>
         public const string Answer = "The standalone assistant persists and streams this verified answer.";
+        /// <summary>
+        /// 表示聊天模型供应商测试夹具的调用信息。
+        /// </summary>
         public int Calls { get; private set; }
+        /// <summary>
+        /// 验证发送相关行为、预期结果及错误边界。
+        /// </summary>
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Assert.Equal(HttpMethod.Post, request.Method);

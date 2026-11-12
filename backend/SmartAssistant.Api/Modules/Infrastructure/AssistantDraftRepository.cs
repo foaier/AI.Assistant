@@ -7,7 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using SmartAssistant.Extensions.DAL;
 using SmartAssistant.Modules.Domain;
+using SmartAssistant.Platform;
 using SqlSugar;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Modules.Infrastructure;
 
@@ -16,18 +18,30 @@ namespace SmartAssistant.Modules.Infrastructure;
 /// </summary>
 public interface IAssistantDraftRepository
 {
-    Task<IReadOnlyList<AssistantDraft>> ListAsync(string tenantId, string orgId, CancellationToken cancellationToken);
-    Task<AssistantDraft?> GetAsync(string tenantId, string orgId, string id, CancellationToken cancellationToken);
     /// <summary>
-    /// 在租户和组织范围内按创建幂等键读取已有草稿。
+    /// 列出助手草稿相关记录，并响应调用方的取消请求。
     /// </summary>
-    Task<AssistantDraft?> GetByIdempotencyKeyAsync(string tenantId, string orgId, string key, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AssistantDraft>> ListAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// 读取助手草稿记录，并响应调用方的取消请求。
+    /// </summary>
+    Task<AssistantDraft?> GetAsync(string id, CancellationToken cancellationToken);
+    /// <summary>
+    /// 按创建幂等键读取已有草稿。
+    /// </summary>
+    Task<AssistantDraft?> GetByIdempotencyKeyAsync(string key, CancellationToken cancellationToken);
+    /// <summary>
+    /// 新增助手草稿记录，并响应调用方的取消请求。
+    /// </summary>
     Task AddAsync(AssistantDraft draft, CancellationToken cancellationToken);
     /// <summary>
     /// 将带预期修订条件的草稿更新加入事务队列，未命中时报告并发冲突。
     /// </summary>
     Task SaveAsync(AssistantDraft draft, long expectedRevision, CancellationToken cancellationToken);
-    Task DeleteAsync(string tenantId, string orgId, string id, string actorUserId, DateTime deletedAt, CancellationToken cancellationToken);
+    /// <summary>
+    /// 物理删除助手草稿及关联运行数据，并响应调用方的取消请求。
+    /// </summary>
+    Task DeleteAsync(string id, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -35,33 +49,45 @@ public interface IAssistantDraftRepository
 /// </summary>
 public sealed class AssistantDraftRepository : IAssistantDraftRepository
 {
+    /// <summary>
+    /// 保存数据库上下文依赖，供助手草稿仓储执行相关操作。
+    /// </summary>
     private readonly IDbContext _dbContext;
 
+    /// <summary>
+    /// 接收并保存助手草稿仓储执行所需的依赖，建立后续操作使用的运行状态。
+    /// </summary>
     public AssistantDraftRepository(IDbContext dbContext) => _dbContext = dbContext;
 
-    public Task<AssistantDraft?> GetAsync(string tenantId, string orgId, string id, CancellationToken cancellationToken)
-        => Query(scope => scope.Id == id && scope.TenantId == tenantId && scope.OrgId == orgId && !scope.IsDeleted, cancellationToken);
+    /// <summary>
+    /// 读取助手草稿记录，并响应调用方的取消请求。
+    /// </summary>
+    public Task<AssistantDraft?> GetAsync(string id, CancellationToken cancellationToken)
+        => Query(scope => scope.Id == id, cancellationToken);
 
+    /// <summary>
+    /// 列出助手草稿相关记录，并响应调用方的取消请求。
+    /// </summary>
     public async Task<IReadOnlyList<AssistantDraft>> ListAsync(
-        string tenantId,
-        string orgId,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var rows = await _dbContext.GetSugarScope(ConnectionType.Master)
-            .Queryable<AssistantDraftRow>()
-            .Where(scope => scope.TenantId == tenantId && scope.OrgId == orgId && !scope.IsDeleted)
-            .OrderByDescending(scope => scope.UpdatedAt)
+        var rows = await _dbContext.GetSugarScope()
+            .Queryable<AssistantDraftEntity>()
+            .OrderBy(scope => scope.Name).OrderBy(scope => scope.Id)
             .ToListAsync();
         return rows.Select(ToDomain).ToArray();
     }
 
     /// <summary>
-    /// 在租户和组织范围内按创建幂等键读取已有草稿。
+    /// 按创建幂等键读取已有草稿。
     /// </summary>
-    public Task<AssistantDraft?> GetByIdempotencyKeyAsync(string tenantId, string orgId, string key, CancellationToken cancellationToken)
-        => Query(scope => scope.CreationIdempotencyKey == key && scope.TenantId == tenantId && scope.OrgId == orgId && !scope.IsDeleted, cancellationToken);
+    public Task<AssistantDraft?> GetByIdempotencyKeyAsync(string key, CancellationToken cancellationToken)
+        => Query(scope => scope.CreationIdempotencyKey == key, cancellationToken);
 
+    /// <summary>
+    /// 新增助手草稿记录，并响应调用方的取消请求。
+    /// </summary>
     public Task AddAsync(AssistantDraft draft, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -79,9 +105,6 @@ public sealed class AssistantDraftRepository : IAssistantDraftRepository
         {
             var affected = await client.Updateable(ToRow(draft))
                 .Where(row => row.Id == draft.Id
-                    && row.TenantId == draft.TenantId
-                    && row.OrgId == draft.OrgId
-                    && !row.IsDeleted
                     && row.DraftRevision == expectedRevision)
                 .ExecuteCommandAsync();
             if (affected != 1)
@@ -91,80 +114,69 @@ public sealed class AssistantDraftRepository : IAssistantDraftRepository
         return Task.CompletedTask;
     }
 
-    public Task DeleteAsync(string tenantId, string orgId, string id, string actorUserId, DateTime deletedAt, CancellationToken cancellationToken)
+    /// <summary>
+    /// 物理删除助手草稿及关联运行数据，并响应调用方的取消请求。
+    /// </summary>
+    public Task DeleteAsync(string id, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _dbContext.AddCommand(client => client.Updateable<AssistantDraftRow>()
-            .SetColumns(row => new AssistantDraftRow
-            {
-                IsDeleted = true,
-                DeletedAt = deletedAt,
-                DeletedBy = actorUserId,
-                UpdatedAt = deletedAt,
-                UpdatedBy = actorUserId
-            })
-            .Where(row => row.Id == id && row.TenantId == tenantId && row.OrgId == orgId && !row.IsDeleted)
-            .ExecuteCommandAsync());
+        _dbContext.AddCommand(async client =>
+        {
+            /*
+             * 在提交事务内再次核对发布状态，避免检查后发生发布而删除有效入口。
+             * 会话删除通过外键级联清理对话、轮次、运行、消息和工具调用。
+             */
+            if (await client.Queryable<AssistantPublicationPointerEntity>()
+                .Where(row => row.AssistantId == id && row.Status == 1)
+                .AnyAsync())
+                throw new BizResultException(BusinessCodes.Conflict, "assistant_published_revoke_before_delete");
+            await client.Deleteable<SessionEntity>()
+                .Where(row => row.AssistantId == id).ExecuteCommandAsync();
+            await client.Deleteable<AssistantPreviewEntity>()
+                .Where(row => row.AssistantId == id).ExecuteCommandAsync();
+            await client.Deleteable<AssistantPublicationPointerEntity>()
+                .Where(row => row.AssistantId == id).ExecuteCommandAsync();
+            await client.Deleteable<AssistantPublishedVersionEntity>()
+                .Where(row => row.AssistantId == id).ExecuteCommandAsync();
+            return await client.Deleteable<AssistantDraftEntity>()
+                .Where(row => row.Id == id).ExecuteCommandAsync();
+        });
         return Task.CompletedTask;
     }
 
-    private async Task<AssistantDraft?> Query(Expression<Func<AssistantDraftRow, bool>> predicate, CancellationToken cancellationToken)
+    /// <summary>
+    /// 按调用方提供的范围与筛选条件读取草稿，并响应取消请求。
+    /// </summary>
+    private async Task<AssistantDraft?> Query(Expression<Func<AssistantDraftEntity, bool>> predicate, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var row = await _dbContext.GetSugarScope(ConnectionType.Master)
-            .Queryable<AssistantDraftRow>()
+        var row = await _dbContext.GetSugarScope()
+            .Queryable<AssistantDraftEntity>()
             .Where(predicate)
             .FirstAsync();
         return row is null ? null : ToDomain(row);
     }
 
-    private static AssistantDraftRow ToRow(AssistantDraft draft) => new()
+    /// <summary>
+    /// 将数据转换为助手草稿。
+    /// </summary>
+    private static AssistantDraftEntity ToRow(AssistantDraft draft) => new()
     {
         Id = draft.Id,
-        TenantId = draft.TenantId,
-        OrgId = draft.OrgId,
         Name = draft.Name,
         Description = draft.Description,
         DraftJson = draft.DraftJson,
         DraftRevision = draft.DraftRevision,
-        IsDeleted = draft.IsDeleted,
-        DeletedAt = draft.DeletedAt,
-        DeletedBy = draft.DeletedBy,
-        CreatedAt = draft.CreatedAt,
-        CreatedBy = draft.CreatedBy,
-        UpdatedAt = draft.UpdatedAt,
-        UpdatedBy = draft.UpdatedBy,
         CreationIdempotencyKey = draft.CreationIdempotencyKey
     };
 
-    private static AssistantDraft ToDomain(AssistantDraftRow row)
-    {
-        return AssistantDraft.Rehydrate(row.Id, row.TenantId, row.OrgId, row.Name, row.Description,
-            row.DraftJson, row.DraftRevision, row.IsDeleted, row.DeletedAt, row.DeletedBy,
-            row.CreatedAt, row.CreatedBy, row.UpdatedAt, row.UpdatedBy, row.CreationIdempotencyKey);
-    }
-
     /// <summary>
-    /// 助手草稿的数据库行映射。
+    /// 将数据转换为助手草稿。
     /// </summary>
-    [SugarTable("assistant_draft")]
-    private sealed class AssistantDraftRow
+    private static AssistantDraft ToDomain(AssistantDraftEntity row)
     {
-        [SugarColumn(IsPrimaryKey = true, ColumnName = "id")] public string Id { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "tenant_id")] public string TenantId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "org_id")] public string OrgId { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "name")] public string Name { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "description")] public string? Description { get; set; }
-        [SugarColumn(ColumnName = "draft_json")] public string DraftJson { get; set; } = "{}";
-        [SugarColumn(ColumnName = "draft_revision")] public long DraftRevision { get; set; }
-        [SugarColumn(ColumnName = "is_deleted")] public bool IsDeleted { get; set; }
-        [SugarColumn(ColumnName = "deleted_at")] public DateTime? DeletedAt { get; set; }
-        [SugarColumn(ColumnName = "deleted_by")] public string? DeletedBy { get; set; }
-        [SugarColumn(ColumnName = "created_at")] public DateTime CreatedAt { get; set; }
-        [SugarColumn(ColumnName = "created_by")] public string CreatedBy { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "updated_at")] public DateTime UpdatedAt { get; set; }
-        [SugarColumn(ColumnName = "updated_by")] public string UpdatedBy { get; set; } = string.Empty;
-        [SugarColumn(ColumnName = "creation_idempotency_key")] public string? CreationIdempotencyKey { get; set; }
+        return AssistantDraft.Rehydrate(row.Id, row.Name, row.Description,
+            row.DraftJson, row.DraftRevision, row.CreationIdempotencyKey);
     }
 
     /// <summary>
@@ -172,6 +184,9 @@ public sealed class AssistantDraftRepository : IAssistantDraftRepository
     /// </summary>
     public sealed class DraftRevisionConflictException : Exception
     {
+        /// <summary>
+        /// 接收并保存草稿修订冲突执行所需的依赖，建立后续操作使用的运行状态。
+        /// </summary>
         public DraftRevisionConflictException() : base("assistant_draft_revision_conflict") { }
     }
 }

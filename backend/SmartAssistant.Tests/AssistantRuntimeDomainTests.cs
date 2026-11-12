@@ -11,28 +11,37 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手运行时行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantRuntimeDomainTests
 {
+    /// <summary>
+    /// 验证匿名会话拒绝跨范围访问及过期访问。
+    /// </summary>
     [Fact]
     public void Anonymous_session_rejects_cross_scope_access_and_expiry()
     {
         var now = DateTime.UtcNow;
         var session = AnonymousAssistantSession.Create(
-            "s1", "a1", "t1", "o1", "pub1", "subject-hash", "zh-CN",
+            "s1", "a1", "pub1", "subject-hash", "zh-CN",
             AssistantExecutionMode.Public, now, now.AddHours(1));
 
-        session.EnsureAccessible("a1", "t1", "o1", "pub1", AssistantExecutionMode.Public, now);
+        session.EnsureAccessible("a1", "pub1", AssistantExecutionMode.Public, now);
 
         var scopeError = Assert.Throws<BizResultException>(() =>
-            session.EnsureAccessible("a2", "t1", "o1", "pub1", AssistantExecutionMode.Public, now));
+            session.EnsureAccessible("a2", "pub1", AssistantExecutionMode.Public, now));
         Assert.Equal("assistant_session_scope_mismatch", scopeError.BusinessMessage);
 
         session.Expire(now.AddMinutes(1));
         var expiredError = Assert.Throws<BizResultException>(() =>
-            session.EnsureAccessible("a1", "t1", "o1", "pub1", AssistantExecutionMode.Public, now.AddMinutes(1)));
+            session.EnsureAccessible("a1", "pub1", AssistantExecutionMode.Public, now.AddMinutes(1)));
         Assert.Equal("assistant_session_not_active", expiredError.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证相同幂等请求复用轮次，不同请求内容则报告冲突。
+    /// </summary>
     [Fact]
     public void Turn_idempotency_replays_same_payload_and_conflicts_on_different_payload()
     {
@@ -50,12 +59,15 @@ public sealed class AssistantRuntimeDomainTests
         Assert.Equal("assistant_turn_idempotency_payload_conflict", conflict.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证运行终态和最终消息只能提交一次。
+    /// </summary>
     [Fact]
     public void Run_terminal_state_and_final_message_can_only_be_written_once()
     {
         var now = DateTime.UtcNow;
         var turn = CreateTurn(now, "client-2", "hello");
-        var run = AssistantRun.Create("run-1", turn, "provider-profile", "model-1", now);
+        var run = AssistantRun.Create("run-1", turn, "provider-profile", "model-1");
         var message = AssistantMessage.CreateAssistant("msg-1", "conv-1", "turn-1", "run-1", now);
 
         run.Start(now.AddMilliseconds(1));
@@ -69,6 +81,9 @@ public sealed class AssistantRuntimeDomainTests
         Assert.Throws<BizResultException>(() => message.Complete(null, now.AddMilliseconds(4)));
     }
 
+    /// <summary>
+    /// 验证运行事件序号单调递增，且只允许一个终态。
+    /// </summary>
     [Fact]
     public void Run_event_sequence_is_monotonic_and_terminal_is_unique()
     {
@@ -95,6 +110,9 @@ public sealed class AssistantRuntimeDomainTests
         Assert.Equal("assistant_run_terminal_event_already_set", error.BusinessMessage);
     }
 
+    /// <summary>
+    /// 验证流票据绑定访问范围和传输方式，同时不暴露供应商细节。
+    /// </summary>
     [Fact]
     public void Stream_ticket_contract_binds_scope_and_transport_without_provider_details()
     {
@@ -119,6 +137,9 @@ public sealed class AssistantRuntimeDomainTests
         Assert.DoesNotContain("secret", ticket.Value, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 验证供应商片段不依赖领域状态，且工具参数允许分段输出。
+    /// </summary>
     [Fact]
     public void Provider_chunks_are_domain_neutral_and_tool_arguments_can_be_split()
     {
@@ -137,6 +158,9 @@ public sealed class AssistantRuntimeDomainTests
         Assert.Equal("Id\":\"event-1\"}", second.ToolCall.ArgumentsDelta);
     }
 
+    /// <summary>
+    /// 验证事件信封序列化仅包含通用负载，不混入传输层字段。
+    /// </summary>
     [Fact]
     public void Event_envelope_serializes_payload_without_transport_specific_fields()
     {
@@ -155,6 +179,9 @@ public sealed class AssistantRuntimeDomainTests
         Assert.False(envelope.Payload.TryGetProperty("webSocket", out _));
     }
 
+    /// <summary>
+    /// 验证创建轮次相关行为、预期结果及错误边界。
+    /// </summary>
     private static AssistantTurn CreateTurn(DateTime now, string clientMessageId, string text)
     {
         return AssistantTurn.Create(
@@ -162,15 +189,12 @@ public sealed class AssistantRuntimeDomainTests
             "conv-1",
             "session-1",
             "assistant-1",
-            "tenant-1",
-            "org-1",
             "published-1",
             clientMessageId,
             "text",
             text,
             "zh-CN",
             1,
-            AssistantExecutionMode.Public,
-            now);
+            AssistantExecutionMode.Public);
     }
 }

@@ -13,15 +13,34 @@ namespace SmartAssistant.Modules.Domain;
 /// </summary>
 public sealed class AssistantPublishedVersion
 {
+    /// <summary>
+    /// 限制领域对象直接构造；实例应通过校验过的工厂方法创建或由持久化层还原。
+    /// </summary>
     private AssistantPublishedVersion() { }
 
+    /// <summary>
+    /// 记录当前数据的唯一标识。
+    /// </summary>
     public string Id { get; private set; } = string.Empty;
+    /// <summary>
+    /// 表示助手发布版本的助手密钥信息。
+    /// </summary>
     public string AssistantKey { get; private set; } = string.Empty;
+    /// <summary>
+    /// 关联此数据所属的助手。
+    /// </summary>
     public string AssistantId { get; private set; } = string.Empty;
-    public string TenantId { get; private set; } = string.Empty;
-    public string OrgId { get; private set; } = string.Empty;
+    /// <summary>
+    /// 记录发布版本或文档版本的递增编号。
+    /// </summary>
     public long VersionNo { get; private set; }
+    /// <summary>
+    /// 记录此资源的展示名称。
+    /// </summary>
     public string Name { get; private set; } = string.Empty;
+    /// <summary>
+    /// 记录此资源的可选说明。
+    /// </summary>
     public string? Description { get; private set; }
     /// <summary>
     /// 发布时冻结的配置与执行依赖，后续草稿修改不会覆盖此快照。
@@ -31,15 +50,30 @@ public sealed class AssistantPublishedVersion
     /// 发布快照的内容哈希，用于标识被冻结的配置内容。
     /// </summary>
     public string SnapshotHash { get; private set; } = string.Empty;
+    /// <summary>
+    /// 标记发布版本或访问授权是否已撤回。
+    /// </summary>
     public bool IsRevoked { get; private set; }
+    /// <summary>
+    /// 记录授权或版本撤回的时间。
+    /// </summary>
     public DateTime? RevokedAt { get; private set; }
+    /// <summary>
+    /// 记录执行撤回的操作人。
+    /// </summary>
     public string? RevokedBy { get; private set; }
-    public bool IsDeleted { get; private set; }
-    public DateTime? DeletedAt { get; private set; }
-    public string? DeletedBy { get; private set; }
+    /// <summary>
+    /// 记录版本发布的时间。
+    /// </summary>
     public DateTime PublishedAt { get; private set; }
+    /// <summary>
+    /// 记录执行发布的操作人。
+    /// </summary>
     public string PublishedBy { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// 根据校验后的输入创建助手发布版本领域对象，并初始化其状态和时间字段。
+    /// </summary>
     public static AssistantPublishedVersion Create(
         AssistantDraft draft,
         long versionNo,
@@ -57,8 +91,6 @@ public sealed class AssistantPublishedVersion
             Id = Guid.NewGuid().ToString("N"),
             AssistantKey = draft.Id,
             AssistantId = draft.Id,
-            TenantId = draft.TenantId,
-            OrgId = draft.OrgId,
             VersionNo = versionNo,
             Name = draft.Name,
             Description = draft.Description,
@@ -69,12 +101,13 @@ public sealed class AssistantPublishedVersion
         };
     }
 
+    /// <summary>
+    /// 从持久化数据还原助手发布版本的标识、访问范围和生命周期状态。
+    /// </summary>
     public static AssistantPublishedVersion Rehydrate(
         string id,
         string assistantKey,
         string assistantId,
-        string tenantId,
-        string orgId,
         long versionNo,
         string name,
         string? description,
@@ -83,9 +116,6 @@ public sealed class AssistantPublishedVersion
         bool isRevoked,
         DateTime? revokedAt,
         string? revokedBy,
-        bool isDeleted,
-        DateTime? deletedAt,
-        string? deletedBy,
         DateTime publishedAt,
         string publishedBy)
         => new()
@@ -93,8 +123,6 @@ public sealed class AssistantPublishedVersion
             Id = id,
             AssistantKey = assistantKey,
             AssistantId = assistantId,
-            TenantId = tenantId,
-            OrgId = orgId,
             VersionNo = versionNo,
             Name = name,
             Description = description,
@@ -103,9 +131,6 @@ public sealed class AssistantPublishedVersion
             IsRevoked = isRevoked,
             RevokedAt = revokedAt,
             RevokedBy = revokedBy,
-            IsDeleted = isDeleted,
-            DeletedAt = deletedAt,
-            DeletedBy = deletedBy,
             PublishedAt = publishedAt,
             PublishedBy = publishedBy
         };
@@ -116,13 +141,16 @@ public sealed class AssistantPublishedVersion
     public void Revoke(string actorUserId, DateTime now)
     {
         Require(actorUserId, nameof(actorUserId));
-        if (IsDeleted || IsRevoked)
+        if (IsRevoked)
             throw new BizResultException(BusinessCodes.Conflict, "assistant_publication_already_revoked");
         IsRevoked = true;
         RevokedAt = now;
         RevokedBy = actorUserId;
     }
 
+    /// <summary>
+    /// 将配置文本解析并重新序列化为规范 JSON；无效 JSON 按业务校验错误拒绝。
+    /// </summary>
     private static string NormalizeJson(string? value)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? "{}" : value.Trim();
@@ -137,9 +165,15 @@ public sealed class AssistantPublishedVersion
         }
     }
 
+    /// <summary>
+    /// 计算配置文本的 SHA-256 摘要，用于检测内容变化。
+    /// </summary>
     private static string Hash(string value)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
+    /// <summary>
+    /// 校验必填文本并返回去除首尾空白后的值；内容缺失时报告输入错误。
+    /// </summary>
     private static string Require(string? value, string field)
         => string.IsNullOrWhiteSpace(value)
             ? throw new BizResultException(BusinessCodes.BusinessException, $"{field} required")

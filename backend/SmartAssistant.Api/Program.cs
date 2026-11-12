@@ -38,8 +38,13 @@ app.Use(async (context, next) =>
             : ex is ArgumentException or InvalidDataException ? 400 : 500;
         app.Logger.Log(status == 500 ? LogLevel.Error : LogLevel.Debug, ex, "SmartAssistant request failed");
         context.Response.StatusCode = status;
-        await context.Response.WriteAsJsonAsync(new { isSuccess = false, businessCode = code,
-            businessMessage = status == 500 ? "assistant_server_error" : ex.Message, returnObj = (object?)null });
+        await context.Response.WriteAsJsonAsync(new
+        {
+            isSuccess = false,
+            businessCode = code,
+            businessMessage = status == 500 ? "assistant_server_error" : ex.Message,
+            returnObj = (object?)null
+        });
     }
 });
 app.UseWebSockets();
@@ -48,7 +53,7 @@ app.MapPost("/api/assets/upload", async (HttpRequest request, AssetApplicationSe
 {
     var form = await request.ReadFormAsync(ct);
     var file = form.Files.GetFile("file") ?? throw new BizResultException(1001, "file_required");
-    var result = await assets.UploadAsync(file, "assistant-local", "assistant-local", null,
+    var result = await assets.UploadAsync(file, null,
         form["category"].FirstOrDefault() ?? "assistant-image", "administrator", cancellationToken: ct);
     return Results.Ok(BizResult.BusinessSuccess(result));
 });

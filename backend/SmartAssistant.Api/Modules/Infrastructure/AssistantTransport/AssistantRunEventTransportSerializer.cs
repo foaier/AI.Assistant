@@ -10,6 +10,9 @@ namespace SmartAssistant.Modules.Infrastructure.AssistantTransport;
 /// </summary>
 public sealed class AssistantRunEventTransportSerializer
 {
+    /// <summary>
+    /// 保存用于助手执行事件传输序列化器事件编解码的序列化器。
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase

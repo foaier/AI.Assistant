@@ -57,8 +57,6 @@ describe("publicAssistantService", () => {
       id: "a1",
       name: "客服",
       draftRevision: 1,
-      updatedAt: "2026-09-24T00:00:00Z",
-      updatedBy: "u1",
       configuration: {},
     });
 
@@ -76,8 +74,6 @@ describe("publicAssistantService", () => {
       id: "a1",
       name: "客服",
       draftRevision: 2,
-      updatedAt: "2026-09-24T00:00:00Z",
-      updatedBy: "u1",
       configuration: DEFAULT_ASSISTANT_CONFIGURATION,
     });
 

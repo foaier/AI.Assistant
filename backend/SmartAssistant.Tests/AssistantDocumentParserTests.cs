@@ -11,8 +11,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手文档解析器行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantDocumentParserTests
 {
+    /// <summary>
+    /// 验证文本类文档使用严格 UTF-8 解码读取。
+    /// </summary>
     [Theory]
     [InlineData("text/plain", "hello\r\nworld", "text-v1")]
     [InlineData("text/markdown", "# title\r\nbody", "text-v1")]
@@ -28,6 +34,9 @@ public sealed class AssistantDocumentParserTests
         Assert.Equal(input.Replace("\r\n", "\n", StringComparison.Ordinal), parsed.Text);
     }
 
+    /// <summary>
+    /// 验证 DOCX 解析保留段落、制表符和换行。
+    /// </summary>
     [Fact]
     public async Task Docx_documents_extract_paragraphs_tabs_and_breaks()
     {
@@ -46,6 +55,9 @@ public sealed class AssistantDocumentParserTests
         Assert.Equal("第一段\t字段\n继续\n第二段", parsed.Text);
     }
 
+    /// <summary>
+    /// 验证缺少真实解析器的格式被明确拒绝。
+    /// </summary>
     [Theory]
     [InlineData("application/pdf")]
     [InlineData("application/msword")]
@@ -61,6 +73,9 @@ public sealed class AssistantDocumentParserTests
         Assert.Equal("knowledge_document_parser_unsupported_type", error.Message);
     }
 
+    /// <summary>
+    /// 验证创建相关行为、预期结果及错误边界。
+    /// </summary>
     private static MemoryStream CreateDocx(string documentXml)
     {
         var stream = new MemoryStream();

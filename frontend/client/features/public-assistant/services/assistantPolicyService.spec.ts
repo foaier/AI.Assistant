@@ -7,7 +7,7 @@ beforeEach(() => vi.clearAllMocks());
 
 it('keeps organization provider reads separate from platform provider management', () => {
   const settings: ModelServiceSettings = { name: 'service', baseUrl: 'https://example.test', secretReference: 'token', secretVersion: 'v1', timeoutSeconds: 60, models: [] };
-  const provider: ModelService = { id: 'provider/1', name: 'service', revision: 3, enabled: true, models: [], settings, updatedAt: '' };
+  const provider: ModelService = { id: 'provider/1', name: 'service', revision: 3, enabled: true, models: [], settings, };
   listModelServices();
   listAvailableModelServices();
   listPlatformModelServices();
@@ -28,7 +28,7 @@ it('keeps organization provider reads separate from platform provider management
 
 it('keeps web search availability in the organization API and management on the platform API', () => {
   const settings = { endpoint: 'https://example.test', botId: 'bot', serviceName: 'search', apiKey: 'key', timeoutSeconds: 60 };
-  const config: AssistantWebSearchConfig = { id: 'search', revision: 4, enabled: true, endpoint: settings.endpoint, botId: settings.botId, serviceName: settings.serviceName, credentialConfigured: true, credentialMasked: '***', timeoutSeconds: 60, updatedAt: '' };
+  const config: AssistantWebSearchConfig = { id: 'search', revision: 4, enabled: true, endpoint: settings.endpoint, botId: settings.botId, serviceName: settings.serviceName, credentialConfigured: true, credentialMasked: '***', timeoutSeconds: 60, };
   getAssistantWebSearchAvailability();
   getPlatformAssistantWebSearchConfig();
   savePlatformAssistantWebSearchConfig(settings, 0);

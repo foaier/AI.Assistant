@@ -1,4 +1,3 @@
-import { useDateTime } from '@/shared/hooks/useDateTime';
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -187,8 +186,7 @@ export function KnowledgeDocumentsPanel({
 }: {
   knowledgeBaseId: string;
 }) {
-  const { formatDateTimeDisplay } = useDateTime();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const p = (key: string) => t(`publicAssistant.p0.${key}`);
   const e = (key: string) => t(`publicAssistant.embedding.${key}`);
   const client = useQueryClient();
@@ -316,8 +314,7 @@ export function KnowledgeDocumentsPanel({
                   <span data-testid={`knowledge-document-state-${item.id}`}>
                     {status(item)}
                   </span>{" "}
-                  · {p("segments")} {item.chunkCount} ·{" "}
-                  {formatDateTimeDisplay(item.updatedAt, locale)}
+                  · {p("segments")} {item.chunkCount}
                 </p>
                 {(item.status === 3 || item.indexStatus === "failed") && (
                   <p className="mt-1 text-sm text-[var(--text-danger)]">

@@ -6,9 +6,15 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手知识分块行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantKnowledgeChunkingTests
 {
     // Spec: REQ-20261006-009; preview and indexing share these semantics.
+    /// <summary>
+    /// 验证修改任何分块规则都会改变策略标识，重复保存相同规则则保持稳定。
+    /// </summary>
     [Fact]
     public void Every_rule_option_changes_the_strategy_but_resaving_does_not()
     {
@@ -23,6 +29,9 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.Equal(original.StrategyKey, original.WithRevision(2).StrategyKey);
     }
 
+    /// <summary>
+    /// 验证标题模式保留完整章节，混合模式会继续切分长章节。
+    /// </summary>
     [Fact]
     public void Heading_keeps_a_complete_section_while_hybrid_splits_long_sections()
     {
@@ -34,6 +43,9 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.All(hybrid, chunk => Assert.InRange(chunk.Length, 1, 200));
     }
 
+    /// <summary>
+    /// 验证超长标题路径不会导致片段超长或退化为单字符片段。
+    /// </summary>
     [Fact]
     public void Very_long_heading_paths_do_not_exceed_size_or_make_one_character_chunks()
     {
@@ -43,6 +55,9 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.All(chunks, chunk => Assert.InRange(chunk.Length, 1, 200));
     }
 
+    /// <summary>
+    /// 验证跳级标题不会将同级标题错误归为子标题。
+    /// </summary>
     [Fact]
     public void Skipped_heading_levels_do_not_make_sibling_titles_children()
     {
@@ -52,6 +67,9 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.DoesNotContain("同级甲 / 同级乙", chunks.Last());
     }
 
+    /// <summary>
+    /// 验证启用短片段合并后，末尾短章节能够并入相邻片段。
+    /// </summary>
     [Fact]
     public void Short_final_section_is_merged_when_enabled()
     {
@@ -61,11 +79,17 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.Equal(2, AssistantKnowledgeChunker.Split(text, policy with { MergeShortChunks = false }).Count);
     }
 
+    /// <summary>
+    /// 验证无效分块模式被拒绝。
+    /// </summary>
     [Fact]
     public void Invalid_mode_is_rejected()
         => Assert.Throws<System.ArgumentOutOfRangeException>(() => AssistantKnowledgeChunker.Split("text",
             AssistantKnowledgeChunkingPolicy.Default with { Mode = (AssistantKnowledgeChunkingMode)99 }));
 
+    /// <summary>
+    /// 验证固定分块模式遵守片段大小和重叠限制。
+    /// </summary>
     [Fact]
     public void Fixed_mode_respects_size_and_overlap()
     {
@@ -79,6 +103,9 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.Contains(chunks[0][^20..], chunks[1]);
     }
 
+    /// <summary>
+    /// 验证标题分块模式在各片段中保留标题路径。
+    /// </summary>
     [Fact]
     public void Heading_mode_keeps_heading_path_in_each_section()
     {
@@ -92,6 +119,9 @@ public sealed class AssistantKnowledgeChunkingTests
         Assert.Contains("报名", chunks[1]);
     }
 
+    /// <summary>
+    /// 验证无效重叠长度被拒绝。
+    /// </summary>
     [Fact]
     public void Invalid_overlap_is_rejected()
     {

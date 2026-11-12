@@ -6,8 +6,14 @@ using Xunit;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手知识行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantKnowledgeTests
 {
+    /// <summary>
+    /// 验证问题规范化结果可稳定用于精确匹配。
+    /// </summary>
     [Theory]
     [InlineData("  活动  什么时候开始？ ", "活动 什么时候开始?")]
     [InlineData("ＡＢＣ", "ABC")]
@@ -17,6 +23,9 @@ public sealed class AssistantKnowledgeTests
         Assert.Equal(expected.ToUpperInvariant(), AssistantKnowledgeService.NormalizeQuestion(input));
     }
 
+    /// <summary>
+    /// 验证等价空白形式会规范化为相同问题。
+    /// </summary>
     [Fact]
     public void NormalizeQuestion_collapses_equivalent_spacing()
     {

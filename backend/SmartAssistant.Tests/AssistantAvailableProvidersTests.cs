@@ -8,15 +8,20 @@ using SmartAssistant.Modules.Infrastructure.AI;
 using SmartAssistant.Modules.Contracts;
 using Microsoft.Extensions.Configuration;
 using Xunit;
+using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Tests;
 
+/// <summary>
+/// 验证助手可用模型供应商行为和边界条件的自动化测试集合。
+/// </summary>
 public sealed class AssistantAvailableProvidersTests
 {
-    private const string PlatformScope = "__assistant_platform__";
-
+    /// <summary>
+    /// 验证已启用的平台聊天供应商均可选择，无需额外业务配置。
+    /// </summary>
     [Fact]
-    public async Task Policy_choices_include_enabled_platform_chat_providers_for_every_organization_without_operational_settings()
+    public async Task Policy_choices_include_enabled_platform_chat_providers_without_operational_settings()
     {
         var records = new[]
         {
@@ -33,10 +38,13 @@ public sealed class AssistantAvailableProvidersTests
         Assert.All(choices, choice => Assert.Null(choice.Settings));
     }
 
+    /// <summary>
+    /// 验证已启用平台服务的凭据可解析，并兼容旧授权记录。
+    /// </summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Enabled_platform_service_credentials_resolve_for_any_organization_even_with_legacy_grants(bool legacyGrants)
+    public async Task Enabled_platform_service_credentials_resolve_even_with_legacy_grants(bool legacyGrants)
     {
         var id = Guid.NewGuid().ToString("N");
         var provider = Provider(id, "chat", true, legacyGrants);
@@ -44,50 +52,71 @@ public sealed class AssistantAvailableProvidersTests
         var resolver = new AssistantProviderCredentialResolver(new StaticRepository(new[] { provider }), secrets,
             new AssistantProviderSecretProtector(new ConfigurationBuilder().Build()));
 
-        foreach (var (tenant, org) in new[] { ("tenant", "org"), ("other-tenant", "another-org") })
-        {
-            var credential = await resolver.ResolveAsync(new AssistantProviderAccess($"{id}@1", tenant, org, "model"));
-            Assert.Equal("https://models.example.test/", credential.BaseUrl.ToString());
-            Assert.Equal("test-key-material", credential.ApiKey);
-        }
-
-        Assert.Equal(2, secrets.Calls);
+        var credential = await resolver.ResolveAsync(new AssistantProviderAccess($"{id}@1", "model"));
+        Assert.Equal("https://models.example.test/", credential.BaseUrl.ToString());
+        Assert.Equal("test-key-material", credential.ApiKey);
+        Assert.Equal(1, secrets.Calls);
     }
 
-    private static AssistantPolicyRecord Provider(string id, string purpose, bool enabled, bool legacyGrants = false)
+    /// <summary>
+    /// 校验模型供应商设置及其可用模型约束。
+    /// </summary>
+    private static AssistantPolicyEntity Provider(string id, string purpose, bool enabled, bool legacyGrants = false)
     {
         var settings = new AssistantModelServiceSettings(id, "https://models.example.test", "env://MODEL_KEY", "v1",
             new[] { new AssistantModelOption("model", purpose) });
         var json = JsonNode.Parse(JsonSerializer.Serialize(settings, new JsonSerializerOptions(JsonSerializerDefaults.Web)))!.AsObject();
         if (legacyGrants) json["grants"] = new JsonArray();
-        return new AssistantPolicyRecord
+        return new AssistantPolicyEntity
         {
-            Id = id, Name = id, TenantId = PlatformScope, OrgId = PlatformScope,
-            Kind = "provider", Revision = 1, Enabled = enabled,
+            Id = id,
+            Name = id,
+            Kind = "provider",
+            Revision = 1,
+            Enabled = enabled,
             SettingsJson = json.ToJsonString()
         };
     }
 
-    private sealed class StaticRepository(IReadOnlyList<AssistantPolicyRecord> records) : IAssistantPolicyRepository
+    /// <summary>
+    /// 测试用仓储替身，按预设数据实现所需查询并避免连接外部数据库。
+    /// </summary>
+    private sealed class StaticRepository(IReadOnlyList<AssistantPolicyEntity> records) : IAssistantPolicyRepository
     {
-        public Task<IReadOnlyList<AssistantPolicyRecord>> ListAsync(string tenantId, string orgId, string kind, CancellationToken ct)
+        /// <summary>
+        /// 验证列出相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<IReadOnlyList<AssistantPolicyEntity>> ListAsync(string kind, CancellationToken ct)
             => Task.FromResult(records);
-        public Task<AssistantPolicyRecord?> GetAsync(string tenantId, string orgId, string kind, string id, CancellationToken ct)
-            => Task.FromResult(records.FirstOrDefault(record => record.TenantId == tenantId
-                && record.OrgId == orgId && record.Kind == kind && record.Id == id));
-        public Task<AssistantPolicyRecord?> GetProviderAsync(string id, CancellationToken ct)
+        /// <summary>
+        /// 验证获取相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyEntity?> GetAsync(string kind, string id, CancellationToken ct)
+            => Task.FromResult(records.FirstOrDefault(record => record.Kind == kind && record.Id == id));
+        /// <summary>
+        /// 验证获取模型供应商相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyEntity?> GetProviderAsync(string id, CancellationToken ct)
             => throw new NotSupportedException();
-        public Task<AssistantPolicyRevisionRecord?> GetRevisionAsync(string tenantId, string orgId, string kind, string id, long revision, CancellationToken ct)
+        /// <summary>
+        /// 验证获取修订相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task<AssistantPolicyRevisionEntity?> GetRevisionAsync(string kind, string id, long revision, CancellationToken ct)
         {
-            var record = records.FirstOrDefault(item => item.TenantId == tenantId && item.OrgId == orgId
-                && item.Kind == kind && item.Id == id && item.Revision == revision);
-            return Task.FromResult(record is null ? null : new AssistantPolicyRevisionRecord
+            var record = records.FirstOrDefault(item => item.Kind == kind && item.Id == id && item.Revision == revision);
+            return Task.FromResult(record is null ? null : new AssistantPolicyRevisionEntity
             {
-                RecordId = id, TenantId = tenantId, OrgId = orgId, Kind = kind,
-                Revision = revision, Enabled = record.Enabled, SettingsJson = record.SettingsJson
+                RecordId = id,
+                Kind = kind,
+                Revision = revision,
+                Enabled = record.Enabled,
+                SettingsJson = record.SettingsJson
             });
         }
-        public Task SaveAsync(AssistantPolicyRecord record, long expectedRevision, CancellationToken ct)
+        /// <summary>
+        /// 验证保存相关行为、预期结果及错误边界。
+        /// </summary>
+        public Task SaveAsync(AssistantPolicyEntity record, long expectedRevision, CancellationToken ct)
             => throw new NotSupportedException();
     }
 }
