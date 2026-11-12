@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/SmartAssistant.Api/SmartAssistant.Api.csproj" />
+    <Project Path="backend/SmartAssistant.Tests/SmartAssistant.Tests.csproj" />
+  </Folder>
+</Solution>

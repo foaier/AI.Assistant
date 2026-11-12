@@ -1,0 +1,6 @@
+recursiveInstall: false
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+overrides:
+  vite: 7.1.2

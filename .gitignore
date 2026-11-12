@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/TestResults/
+**/playwright-report/
+**/test-results/
+.run/
+data/
+*.user
+.env
+.env.local
+appsettings.Local.json

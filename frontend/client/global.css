@@ -1,0 +1,31 @@
+@import './styles/fonts.css';
+@import './styles/theme.css';
+@import './styles/base.css';
+@import './styles/admin.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { font-family: Inter, 'Microsoft YaHei', system-ui, sans-serif; }
+#root { width: 100%; }
+
+.assistant-shell { display: flex; min-height: 100dvh; width: 100%; }
+.assistant-sidebar { width: 232px; flex-shrink: 0; padding: 28px 16px; border-right: 1px solid var(--border-subtle); background: var(--surface-card); }
+.assistant-brand { display: flex; gap: 12px; align-items: center; padding: 0 12px 28px; }
+.assistant-nav { display: flex; flex-direction: column; gap: 6px; }
+.assistant-nav a { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; color: var(--text-secondary); font-size: 14px; }
+.assistant-nav a:hover { background: var(--surface-hover); }
+.assistant-nav a.active { color: #2563eb; background: #eff6ff; font-weight: 600; }
+.assistant-main { min-width: 0; flex: 1; }
+.assistant-header { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 32px; border-bottom: 1px solid var(--border-subtle); background: var(--surface-card); }
+.assistant-content { padding: 32px; max-width: 1600px; margin: auto; }
+@media (max-width: 767px) {
+  .assistant-shell { flex-direction: column; }
+  .assistant-sidebar { width: 100%; padding: 16px; border-right: 0; border-bottom: 1px solid var(--border-subtle); }
+  .assistant-brand { padding: 0 4px 16px; }
+  .assistant-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .assistant-nav a { padding: 10px; font-size: 13px; }
+  .assistant-header { padding: 12px 20px; }
+  .assistant-content { padding: 20px 16px; }
+}

@@ -1,0 +1,935 @@
+/**
+ * Theme variables and color definitions
+ * Extracted from global.css
+ */
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 20 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+    --primary: 214 91% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 25 6% 32%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 25 6% 32%;
+    --accent: 210 40% 98%;
+    --accent-foreground: 20 14% 10%;
+    --destructive: 357 87% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 3% 94%;
+    --input: 0 3% 94%;
+    --ring: 214 91% 48%;
+    --radius: 0.5rem;
+    --sidebar-background: 217 44% 18%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 214 91% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 91% 48%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 33% 25%;
+    --sidebar-ring: 214 91% 48%;
+  }
+
+  .dark {
+    --background: 240 10% 5%;
+    --foreground: 0 0% 95%;
+    --card: 240 10% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 10% 8%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 213 93% 68%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 240 5% 25%;
+    --muted-foreground: 0 0% 75%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 90% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 20%;
+    --input: 240 10% 15%;
+    --ring: 213 93% 68%;
+    --sidebar-background: 240 10% 7%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 213 93% 68%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 10% 18%;
+    --sidebar-ring: 213 93% 68%;
+  }
+
+  .light {
+    --background: 210 20% 98%;
+    --foreground: 20 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+    --primary: 214 91% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 25 6% 32%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 25 6% 32%;
+    --accent: 210 40% 98%;
+    --accent-foreground: 20 14% 10%;
+    --destructive: 357 87% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 3% 94%;
+    --input: 0 3% 94%;
+    --ring: 214 91% 48%;
+    --radius: 0.5rem;
+    --sidebar-background: 217 44% 18%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 214 91% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 91% 48%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 33% 25%;
+    --sidebar-ring: 214 91% 48%;
+  }
+
+  .professional {
+    --background: 210 20% 98%;
+    --foreground: 20 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+    --primary: 214 91% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 25 6% 32%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 25 6% 32%;
+    --accent: 210 40% 98%;
+    --accent-foreground: 20 14% 10%;
+    --destructive: 357 87% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 3% 94%;
+    --input: 0 3% 94%;
+    --ring: 214 91% 48%;
+    --radius: 0.5rem;
+    --sidebar-background: 217 44% 18%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 217 91% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 50% 65%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 33% 25%;
+    --sidebar-ring: 217 91% 48%;
+  }
+}
+
+
+:root {
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3387f5;
+  --color-brand-600: #0b64e9;
+  --color-brand-700: #0047c2;
+  --color-brand-800: #003799;
+  --color-brand-900: #002664;
+
+  --color-neutral-100: #f9fafb;
+  --color-neutral-200: #f1f5f9;
+  --color-neutral-300: #e2e8f0;
+  --color-neutral-400: #cbd5e1;
+  --color-neutral-500: #94a3b8;
+  --color-neutral-600: #64748b;
+  --color-neutral-700: #475569;
+  --color-neutral-800: #334155;
+  --color-neutral-900: #1e293b;
+
+  --color-success-light: #e1f5eb;
+  --color-success-strong: #16a34a;
+  --color-warning-light: #fff5dc;
+  --color-warning-strong: #ff9601;
+  /* 002 Slice B 合并议程冲突标签：caution=橙（场地冲突）、notice=黄（讲者冲突）。
+     caution 复用 warning 橙色系；notice 为新增黄色系（亮色底 + 深黄前景保证对比度）。 */
+  --color-caution-light: var(--color-warning-light);
+  --color-caution-strong: var(--color-warning-strong);
+  --color-notice-light: #fef9c3;
+  --color-notice-strong: #a16207;
+  --color-danger-light: #fce4e4;
+  --color-danger-strong: #f24951;
+  --color-info-light: #dbeafe;
+  --color-info-strong: #0b64e9;
+  --color-neutral-status-light: #f0f0f0;
+  --color-neutral-status-strong: #475569;
+
+  /* 122 DESIGN.md §2.12 data-viz 系列色（REQ-20260913-001/RESP-20260913-001 冻结）：
+     图表分类色唯一来源；alias 既有 token 零新增 hex，主题行为随被引 token。 */
+  --color-chart-1: var(--color-brand-600);
+  --color-chart-2: var(--color-brand-500);
+  --color-chart-3: var(--color-brand-400);
+  --color-chart-4: var(--color-brand-300);
+  --color-chart-5: var(--color-success-strong);
+  --color-chart-6: var(--color-warning-strong);
+  --color-chart-7: var(--color-danger-strong);
+  --color-chart-8: var(--color-neutral-500);
+
+  /* tenant 管理域语义色（cyan 系；与 event 品牌蓝 / system 琥珀区分） */
+  --color-tenant-light: #ecfeff;
+  --color-tenant-mid: #06b6d4;
+  --color-tenant-strong: #0891b2;
+
+  --surface-page-canvas: #f9fafb;
+  --surface-white: #ffffff;
+  --surface-subtle: #f8fafc;
+  --surface-brand-soft: #f5f8ff;
+  --surface-neutral: var(--color-neutral-200);
+
+  --border-light: var(--color-neutral-200);
+  --border-default: var(--color-neutral-300);
+  --border-strong: var(--color-neutral-400);
+  --border-disabled: var(--color-neutral-300);
+
+  --text-color-primary: var(--color-neutral-900);
+  --text-color-secondary: var(--color-neutral-800);
+  --text-color-subtle: var(--color-neutral-600);
+  --text-color-muted: var(--color-neutral-500);
+
+  --border-width-default: 1px;
+  --border-width-emphasis: 1.5px;
+
+  --font-family-base:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-family-mono: "SF Mono", "JetBrains Mono", "Consolas", monospace;
+  --letter-spacing-base: 0;
+  --text-size-page-title: 28px;
+  --text-size-focus-title: 22px;
+  --text-size-section-title: 18px;
+  --text-size-body: 14px;
+  --text-size-tag: 12px;
+  --text-size-caption: 10px;
+  --text-size-metric-lg: 30px;
+  --text-size-metric-md: 24px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-metric: 1.1;
+  --line-height-heading: 1.2;
+  --line-height-body: 1.35;
+  --line-height-helper: 1.4;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 100px;
+
+  --shadow-none: none;
+  --shadow-xs: rgba(0, 0, 0, 0.04) 0 1px 2px 0;
+  --shadow-sm: rgba(0, 0, 0, 0.05) 0 2px 4px 0;
+  --shadow-md: rgba(0, 0, 0, 0.06) 0 4px 8px -2px;
+  --shadow-lg: rgba(15, 23, 42, 0.08) 0 10px 24px -8px;
+  --shadow-focus: rgba(11, 100, 233, 0.14) 0 0 0 3px;
+
+  --table-header-bg: var(--surface-subtle);
+  --table-header-text: var(--text-color-primary);
+  --table-header-font-weight: var(--font-weight-semibold);
+  --table-header-letter-spacing: 0;
+  --table-row-bg: var(--surface-white);
+  --table-row-stripe-bg: var(--surface-page-canvas);
+  --table-row-hover-bg: var(--surface-subtle);
+  --table-row-selected-bg: var(--surface-brand-soft);
+  --table-row-min-height: 44px;
+  --table-header-height: 48px;
+  --table-cell-padding-x: var(--space-4);
+  --table-cell-padding-y: var(--space-3);
+  --table-border-color: var(--border-light);
+  --table-border-width: 1px;
+
+  --professional-header-bg: #3550b4;
+  --professional-header-border: #2f4496;
+  --professional-header-control-bg: #1d3a71;
+  --professional-header-control-hover: #244683;
+  --professional-header-control-border: #203566;
+  --professional-sidebar-bg: #1e293b;
+  --professional-sidebar-panel-bg: #0f172a;
+  --professional-sidebar-border: #334155;
+  --professional-sidebar-active-bg: #2563eb;
+  --professional-sidebar-text: #dbeafe;
+  --professional-sidebar-text-strong: #ffffff;
+
+  /* Backward-compatible aliases for existing Rox class usage. */
+  --rox-page-canvas: var(--surface-page-canvas);
+  --rox-surface: var(--surface-white);
+  --rox-blue: var(--color-brand-600);
+  --rox-blue-hover: var(--color-brand-500);
+  --rox-blue-click: var(--color-brand-700);
+  --rox-blue-strong: var(--color-brand-700);
+  --rox-text-primary: var(--text-color-primary);
+  --rox-text-strong: var(--text-color-primary);
+  --rox-text-secondary: var(--text-color-secondary);
+  --rox-text-muted: var(--text-color-muted);
+  --rox-text-subtle: var(--text-color-subtle);
+  --rox-subtle-gray: var(--surface-neutral);
+  --rox-surface-subtle: var(--surface-subtle);
+  --rox-surface-brand-soft: var(--brand-soft);
+  --rox-border-light: var(--border-light);
+  --rox-border-default: var(--border-default);
+  --rox-border-strong: var(--border-strong);
+  --rox-disabled: var(--border-disabled);
+  --rox-status-red: var(--color-danger-text);
+  --rox-status-orange: var(--color-warning-text);
+  --rox-status-yellow: var(--color-info-text);
+  --rox-status-green: var(--color-success-text);
+  --rox-status-green-soft: var(--color-success-bg);
+  --rox-status-green-border: var(--color-success-border);
+  --rox-status-yellow-soft: var(--color-warning-bg);
+  --rox-status-yellow-border: var(--color-warning-border);
+  --rox-status-red-soft: var(--color-danger-bg);
+  --rox-status-red-border: var(--color-danger-border);
+  --rox-status-blue-soft: var(--color-brand-50);
+  --rox-status-blue-border: var(--color-brand-200);
+  --rox-success: var(--color-brand-600);
+  --rox-card-shadow: var(--shadow-none);
+  --rox-button-shadow: var(--shadow-none);
+}
+
+:root,
+.light {
+  --brand-primary: var(--color-brand-600);
+  --brand-primary-hover: var(--color-brand-500);
+  --brand-primary-pressed: var(--color-brand-700);
+  --brand-primary-foreground: #ffffff;
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover-bg: var(--brand-primary-hover);
+  --button-primary-pressed-bg: var(--brand-primary-pressed);
+  --button-primary-foreground: var(--brand-primary-foreground);
+  --brand-soft: var(--color-brand-100);
+  --brand-soft-hover: var(--color-brand-100);
+  --brand-soft-border: var(--color-brand-200);
+
+  --surface-page: var(--surface-page-canvas);
+  --surface-card: var(--surface-white);
+  --surface-overlay: var(--surface-white);
+  --surface-hover: var(--surface-subtle);
+  --surface-active: var(--surface-brand-soft);
+  --surface-neutral-muted: var(--surface-neutral);
+
+  --border-subtle: var(--border-light);
+  --border-control: var(--border-default);
+  --border-hover: var(--border-strong);
+  --border-disabled-token: var(--border-disabled);
+
+  --text-primary: var(--text-color-primary);
+  --text-secondary: var(--text-color-secondary);
+  --text-subtle: var(--text-color-subtle);
+  --text-muted: var(--text-color-muted);
+
+  /* Personal-center shell（DESIGN.md §2.9/§2.10）：light/dark 走 surface 基线；
+     professional 在 .professional 块覆盖为深色 Header/Sidebar + 浅色工作区。 */
+  --pc-shell-header-bg: var(--surface-card);
+  --pc-shell-header-border: var(--border-subtle);
+  --pc-shell-header-text: var(--text-primary);
+  --pc-shell-header-muted: var(--text-subtle);
+  --pc-shell-sidebar-bg: var(--surface-card);
+  --pc-shell-sidebar-border: var(--border-subtle);
+  /* TAPD 1143768：桌面侧栏（浅色承载面 light/professional）inactive 字色 text-subtle → text-secondary 保证可读性；
+     移动端抽屉 nav 已改走 surface/text 基元随抽屉承载面自适应，不读本 token（见 PersonalCenterGlobalShell） */
+  --pc-shell-sidebar-text: var(--text-secondary);
+  --pc-shell-sidebar-text-strong: var(--text-primary);
+  --pc-shell-sidebar-hover-bg: var(--surface-subtle);
+  --pc-shell-sidebar-hover-text: var(--text-primary);
+  --pc-shell-sidebar-active-bg: var(--brand-primary);
+  --pc-shell-sidebar-active-text: #ffffff;
+  /* 个人中心 shell 侧栏展开宽度（DESIGN.md §3.2 布局 token）；宽度值与主题无关，
+     只在 :root/.light 定义一次，.professional/.dark 不覆盖 */
+  --pc-shell-sidebar-width: 240px;
+
+  --status-success-light: var(--color-success-light);
+  --status-success-strong: var(--color-success-strong);
+  --status-warning-light: var(--color-warning-light);
+  --status-warning-strong: var(--color-warning-strong);
+  --status-caution-light: var(--color-caution-light);
+  --status-caution-strong: var(--color-caution-strong);
+  --status-notice-light: var(--color-notice-light);
+  --status-notice-strong: var(--color-notice-strong);
+  --status-danger-light: var(--color-danger-light);
+  --status-danger-strong: var(--color-danger-strong);
+  --status-info-light: var(--color-info-light);
+  --status-info-strong: var(--color-info-strong);
+  --status-neutral-light: var(--color-neutral-status-light);
+  --status-neutral-strong: var(--color-neutral-status-strong);
+  --status-success-bg: var(--status-success-light);
+  --status-success-text: var(--status-success-strong);
+  --status-success-border: var(--status-success-strong);
+  --status-warning-bg: var(--status-warning-light);
+  --status-warning-text: var(--status-warning-strong);
+  --status-warning-border: var(--status-warning-strong);
+  --status-danger-bg: var(--status-danger-light);
+  --status-danger-text: var(--status-danger-strong);
+  --status-danger-border: var(--status-danger-strong);
+  --status-info-bg: var(--status-info-light);
+  --status-info-text: var(--status-info-strong);
+  --status-info-border: var(--status-info-strong);
+  --tenant-bg: var(--color-tenant-light);
+  --tenant-text: var(--color-tenant-strong);
+  --tenant-border: var(--color-tenant-mid);
+  --status-neutral-bg: var(--status-neutral-light);
+  --status-neutral-text: var(--status-neutral-strong);
+  --status-neutral-border: var(--status-neutral-strong);
+
+  /* 122 topic：语义通用色（此前缺失，代码用 var(--x,#hex) fallback 显示；
+     现定义为 --status-* 别名的 canonical 值，统一全站 danger/success 语义） */
+  --border-danger: var(--status-danger-border);
+  --text-danger: var(--status-danger-text);
+  --bg-danger: var(--status-danger-bg);
+  --border-success: var(--status-success-border);
+  --text-success: var(--status-success-text);
+  --bg-success: var(--status-success-bg);
+  --border-warning: var(--status-warning-border);
+  --text-warning: var(--status-warning-text);
+  --border-info: var(--status-info-border);
+  --text-info: var(--status-info-text);
+  --text-on-warning: #78350f;
+  --border-warning-subtle: #fcd34d;
+
+  /* form26x-editor-polish-01 P-2：编辑器域 token（金数据一手实测量化值做输入，
+     值一律引用既有基元/别名层——选中主色对齐我方 --brand-primary，禁裸值双轨）。 */
+  --editor-selected-border-width: 2px;
+  --editor-selected-border: var(--brand-primary);
+  --editor-selected-surface: color-mix(in srgb, var(--brand-primary) 5%, transparent);
+  --editor-floating-toolbar-bg: var(--surface-card);
+  --editor-floating-toolbar-border: var(--border-subtle);
+  --editor-floating-toolbar-shadow: var(--shadow-md);
+  --editor-floating-toolbar-radius: var(--radius-lg);
+  --editor-artboard-bg: var(--surface-page);
+
+  /* 金数据方向锚（2026-09-26 用户裁决）：编辑器域字段 kind 图标彩色 token。
+     六族 family 采样证据 outputs/jinshuju-editor-study/03-field-config-name.png
+     （联系信息 teal/文本 orange/选择 green/数据 blue/展示 purple/收款 magenta），
+     对齐我方既有基元：contact=tenant 青、text=warning 橙、choice=success 绿、
+     data=brand 蓝（文件/附件归数据族，金数据「收集附件」同族）；display/inventory
+     无 vivid 基元，由 brand×danger 在 oklch 色环推导（紫/玫红）。零裸 hex 守 P-2 禁令。 */
+  --editor-field-icon-contact: var(--color-tenant-mid);
+  --editor-field-icon-text: var(--color-warning-strong);
+  --editor-field-icon-choice: var(--color-success-strong);
+  --editor-field-icon-data: var(--color-brand-600);
+  --editor-field-icon-display: color-mix(in oklch, var(--color-brand-600) 45%, var(--color-danger-strong));
+  --editor-field-icon-inventory: color-mix(in oklch, var(--color-danger-strong) 75%, var(--color-brand-600));
+  --editor-field-icon-neutral: var(--color-neutral-500);
+
+  /* 编辑器域字号层级（金数据 16px base 体系；有意小字场景——徽章/大纲/选项预览
+     chips——保持 utility 不动，本 token 只承接正文/标题档的裸值收敛）。 */
+  --editor-font-size-body: 1rem;
+  --editor-font-size-secondary: 0.875rem;
+
+  --shadow-layer-xs: var(--shadow-xs);
+  --shadow-layer-sm: var(--shadow-sm);
+  --shadow-layer-md: var(--shadow-md);
+  --shadow-layer-lg: var(--shadow-lg);
+  --focus-ring-shadow: var(--shadow-focus);
+
+  --table-header-bg: var(--surface-hover);
+  --table-header-text: var(--text-primary);
+  --table-row-bg: var(--surface-card);
+  --table-row-stripe-bg: var(--surface-page);
+  --table-row-hover-bg: var(--surface-hover);
+  --table-row-selected-bg: var(--surface-active);
+  --table-border-color: var(--border-subtle);
+
+  --admin-shell-bg: var(--surface-page);
+  --admin-main-bg: var(--surface-page);
+  --admin-header-bg: color-mix(in srgb, var(--surface-card) 94%, transparent);
+  --admin-header-border: var(--border-subtle);
+  --admin-header-control-bg: var(--surface-card);
+  --admin-header-control-hover: var(--surface-hover);
+  --admin-header-control-border: var(--border-subtle);
+  --admin-header-text: var(--text-primary);
+  --admin-header-muted: var(--text-subtle);
+  --admin-header-link: var(--brand-primary);
+  --admin-header-menu-bg: var(--surface-overlay);
+  --admin-header-menu-text: var(--text-secondary);
+  --admin-header-menu-hover: var(--surface-hover);
+  --admin-header-menu-active-bg: var(--text-primary);
+  --admin-header-menu-active-text: var(--brand-primary-foreground);
+  /* Admin Sidebar：三主题仅通过这一组语义 token 切换，组件内不再覆盖主题色。 */
+  --admin-sidebar-bg: #ffffff;
+  --admin-sidebar-border: #e2e8f0;
+  --admin-sidebar-divider: #e2e8f0;
+  --admin-sidebar-panel-bg: #f8fafc;
+  --admin-sidebar-panel-border: #cbd5e1;
+  --admin-sidebar-text: #475569;
+  --admin-sidebar-text-strong: #334155;
+  --admin-sidebar-muted: #64748b;
+  --admin-sidebar-hover-bg: #f1f5f9;
+  --admin-sidebar-hover-text: #334155;
+  --admin-sidebar-active-bg: #dbeafe;
+  --admin-sidebar-active-text: var(--brand-primary);
+  --admin-sidebar-brand-bg: #0f172a;
+  --admin-sidebar-brand-text: #f8fafc;
+  --admin-sidebar-brand-mark-bg: rgba(255, 255, 255, 0.06);
+  --admin-sidebar-brand-mark-border: rgba(255, 255, 255, 0.12);
+  --admin-sidebar-context-bg: #f8fafc;
+  --admin-sidebar-context-border: #cbd5e1;
+  --admin-sidebar-context-text: #334155;
+  --admin-sidebar-context-hover-bg: #f1f5f9;
+  --admin-sidebar-focus: #0b64e9;
+  --admin-sidebar-section-event: #0b64e9;
+  --admin-sidebar-section-tenant: #0891b2;
+  --admin-sidebar-section-system: #b45309;
+  --admin-sidebar-section-neutral: var(--admin-sidebar-muted);
+
+  /* admin 左侧导航展开宽度（DESIGN.md §3.2 布局 token）；收起态 w-0 不变 */
+  --layout-sidebar-width: 256px;
+
+  --rox-page-canvas: var(--surface-page);
+  --rox-surface: var(--surface-card);
+  --rox-blue: var(--brand-primary);
+  --rox-blue-hover: var(--brand-primary-hover);
+  --rox-blue-click: var(--brand-primary-pressed);
+  --rox-blue-strong: var(--brand-primary-pressed);
+  --rox-text-primary: var(--text-primary);
+  --rox-text-strong: var(--text-primary);
+  --rox-text-secondary: var(--text-secondary);
+  --rox-text-muted: var(--text-muted);
+  --rox-text-subtle: var(--text-subtle);
+  --rox-subtle-gray: var(--surface-neutral-muted);
+  --rox-surface-subtle: var(--surface-hover);
+  --rox-surface-brand-soft: var(--brand-soft);
+  --rox-border-light: var(--border-subtle);
+  --rox-border-default: var(--border-control);
+  --rox-border-strong: var(--border-hover);
+  --rox-disabled: var(--border-disabled-token);
+  --rox-status-red: var(--status-danger-text);
+  --rox-status-orange: var(--status-warning-text);
+  --rox-status-yellow: var(--status-info-text);
+  --rox-status-green: var(--status-success-text);
+  --rox-status-green-soft: var(--status-success-bg);
+  --rox-status-green-border: var(--status-success-border);
+  --rox-status-yellow-soft: var(--status-warning-bg);
+  --rox-status-yellow-border: var(--status-warning-border);
+  --rox-status-red-soft: var(--status-danger-bg);
+  --rox-status-red-border: var(--status-danger-border);
+  --rox-status-blue-soft: var(--brand-soft);
+  --rox-status-blue-border: var(--brand-soft-border);
+  --rox-success: var(--brand-primary);
+}
+
+.professional {
+  --background: 210 20% 98%;
+  --foreground: 20 14% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14% 10%;
+  --primary: 214 91% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 25 6% 32%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 25 6% 32%;
+  --accent: 210 40% 98%;
+  --accent-foreground: 20 14% 10%;
+  --destructive: 357 87% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 3% 94%;
+  --input: 0 3% 94%;
+  --ring: 214 91% 48%;
+
+  --brand-primary: var(--color-brand-600);
+  --brand-primary-hover: var(--color-brand-500);
+  --brand-primary-pressed: var(--color-brand-700);
+  --brand-primary-foreground: #ffffff;
+  --button-primary-bg: var(--brand-primary);
+  --button-primary-hover-bg: var(--brand-primary-hover);
+  --button-primary-pressed-bg: var(--brand-primary-pressed);
+  --button-primary-foreground: var(--brand-primary-foreground);
+  --brand-soft: var(--color-brand-100);
+  --brand-soft-hover: var(--color-brand-100);
+  --brand-soft-border: var(--color-brand-200);
+
+  --surface-page: var(--surface-page-canvas);
+  --surface-card: var(--surface-white);
+  --surface-overlay: var(--surface-white);
+  --surface-hover: var(--surface-subtle);
+  --surface-active: var(--surface-brand-soft);
+  --surface-neutral-muted: var(--surface-neutral);
+
+  --border-subtle: var(--border-light);
+  --border-control: var(--border-default);
+  --border-hover: var(--border-strong);
+  --border-disabled-token: var(--border-disabled);
+
+  --text-primary: var(--text-color-primary);
+  --text-secondary: var(--text-color-secondary);
+  --text-subtle: var(--text-color-subtle);
+  --text-muted: var(--text-color-muted);
+
+  /* Professional：个人中心 shell 切深色 Header/Sidebar（§2.9 Professional Shell 专属色），
+     主内容区保持浅色工作区（§2.10）。 */
+  --pc-shell-header-bg: var(--professional-header-bg);
+  --pc-shell-header-border: var(--professional-header-border);
+  --pc-shell-header-text: #ffffff;
+  --pc-shell-header-muted: rgba(219, 234, 254, 0.82);
+  --pc-shell-sidebar-bg: var(--professional-sidebar-bg);
+  --pc-shell-sidebar-border: var(--professional-sidebar-border);
+  --pc-shell-sidebar-text: var(--professional-sidebar-text);
+  --pc-shell-sidebar-text-strong: var(--professional-sidebar-text-strong);
+  --pc-shell-sidebar-hover-bg: rgba(51, 65, 85, 0.92);
+  --pc-shell-sidebar-hover-text: #ffffff;
+  --pc-shell-sidebar-active-bg: var(--professional-sidebar-active-bg);
+  --pc-shell-sidebar-active-text: #ffffff;
+
+  --status-success-light: var(--color-success-light);
+  --status-success-strong: var(--color-success-strong);
+  --status-warning-light: var(--color-warning-light);
+  --status-warning-strong: var(--color-warning-strong);
+  --status-caution-light: var(--color-caution-light);
+  --status-caution-strong: var(--color-caution-strong);
+  --status-notice-light: var(--color-notice-light);
+  --status-notice-strong: var(--color-notice-strong);
+  --status-danger-light: var(--color-danger-light);
+  --status-danger-strong: var(--color-danger-strong);
+  --status-info-light: var(--color-info-light);
+  --status-info-strong: var(--color-info-strong);
+  --tenant-bg: var(--color-tenant-light);
+  --tenant-text: var(--color-tenant-strong);
+  --tenant-border: var(--color-tenant-mid);
+  --status-neutral-light: var(--color-neutral-status-light);
+  --status-neutral-strong: var(--color-neutral-status-strong);
+  --status-success-bg: var(--status-success-light);
+  --status-success-text: var(--status-success-strong);
+  --status-success-border: var(--status-success-strong);
+  --status-warning-bg: var(--status-warning-light);
+  --status-warning-text: var(--status-warning-strong);
+  --status-warning-border: var(--status-warning-strong);
+  --status-danger-bg: var(--status-danger-light);
+  --status-danger-text: var(--status-danger-strong);
+  --status-danger-border: var(--status-danger-strong);
+  --status-info-bg: var(--status-info-light);
+  --status-info-text: var(--status-info-strong);
+  --status-info-border: var(--status-info-strong);
+  --status-neutral-bg: var(--status-neutral-light);
+  --status-neutral-text: var(--status-neutral-strong);
+  --status-neutral-border: var(--status-neutral-strong);
+
+  /* 122 topic：语义通用色（此前缺失，代码用 var(--x,#hex) fallback 显示；
+     现定义为 --status-* 别名的 canonical 值，统一全站 danger/success 语义） */
+  --border-danger: var(--status-danger-border);
+  --text-danger: var(--status-danger-text);
+  --bg-danger: var(--status-danger-bg);
+  --border-success: var(--status-success-border);
+  --text-success: var(--status-success-text);
+  --bg-success: var(--status-success-bg);
+  --border-warning: var(--status-warning-border);
+  --text-warning: var(--status-warning-text);
+  --border-info: var(--status-info-border);
+  --text-info: var(--status-info-text);
+
+  --shadow-layer-xs: var(--shadow-xs);
+  --shadow-layer-sm: var(--shadow-sm);
+  --shadow-layer-md: var(--shadow-md);
+  --shadow-layer-lg: var(--shadow-lg);
+  --focus-ring-shadow: var(--shadow-focus);
+
+  --table-header-bg: var(--surface-hover);
+  --table-header-text: var(--text-primary);
+  --table-row-bg: var(--surface-card);
+  --table-row-stripe-bg: var(--surface-page);
+  --table-row-hover-bg: var(--surface-hover);
+  --table-row-selected-bg: var(--surface-active);
+  --table-border-color: var(--border-subtle);
+
+  --admin-shell-bg: #1e293b;
+  --admin-main-bg: var(--surface-page);
+  --admin-header-bg: var(--professional-header-bg);
+  --admin-header-border: var(--professional-header-border);
+  --admin-header-control-bg: var(--professional-header-control-bg);
+  --admin-header-control-hover: var(--professional-header-control-hover);
+  --admin-header-control-border: var(--professional-header-control-border);
+  --admin-header-text: #ffffff;
+  --admin-header-muted: rgba(219, 234, 254, 0.82);
+  --admin-header-link: #dbeafe;
+  --admin-header-menu-bg: var(--surface-overlay);
+  --admin-header-menu-text: var(--text-secondary);
+  --admin-header-menu-hover: var(--surface-hover);
+  --admin-header-menu-active-bg: var(--color-brand-600);
+  --admin-header-menu-active-text: #ffffff;
+  --admin-sidebar-bg: #1e293b;
+  --admin-sidebar-border: #334155;
+  --admin-sidebar-divider: #334155;
+  --admin-sidebar-panel-bg: #0f172a;
+  --admin-sidebar-panel-border: #3b82f6;
+  --admin-sidebar-text: #dbeafe;
+  --admin-sidebar-text-strong: #ffffff;
+  --admin-sidebar-muted: #94a3b8;
+  --admin-sidebar-hover-bg: #334155;
+  --admin-sidebar-hover-text: #ffffff;
+  --admin-sidebar-active-bg: #2563eb;
+  --admin-sidebar-active-text: #ffffff;
+  --admin-sidebar-brand-bg: #0f172a;
+  --admin-sidebar-brand-text: #eff6ff;
+  --admin-sidebar-brand-mark-bg: rgba(255, 255, 255, 0.06);
+  --admin-sidebar-brand-mark-border: rgba(255, 255, 255, 0.12);
+  --admin-sidebar-context-bg: #0f172a;
+  --admin-sidebar-context-border: #3b82f6;
+  --admin-sidebar-context-text: #eff6ff;
+  --admin-sidebar-context-hover-bg: #172554;
+  --admin-sidebar-focus: #93c5fd;
+  --admin-sidebar-section-event: #93c5fd;
+  --admin-sidebar-section-tenant: #67e8f9;
+  --admin-sidebar-section-system: #fcd34d;
+  --admin-sidebar-section-neutral: var(--admin-sidebar-muted);
+}
+
+.dark {
+  --background: 224 44% 7%;
+  --foreground: 213 27% 84%;
+  --card: 217 39% 13%;
+  --card-foreground: 213 27% 84%;
+  --popover: 217 39% 13%;
+  --popover-foreground: 213 27% 84%;
+  --primary: 213 93% 68%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 39% 17%;
+  --secondary-foreground: 213 27% 84%;
+  --muted: 214 39% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 214 39% 17%;
+  --accent-foreground: 213 27% 84%;
+  --destructive: 356 62% 72%;
+  --destructive-foreground: 224 44% 7%;
+  --border: 215 25% 27%;
+  --input: 215 25% 27%;
+  --ring: 213 93% 68%;
+
+  --dark-neutral-100: #1e293b;
+  --dark-neutral-200: #334155;
+  --dark-neutral-300: #475569;
+  --dark-neutral-400: #64748b;
+  --dark-neutral-500: #94a3b8;
+  --dark-neutral-600: #cbd5e1;
+  --dark-neutral-700: #e2e8f0;
+  --dark-neutral-800: #f1f5f9;
+  --dark-neutral-900: #f8fafc;
+  --dark-success-light: #0f3a24;
+  --dark-success-strong: #4ade80;
+  --dark-warning-light: #4a2e0b;
+  --dark-warning-strong: #fbbf24;
+  /* 002 Slice B：caution 复用 dark warning 橙色系；notice 黄色系暗色对偶。 */
+  --dark-caution-light: var(--dark-warning-light);
+  --dark-caution-strong: var(--dark-warning-strong);
+  --dark-notice-light: #423806;
+  --dark-notice-strong: #fde047;
+  --dark-danger-light: #4a1418;
+  --dark-danger-strong: #fca5a5;
+  --dark-info-light: #1e3a5f;
+  --dark-info-strong: #93c5fd;
+  --dark-tenant-light: #164e63;
+  --dark-tenant-strong: #22d3ee;
+  --dark-tenant-mid: #22d3ee;
+  --dark-neutral-status-light: #1e293b;
+  --dark-neutral-status-strong: #cbd5e1;
+  --dark-surface-page-canvas: #0a0e1a;
+  --dark-surface: #141e2e;
+  --dark-surface-subtle: #1b2a3e;
+  --dark-surface-brand-soft: #1e3a5f;
+  --dark-surface-neutral: #1b2a3e;
+  --dark-border-light: var(--dark-neutral-100);
+  --dark-border-default: var(--dark-neutral-300);
+  --dark-border-strong: var(--dark-neutral-400);
+  --dark-border-disabled: var(--dark-neutral-300);
+  --dark-text-primary: var(--dark-neutral-900);
+  --dark-text-secondary: var(--dark-neutral-600);
+  --dark-text-subtle: var(--dark-neutral-500);
+  --dark-text-muted: var(--dark-neutral-400);
+  --dark-shadow-none: none;
+  --dark-shadow-xs: rgba(0, 0, 0, 0.3) 0 1px 2px 0;
+  --dark-shadow-sm: rgba(0, 0, 0, 0.4) 0 2px 4px 0;
+  --dark-shadow-md: rgba(0, 0, 0, 0.5) 0 4px 12px -2px;
+  --dark-shadow-lg: rgba(0, 0, 0, 0.6) 0 10px 30px -8px;
+  --dark-shadow-focus: rgba(96, 165, 250, 0.25) 0 0 0 3px;
+
+  --brand-primary: var(--color-brand-400);
+  --brand-primary-hover: var(--color-brand-300);
+  --brand-primary-pressed: var(--color-brand-500);
+  --brand-primary-foreground: var(--dark-surface-page-canvas);
+  --button-primary-bg: var(--color-brand-600);
+  --button-primary-hover-bg: var(--color-brand-500);
+  --button-primary-pressed-bg: var(--color-brand-700);
+  --button-primary-foreground: var(--surface-white);
+  --brand-soft: var(--color-brand-600);
+  --brand-soft-hover: #224a78;
+  --brand-soft-border: var(--color-brand-500);
+
+  --surface-page: var(--dark-surface-page-canvas);
+  --surface-card: var(--dark-surface);
+  --surface-overlay: var(--dark-surface);
+  --surface-hover: var(--dark-surface-subtle);
+  --surface-subtle: var(--dark-surface-subtle);
+  --surface-active: var(--dark-surface-brand-soft);
+  --surface-neutral-muted: var(--dark-surface-neutral);
+
+  --border-subtle: var(--dark-border-light);
+  --border-control: var(--dark-border-default);
+  --border-hover: var(--dark-border-strong);
+  --border-disabled-token: var(--dark-border-disabled);
+
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --text-subtle: var(--dark-text-subtle);
+  --text-muted: var(--dark-text-muted);
+
+  /* form26x-editor-polish-01 P-2：编辑器域 token 暗色覆写（深色承载面 + 更高主色透明度）。 */
+  --editor-selected-surface: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  --editor-floating-toolbar-bg: var(--surface-card);
+  --editor-artboard-bg: var(--surface-page);
+
+  /* 金数据方向锚：kind 图标暗色覆写——降彩度一档并提亮（锚定 --dark-* 基元族），
+     display/inventory 沿用 oklch 推导但代入暗色档基元。 */
+  --editor-field-icon-contact: var(--dark-tenant-strong);
+  --editor-field-icon-text: var(--dark-warning-strong);
+  --editor-field-icon-choice: var(--dark-success-strong);
+  --editor-field-icon-data: var(--color-brand-400);
+  --editor-field-icon-display: color-mix(in oklch, var(--color-brand-400) 50%, var(--dark-danger-strong));
+  --editor-field-icon-inventory: color-mix(in oklch, var(--dark-danger-strong) 75%, var(--color-brand-400));
+  --editor-field-icon-neutral: var(--dark-neutral-500);
+
+  /* Personal-center shell（DESIGN.md §2.9/§2.10）：light/dark 走 surface 基线；
+     professional 在 .professional 块覆盖为深色 Header/Sidebar + 浅色工作区。 */
+  --pc-shell-header-bg: var(--surface-card);
+  --pc-shell-header-border: var(--border-subtle);
+  --pc-shell-header-text: var(--text-primary);
+  --pc-shell-header-muted: var(--text-subtle);
+  --pc-shell-sidebar-bg: var(--surface-card);
+  --pc-shell-sidebar-border: var(--border-subtle);
+  --pc-shell-sidebar-text: var(--text-subtle);
+  --pc-shell-sidebar-text-strong: var(--text-primary);
+  --pc-shell-sidebar-hover-bg: var(--surface-hover);
+  --pc-shell-sidebar-hover-text: var(--text-primary);
+  --pc-shell-sidebar-active-bg: var(--brand-soft);
+  --pc-shell-sidebar-active-text: var(--dark-text-primary);
+
+  --status-success-light: var(--dark-success-light);
+  --status-success-strong: var(--dark-success-strong);
+  --status-warning-light: var(--dark-warning-light);
+  --status-warning-strong: var(--dark-warning-strong);
+  --status-caution-light: var(--dark-caution-light);
+  --status-caution-strong: var(--dark-caution-strong);
+  --status-notice-light: var(--dark-notice-light);
+  --status-notice-strong: var(--dark-notice-strong);
+  --status-danger-light: var(--dark-danger-light);
+  --status-danger-strong: var(--dark-danger-strong);
+  --status-info-light: var(--dark-info-light);
+  --status-info-strong: var(--dark-info-strong);
+  --status-neutral-light: var(--dark-neutral-status-light);
+  --status-neutral-strong: var(--dark-neutral-status-strong);
+  --status-success-bg: var(--status-success-light);
+  --status-success-text: var(--status-success-strong);
+  --status-success-border: var(--status-success-strong);
+  --status-warning-bg: var(--status-warning-light);
+  --status-warning-text: var(--status-warning-strong);
+  --status-warning-border: var(--status-warning-strong);
+  --status-danger-bg: var(--status-danger-light);
+  --status-danger-text: var(--status-danger-strong);
+  --status-danger-border: var(--status-danger-strong);
+  --status-info-bg: var(--status-info-light);
+  --status-info-text: var(--status-info-strong);
+  --status-info-border: var(--status-info-strong);
+  --tenant-bg: var(--dark-tenant-light);
+  --tenant-text: var(--dark-tenant-strong);
+  --tenant-border: var(--dark-tenant-mid);
+  --status-neutral-bg: var(--status-neutral-light);
+  --status-neutral-text: var(--status-neutral-strong);
+  --status-neutral-border: var(--status-neutral-strong);
+
+  /* 122 topic：语义通用色（此前缺失，代码用 var(--x,#hex) fallback 显示；
+     现定义为 --status-* 别名的 canonical 值，统一全站 danger/success 语义） */
+  --border-danger: var(--status-danger-border);
+  --text-danger: var(--status-danger-text);
+  --bg-danger: var(--status-danger-bg);
+  --border-success: var(--status-success-border);
+  --text-success: var(--status-success-text);
+  --bg-success: var(--status-success-bg);
+  --border-warning: var(--status-warning-border);
+  --text-warning: var(--status-warning-text);
+  --border-info: var(--status-info-border);
+  --text-info: var(--status-info-text);
+  /* dark 下 warning 浅底变深棕(--status-warning-bg = #4a2e0b)，on-warning 文字同步切浅琥珀，
+     否则沿用 light 的 #78350f 深棕在深色底上不可读 */
+  --text-on-warning: var(--dark-warning-strong);
+
+  --shadow-layer-xs: var(--dark-shadow-xs);
+  --shadow-layer-sm: var(--dark-shadow-sm);
+  --shadow-layer-md: var(--dark-shadow-md);
+  --shadow-layer-lg: var(--dark-shadow-lg);
+  --focus-ring-shadow: var(--dark-shadow-focus);
+
+  --table-header-bg: var(--dark-surface-subtle);
+  --table-header-text: var(--dark-text-secondary);
+  --table-row-bg: var(--dark-surface);
+  --table-row-stripe-bg: #0d1321;
+  --table-row-hover-bg: var(--dark-surface-subtle);
+  --table-row-selected-bg: var(--dark-surface-brand-soft);
+  --table-border-color: var(--dark-border-light);
+
+  --admin-shell-bg: #0a0e1a;
+  --admin-main-bg: var(--dark-surface-page-canvas);
+  --admin-header-bg: color-mix(in srgb, var(--dark-surface) 88%, transparent);
+  --admin-header-border: var(--dark-border-light);
+  --admin-header-control-bg: var(--dark-surface-subtle);
+  --admin-header-control-hover: #243145;
+  --admin-header-control-border: var(--dark-border-default);
+  --admin-header-text: var(--dark-text-primary);
+  --admin-header-muted: var(--dark-text-subtle);
+  --admin-header-link: var(--brand-primary);
+  --admin-header-menu-bg: var(--dark-surface);
+  --admin-header-menu-text: var(--dark-text-secondary);
+  --admin-header-menu-hover: var(--dark-surface-subtle);
+  --admin-header-menu-active-bg: var(--dark-surface-brand-soft);
+  --admin-header-menu-active-text: var(--dark-text-primary);
+  --admin-sidebar-bg: #0f172a;
+  --admin-sidebar-border: #334155;
+  --admin-sidebar-divider: #334155;
+  --admin-sidebar-panel-bg: #1e293b;
+  --admin-sidebar-panel-border: #64748b;
+  --admin-sidebar-text: #cbd5e1;
+  --admin-sidebar-text-strong: #f8fafc;
+  --admin-sidebar-muted: #94a3b8;
+  --admin-sidebar-hover-bg: #1e293b;
+  --admin-sidebar-hover-text: #f8fafc;
+  --admin-sidebar-active-bg: #1d4ed8;
+  --admin-sidebar-active-text: #ffffff;
+  --admin-sidebar-brand-bg: #020617;
+  --admin-sidebar-brand-text: #f8fafc;
+  --admin-sidebar-brand-mark-bg: rgba(255, 255, 255, 0.06);
+  --admin-sidebar-brand-mark-border: rgba(255, 255, 255, 0.12);
+  --admin-sidebar-context-bg: #1e293b;
+  --admin-sidebar-context-border: #64748b;
+  --admin-sidebar-context-text: #e2e8f0;
+  --admin-sidebar-context-hover-bg: #334155;
+  --admin-sidebar-focus: #60a5fa;
+  --admin-sidebar-section-event: #60a5fa;
+  --admin-sidebar-section-tenant: #22d3ee;
+  --admin-sidebar-section-system: #fbbf24;
+  --admin-sidebar-section-neutral: var(--admin-sidebar-muted);
+}

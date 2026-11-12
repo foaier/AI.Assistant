@@ -1,0 +1,319 @@
+/**
+ * Base styles, reset, and prose typography
+ * Extracted from global.css
+ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    color-scheme: light;
+  }
+
+  .dark body {
+    color-scheme: dark;
+    background: hsl(var(--background));
+  }
+
+  .light body {
+    color-scheme: light;
+    background: hsl(var(--background));
+  }
+
+  .professional body {
+    color-scheme: light;
+    background: hsl(var(--background));
+  }
+
+  .admin-layout-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+
+  html:has(.admin-layout-shell),
+  body:has(.admin-layout-shell) {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root:has(.admin-layout-shell) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  @media (min-width: 1366px) {
+    .admin-layout-shell {
+      width: clamp(1366px, 100%, 1920px);
+      min-width: 1366px;
+      max-width: 1920px;
+    }
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* Tech Design System - Theme overrides are handled via Tailwind dark: variant */
+}
+
+/* Radix Select renders a visually-hidden native <select> (bubble input) with
+   position:absolute and no top/left. Without a positioned ancestor it resolves
+   its static position against the initial containing block, which extends the
+   document's scrollable overflow and produces a phantom window scrollbar plus a
+   blank area below the app shell (TAPD 1130533319001142350). Pinning it to the
+   origin keeps it inside the existing content box; it stays invisible via its
+   1px size + clip rect. */
+select[aria-hidden="true"] {
+  top: 0;
+  left: 0;
+}
+
+/* Native date controls render their editable segments as WebKit pseudo-elements.
+   Empty localized inputs hide every segment until focus, preventing a partial
+   "yyyy" token from leaking through the translated placeholder overlay. */
+input.date-input-empty:not(:focus)::-webkit-datetime-edit,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-fields-wrapper,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-text,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-year-field,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-month-field,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-day-field,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-hour-field,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-minute-field,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-second-field,
+input.date-input-empty:not(:focus)::-webkit-datetime-edit-ampm-field {
+  color: transparent;
+}
+
+input.date-input-empty:focus::-webkit-datetime-edit,
+input.date-input-empty:focus::-webkit-datetime-edit-fields-wrapper,
+input.date-input-empty:focus::-webkit-datetime-edit-text,
+input.date-input-empty:focus::-webkit-datetime-edit-year-field,
+input.date-input-empty:focus::-webkit-datetime-edit-month-field,
+input.date-input-empty:focus::-webkit-datetime-edit-day-field,
+input.date-input-empty:focus::-webkit-datetime-edit-hour-field,
+input.date-input-empty:focus::-webkit-datetime-edit-minute-field,
+input.date-input-empty:focus::-webkit-datetime-edit-second-field,
+input.date-input-empty:focus::-webkit-datetime-edit-ampm-field {
+  color: inherit;
+}
+
+/* Chrome paints the active date segment with a saturated selection block. A
+   transparent segment background keeps compact filters and other native date
+   controls aligned with the rest of the form focus treatment. */
+input[type="date"]::-webkit-datetime-edit-year-field:focus,
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-year-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-month-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-day-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-hour-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-minute-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-second-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-ampm-field:focus {
+  background-color: transparent;
+  color: inherit;
+}
+
+/* Public registration domain */
+.public-flow-section + .public-flow-section {
+  margin-top: 1.5rem;
+}
+
+.public-flow-sticky-safe {
+  padding-bottom: 6rem;
+}
+
+/* Site page editor owns workspace chrome; Puck remains the canvas engine here. */
+[data-site-page-editor-puck-chrome="demoted-from-standalone-main-path"] :is(
+  [class*="_PuckHeader"],
+  [class*="_Sidebar"],
+  [class*="_PuckFields"],
+  [class*="_PuckLayout-nav"],
+  [class*="_PuckPluginTab"]
+) {
+  display: none !important;
+}
+
+[data-site-page-editor-puck-chrome="demoted-from-standalone-main-path"] [class*="_PuckLayout"] {
+  height: auto;
+  min-height: 520px;
+}
+
+[data-site-page-editor-puck-chrome="demoted-from-standalone-main-path"] [class*="_PuckLayout-inner"] {
+  display: grid;
+  grid-template-areas: "editor" !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto !important;
+  height: auto;
+  min-height: 520px;
+  overflow: visible;
+}
+
+[data-site-page-editor-puck-chrome="demoted-from-standalone-main-path"] :is(
+  [class*="_Puck"],
+  [class*="_PuckPreview"],
+  [class*="_PuckCanvas"]
+) {
+  max-width: none;
+}
+
+/* Rich Text Editor & Prose Styles */
+.prose {
+  color: theme("colors.slate.600");
+  max-width: 65ch;
+  line-height: 1.75;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  color: theme("colors.slate.900");
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose h1 {
+  font-size: 2rem;
+}
+.prose h2 {
+  font-size: 1.5rem;
+}
+.prose h3 {
+  font-size: 1.25rem;
+}
+
+.prose p {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.prose a {
+  color: theme("colors.blue.600");
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  color: theme("colors.blue.700");
+}
+
+.prose strong {
+  color: theme("colors.slate.900");
+  font-weight: 600;
+}
+
+.prose code {
+  background-color: theme("colors.slate.100");
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: monospace;
+}
+
+.prose pre {
+  background-color: theme("colors.slate.900");
+  color: theme("colors.slate.100");
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.875em;
+}
+
+.prose blockquote {
+  border-left: 4px solid theme("colors.slate.300");
+  padding-left: 1rem;
+  margin-left: 0;
+  font-style: italic;
+  color: theme("colors.slate.600");
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 1em 0;
+}
+
+.prose li {
+  margin: 0.5em 0;
+}
+
+.prose ul li {
+  list-style-type: disc;
+}
+
+.prose ol li {
+  list-style-type: decimal;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1em 0;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid theme("colors.slate.200");
+  margin: 2em 0;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid theme("colors.slate.200");
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.prose th {
+  background-color: theme("colors.slate.50");
+  font-weight: 600;
+}
+
+/* Glevent design tokens, sourced from specs/122-design-language-unification/DESIGN.md. */

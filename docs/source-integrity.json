@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-11",
+  "sourceCommit": "bdd620d568890db1398c42a531a5c6f8950c38cb",
+  "groups": [
+    {
+      "name": "backend",
+      "files": 72,
+      "changedSourceFiles": []
+    },
+    {
+      "name": "frontend",
+      "files": 68,
+      "changedSourceFiles": []
+    },
+    {
+      "name": "tests",
+      "files": 22,
+      "changedSourceFiles": []
+    }
+  ]
+}
