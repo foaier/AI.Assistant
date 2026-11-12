@@ -1,7 +1,7 @@
 // Spec: REQ-20261105-013-customer-service-experience.md.
 // Covers safe public navigation and deterministic suggestion composition.
 using System.Text.Json;
-using SmartAssistant.Modules.Application;
+using SmartAssistant.Services.Application;
 using Xunit;
 
 namespace SmartAssistant.Tests;

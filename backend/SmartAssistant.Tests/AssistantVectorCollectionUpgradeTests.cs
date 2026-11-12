@@ -2,8 +2,9 @@ using System.Reflection;
 using Grpc.Core;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
-using SmartAssistant.Modules.Infrastructure;
+using SmartAssistant.Services.Infrastructure;
 using Xunit;
+using SmartAssistant.Models.Knowledge;
 
 namespace SmartAssistant.Tests;
 

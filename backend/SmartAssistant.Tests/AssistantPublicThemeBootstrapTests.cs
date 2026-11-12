@@ -2,9 +2,11 @@
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Contracts;
 using Xunit;
+using SmartAssistant.Models.Publication;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 

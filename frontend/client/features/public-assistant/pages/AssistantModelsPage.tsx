@@ -15,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/context/i18nContext";
-import { usePermissions } from "@/context/permissionContext";
 import { ApiError } from "@/lib/ApiClient";
 import {
   listModelServices,
@@ -66,9 +65,7 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
     };
     return m(key[error.message] ?? "saveFailed");
   };
-  const { hasPermission } = usePermissions();
   const isPlatform = mode === "platform";
-  const canEdit = hasPermission("assistant.settings.write");
   const cache = useQueryClient();
   const providers = useQuery({
     queryKey: ["assistant-model-services", mode],
@@ -320,7 +317,7 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
         title={m(isPlatform ? "platformTitle" : "policyTitle")}
         subtitle={m(isPlatform ? "platformDescription" : "policyDescription")}
         actions={
-          tab === "policies" && canEdit ? (
+          tab === "policies" ? (
             <Button
               data-testid="assistant-policy-create"
               onClick={(event) => openPolicy(event.currentTarget)}
@@ -388,27 +385,25 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
                     {m(item.enabled ? "enabled" : "disabled")}
                   </p>
                 </div>
-                {canEdit && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      aria-label={`${m("edit")} ${item.settings.name}`}
-                      onClick={(event) => openPolicy(event.currentTarget, item)}
-                    >
-                      <Pencil aria-hidden className="mr-2 h-4 w-4" />
-                      {m("edit")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        status.reset();
-                        setStatusTarget({ kind: "policy", value: item });
-                      }}
-                    >
-                      {m(item.enabled ? "disable" : "enable")}
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    aria-label={`${m("edit")} ${item.settings.name}`}
+                    onClick={(event) => openPolicy(event.currentTarget, item)}
+                  >
+                    <Pencil aria-hidden className="mr-2 h-4 w-4" />
+                    {m("edit")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      status.reset();
+                      setStatusTarget({ kind: "policy", value: item });
+                    }}
+                  >
+                    {m(item.enabled ? "disable" : "enable")}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <p className="whitespace-pre-wrap break-words text-sm">

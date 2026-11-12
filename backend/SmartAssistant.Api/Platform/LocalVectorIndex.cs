@@ -1,8 +1,8 @@
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
+using SmartAssistant.Models.Knowledge;
+using SmartAssistant.Services.Domain.Entities;
+using SmartAssistant.Services.Infrastructure;
 using SqlSugar;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Domain.Entities;
 
 namespace SmartAssistant.Persistence;
 

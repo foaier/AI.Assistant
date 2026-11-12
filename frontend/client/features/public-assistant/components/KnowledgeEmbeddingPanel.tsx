@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useI18n } from '@/context/i18nContext';
-import { usePermissions } from '@/context/permissionContext';
 import { getKnowledgeEmbeddingProfile, saveKnowledgeEmbeddingProfile, type KnowledgeEmbeddingSelection } from '../services/publicAssistantService';
 
 const selectionKey = (model: Omit<KnowledgeEmbeddingSelection, 'generation'>) =>
@@ -14,8 +13,6 @@ const selectionKey = (model: Omit<KnowledgeEmbeddingSelection, 'generation'>) =>
 export function KnowledgeEmbeddingPanel({ knowledgeBaseId }: { knowledgeBaseId: string }) {
   const { t } = useI18n();
   const e = (key: string) => t(`publicAssistant.embedding.${key}`);
-  const { hasPermission, isSuperAdmin } = usePermissions();
-  const canEdit = hasPermission('assistant.settings.write');
   const cache = useQueryClient();
   const profile = useQuery({
     queryKey: ['assistant-knowledge-embedding', knowledgeBaseId],
@@ -55,10 +52,10 @@ export function KnowledgeEmbeddingPanel({ knowledgeBaseId }: { knowledgeBaseId: 
       {profile.data && <Badge variant={state === 'ready' ? 'success' : state === 'failed' || state === 'model_unavailable' ? 'destructive' : 'warning'} data-testid="knowledge-embedding-state">{e(state)}</Badge>}
     </div>
     {profile.isLoading ? <p role="status">{e('loading')}</p> : profile.isError ? <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">{e('loadFailed')}<Button variant="outline" onClick={() => void profile.refetch()}>{e('retry')}</Button></div> : profile.data && <>
-      {!options.length && <div className="rounded-md bg-[var(--surface-neutral-muted)] p-3 text-sm" data-testid="knowledge-embedding-empty"><p>{e('empty')}</p>{isSuperAdmin && <Link className="mt-2 inline-block underline" to="/admin/system/assistant-models">{e('manageModels')}</Link>}</div>}
+      {!options.length && <div className="rounded-md bg-[var(--surface-neutral-muted)] p-3 text-sm" data-testid="knowledge-embedding-empty"><p>{e('empty')}</p><Link className="mt-2 inline-block underline" to="/admin/system/assistant-models">{e('manageModels')}</Link></div>}
       {unavailable && <p role="alert" className="text-sm text-[var(--text-danger)]">{e('unavailableHelp')}</p>}
       <label className="block space-y-2 text-sm"><span>{e('model')}</span>
-        <select className="h-10 w-full min-w-0 rounded-md border border-[var(--border-control)] bg-[var(--surface-card)] px-3" value={selected} disabled={!canEdit || save.isPending || !options.length} onChange={(event) => { setSelected(event.target.value); save.reset(); }} data-testid="knowledge-embedding-model">
+        <select className="h-10 w-full min-w-0 rounded-md border border-[var(--border-control)] bg-[var(--surface-card)] px-3" value={selected} disabled={save.isPending || !options.length} onChange={(event) => { setSelected(event.target.value); save.reset(); }} data-testid="knowledge-embedding-model">
           <option value="">{e('choose')}</option>
           {savedVersion && profile.data.target && <option value={currentKey} disabled>{profile.data.target.model} · {e(unavailable ? 'model_unavailable' : 'savedVersion')}</option>}
           {options.map((model) => <option key={selectionKey(model)} value={selectionKey(model)}>{model.providerName} · {model.model}</option>)}
@@ -74,7 +71,7 @@ export function KnowledgeEmbeddingPanel({ knowledgeBaseId }: { knowledgeBaseId: 
       </div>
       {save.isError && <p role="alert" className="text-sm text-[var(--text-danger)]">{e('saveFailed')} <Button size="sm" variant="link" onClick={() => void profile.refetch()}>{e('refresh')}</Button></p>}
       {save.isSuccess && <p role="status" className="text-sm text-[var(--text-success)]">{e('saved')}</p>}
-      <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={save.isPending} onClick={() => void profile.refetch()}>{e('refresh')}</Button><Button type="button" disabled={!canEdit || !changed || save.isPending} data-testid="knowledge-embedding-save" onClick={() => profile.data!.documentCount > 0 ? setConfirm(true) : save.mutate()}>{e(save.isPending ? 'saving' : 'save')}</Button></div>
+      <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={save.isPending} onClick={() => void profile.refetch()}>{e('refresh')}</Button><Button type="button" disabled={!changed || save.isPending} data-testid="knowledge-embedding-save" onClick={() => profile.data!.documentCount > 0 ? setConfirm(true) : save.mutate()}>{e(save.isPending ? 'saving' : 'save')}</Button></div>
     </>}
     <AlertDialog open={confirm} onOpenChange={setConfirm}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{e('confirmTitle')}</AlertDialogTitle><AlertDialogDescription>{e('confirmHelp')}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{e('cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => save.mutate()} data-testid="knowledge-embedding-confirm">{e('confirm')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </section>;

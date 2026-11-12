@@ -6,10 +6,12 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using SmartAssistant.Modules.Infrastructure.AI;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Infrastructure.AI;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Contracts;
 using Xunit;
+using SmartAssistant.Models.AI;
+using SmartAssistant.Models.Knowledge;
 
 namespace SmartAssistant.Tests;
 

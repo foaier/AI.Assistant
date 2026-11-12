@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using SqlSugar;
 using SmartAssistant.Platform.Events;
-using SmartAssistant.Modules.Domain.Entities;
+using SmartAssistant.Services.Domain.Entities;
 
 namespace SmartAssistant.Extensions.DAL
 {
@@ -47,7 +47,8 @@ namespace SmartAssistant.Persistence
                 "7a539c15b302e6f14dfd829dea61295de38de377bd687ccabd5d0cc8f4eeb148"),
             ("002_remove_audit_fields.sql", "5928a9daf27eaec1fba3c95ad2bf752b54ba38e694f289dcf27749de089160f7",
                 "1dded6cb573d571245611f61b70321e97afabc8222a6357b4fefe6975361c836"),
-            ("003_remove_tenant_org_fields.sql", "ee67204be722480d70abf60066c876d993934a860254814413fb30abce00a8cf", null)
+            ("003_remove_tenant_org_fields.sql", "ee67204be722480d70abf60066c876d993934a860254814413fb30abce00a8cf", null),
+            ("004_remove_user_identity.sql", "d4627837a4c616ad9c958bcec5fea888303898b785a7bcce7fd6fb87ab8bd62a", null)
         ];
 
         /// <summary>

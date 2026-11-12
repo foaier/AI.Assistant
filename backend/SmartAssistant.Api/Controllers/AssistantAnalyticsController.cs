@@ -1,13 +1,9 @@
 #nullable enable
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using SmartAssistant.Extensions.Common;
-using SmartAssistant.Authentication;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Platform;
-
 using Microsoft.AspNetCore.Mvc;
+using SmartAssistant.Models.Analytics;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Models.Runtime;
+using SmartAssistant.Services.Contracts;
 
 namespace SmartAssistant.Controllers;
 
@@ -38,9 +34,8 @@ public sealed class AssistantAnalyticsController : ControllerBase
     public async Task<BizResult<AssistantConversationsPage>> ConversationsAsync(string assistantId, [FromQuery] int limit = 50,
         [FromQuery] int page = 1, CancellationToken cancellationToken = default)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(
-            await _service.ListConversationsAsync(actor, assistantId, limit, page, cancellationToken));
+            await _service.ListConversationsAsync(assistantId, limit, page, cancellationToken));
     }
 
     /// <summary>
@@ -49,8 +44,7 @@ public sealed class AssistantAnalyticsController : ControllerBase
     [HttpGet("summary")]
     public async Task<BizResult<AssistantAnalyticsSummaryDto>> SummaryAsync(string assistantId, CancellationToken cancellationToken = default)
     {
-        var actor = User.GetUserId();
-        return BizResult.BusinessSuccess(await _service.GetSummaryAsync(actor, assistantId, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.GetSummaryAsync(assistantId, cancellationToken));
     }
 
     /// <summary>
@@ -60,8 +54,7 @@ public sealed class AssistantAnalyticsController : ControllerBase
     public async Task<BizResult<AssistantMessagesPage>> MessagesAsync(string assistantId, string conversationId,
         [FromQuery] int limit = 50, [FromQuery] string? cursor = null, CancellationToken cancellationToken = default)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(
-            await _service.GetMessagesAsync(actor, assistantId, conversationId, limit, cursor, cancellationToken));
+            await _service.GetMessagesAsync(assistantId, conversationId, limit, cursor, cancellationToken));
     }
 }

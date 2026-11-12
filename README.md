@@ -40,14 +40,15 @@ cd D:\MyCode\SmartAssistant
 backend/
   SmartAssistant.Api/
     Controllers/      助手管理与公开聊天接口
-    Modules/          Assistant 业务、契约、仓储及 Domain/Entities 实体
-    Platform/         固定操作人、事务、文件、凭据、向量存储适配
+    Models/           DTO、请求/响应、执行快照及其他数据容器，按用途分目录
+    Services/         Assistant 业务、接口、仓储及 Domain/Entities 实体
+    Platform/         本地事务、文件、凭据、向量存储适配
     Migrations/       SQLite 版本迁移及校验
     Program.cs        独立 ASP.NET Core 宿主
   SmartAssistant.Tests/    抽离的原测试及独立 HTTP/SQLite 集成测试
 frontend/
   client/features/public-assistant/  原助手页面、组件、服务
-  client/context/                   界面语言与本地权限适配
+  client/context/                   界面语言上下文
   e2e/                              浏览器联调
 docs/                               来源清单及验证说明
 data/                               本机数据库、资产、加密密钥

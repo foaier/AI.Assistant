@@ -4,10 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using SmartAssistant.Modules.Domain;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Domain;
+using SmartAssistant.Services.Contracts;
 using SmartAssistant.Platform;
 using Xunit;
+using SmartAssistant.Models.AI;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 

@@ -3,11 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Contracts;
 using Xunit;
-using SmartAssistant.Modules.Domain.Entities;
+using SmartAssistant.Services.Domain.Entities;
+using SmartAssistant.Models.Knowledge;
+using SmartAssistant.Models.Policies;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 

@@ -1,15 +1,15 @@
 using SmartAssistant.Extensions.DAL;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Infrastructure.AI;
-using SmartAssistant.Modules.Infrastructure.AssistantTransport;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Modules.Admin.Public.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Infrastructure.AI;
+using SmartAssistant.Services.Infrastructure.AssistantTransport;
+using SmartAssistant.Services.Contracts;
 using SmartAssistant.Platform.Assets;
 using SmartAssistant.Platform.Events;
 using SmartAssistant.Platform.Security;
 using Qdrant.Client;
 using SmartAssistant.Persistence;
+using SmartAssistant.Models.AI;
 
 namespace SmartAssistant;
 
@@ -26,7 +26,6 @@ public static class ServiceRegistration
         services.AddScoped<LocalDbContext>();
         services.AddScoped<IDbContext>(sp => sp.GetRequiredService<LocalDbContext>());
         services.AddScoped<IDomainEventPublisher, LocalEventPublisher>();
-        services.AddScoped<IAdminPermissionService, LocalAdminPermissionService>();
         services.AddSingleton<ICredentialMaterialResolver, ConfigurationCredentialMaterialResolver>();
         services.AddSingleton<AssetApplicationService>();
         services.AddSingleton<AssistantProviderSecretProtector>();

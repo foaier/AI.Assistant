@@ -1,9 +1,10 @@
 using System.Text.Json;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Domain;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Domain;
+using SmartAssistant.Services.Contracts;
 using SmartAssistant.Platform;
 using Xunit;
+using SmartAssistant.Models.Policies;
 
 namespace SmartAssistant.Tests;
 
@@ -27,7 +28,7 @@ public sealed class StandaloneToolBoundaryTests
         ((PolicyProxy)policies).Policy = policy;
         var snapshots = new AssistantExecutionSnapshotService(policies, null!, null!, null!);
         var draft = AssistantDraft.Create("draft", "独立助手", null,
-            """{"businessPolicyId":"policy"}""", "actor", null);
+            """{"businessPolicyId":"policy"}""", null);
 
         var error = await Assert.ThrowsAsync<BizResultException>(() => snapshots.FreezeAsync(draft, CancellationToken.None));
         Assert.Equal("assistant_tool_not_available", error.BusinessMessage);

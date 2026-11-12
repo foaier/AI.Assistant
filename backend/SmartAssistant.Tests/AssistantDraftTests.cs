@@ -1,7 +1,7 @@
 // Spec: specs/136-public-assistant/spec.md, S0 assistant draft contract.
 #nullable enable
 using System;
-using SmartAssistant.Modules.Domain;
+using SmartAssistant.Services.Domain;
 using SmartAssistant.Platform;
 using Xunit;
 
@@ -18,7 +18,7 @@ public sealed class AssistantDraftTests
     [Fact]
     public void Create_normalizes_json_and_starts_revision_at_one()
     {
-        var draft = AssistantDraft.Create("a1", "客服", null, "{ \"enabled\": true }", "u1", "k1");
+        var draft = AssistantDraft.Create("a1", "客服", null, "{ \"enabled\": true }", "k1");
 
         Assert.Equal(1, draft.DraftRevision);
         Assert.Equal("{\"enabled\":true}", draft.DraftJson);
@@ -31,13 +31,13 @@ public sealed class AssistantDraftTests
     [Fact]
     public void Save_requires_expected_revision_and_increments_once()
     {
-        var draft = AssistantDraft.Create("a1", "客服", null, "{}", "u1", null);
+        var draft = AssistantDraft.Create("a1", "客服", null, "{}", null);
 
-        draft.Save("新客服", "说明", "{\"web\":true}", 1, "u2");
+        draft.Save("新客服", "说明", "{\"web\":true}", 1);
 
         Assert.Equal(2, draft.DraftRevision);
         Assert.Equal("新客服", draft.Name);
-        Assert.Throws<BizResultException>(() => draft.Save("再次保存", null, "{}", 1, "u3"));
+        Assert.Throws<BizResultException>(() => draft.Save("再次保存", null, "{}", 1));
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public sealed class AssistantDraftTests
     public void Invalid_json_is_rejected_before_persistence()
     {
         var exception = Assert.Throws<BizResultException>(() =>
-            AssistantDraft.Create("a1", "客服", null, "not-json", "u1", null));
+            AssistantDraft.Create("a1", "客服", null, "not-json", null));
 
         Assert.Contains("valid JSON", exception.BusinessMessage);
     }
@@ -58,7 +58,7 @@ public sealed class AssistantDraftTests
     [Fact]
     public void Saved_event_has_deterministic_outbox_id()
     {
-        var @event = new AssistantDraftSavedEvent("a1", 3, "u1");
+        var @event = new AssistantDraftSavedEvent("a1", 3);
 
         Assert.Equal("assistant-draft-saved:a1:3", @event.Id);
         Assert.IsAssignableFrom<SmartAssistant.Platform.Events.IDeterministicOutboxIdEvent>(@event);

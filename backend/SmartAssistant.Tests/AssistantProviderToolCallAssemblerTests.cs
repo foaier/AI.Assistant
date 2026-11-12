@@ -2,10 +2,11 @@
 // S2-C-02 deterministic streamed tool-call argument assembly.
 #nullable enable
 using System;
-using SmartAssistant.Modules.Infrastructure.AI;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Infrastructure.AI;
+using SmartAssistant.Services.Contracts;
 using SmartAssistant.Platform;
 using Xunit;
+using SmartAssistant.Models.AI;
 
 namespace SmartAssistant.Tests;
 

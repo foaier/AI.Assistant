@@ -2,13 +2,15 @@
 #nullable enable
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Infrastructure.AI;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Infrastructure.AI;
+using SmartAssistant.Services.Contracts;
 using Microsoft.Extensions.Configuration;
 using Xunit;
-using SmartAssistant.Modules.Domain.Entities;
+using SmartAssistant.Services.Domain.Entities;
+using SmartAssistant.Models.AI;
+using SmartAssistant.Models.Policies;
 
 namespace SmartAssistant.Tests;
 

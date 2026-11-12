@@ -11,10 +11,7 @@
     <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="Modules/Infrastructure/AssistantPublicFactToolHandlers.cs" />
+    <Compile Remove="Services/Infrastructure/AssistantPublicFactToolHandlers.cs" />
     <Content Include="Migrations/*.sql" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Modules\Domain\Entities\" />
   </ItemGroup>
 </Project>

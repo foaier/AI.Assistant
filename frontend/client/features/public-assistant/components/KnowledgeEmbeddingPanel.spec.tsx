@@ -8,8 +8,6 @@ import { KnowledgeEmbeddingPanel } from './KnowledgeEmbeddingPanel';
 import { getKnowledgeEmbeddingProfile, saveKnowledgeEmbeddingProfile, type KnowledgeEmbeddingProfile } from '../services/publicAssistantService';
 import { publicAssistantMessages } from '@/i18n/publicAssistantMessages';
 vi.mock('@/context/i18nContext', () => ({ useI18n: () => ({ t: (key: string) => (publicAssistantMessages.zhCN as Record<string, string>)[key] ?? key }) }));
-const permissions = vi.hoisted(() => ({ isSuperAdmin: false }));
-vi.mock('@/context/permissionContext', () => ({ usePermissions: () => ({ hasPermission: () => true, isSuperAdmin: permissions.isSuperAdmin }) }));
 vi.mock('../services/publicAssistantService', () => ({ getKnowledgeEmbeddingProfile: vi.fn(), saveKnowledgeEmbeddingProfile: vi.fn() }));
 const model = { providerId: 'p1', providerRevision: 3, providerName: '平台服务', model: 'embedding-v4', dimension: 1024 };
 const profile: KnowledgeEmbeddingProfile = { revision: 0, status: 'not_configured', target: null, active: null, activeAvailable: false, documentCount: 1, targetReadyDocumentCount: 0, lastErrorCode: null, availableModels: [model] };
@@ -18,7 +16,7 @@ function setup() {
   render(<MemoryRouter><QueryClientProvider client={cache}><KnowledgeEmbeddingPanel knowledgeBaseId="kb" /></QueryClientProvider></MemoryRouter>);
   return cache;
 }
-beforeEach(() => { permissions.isSuperAdmin = false; vi.mocked(getKnowledgeEmbeddingProfile).mockResolvedValue(profile); });
+beforeEach(() => { vi.mocked(getKnowledgeEmbeddingProfile).mockResolvedValue(profile); });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 describe('Knowledge embedding settings', () => {
   it.each([
@@ -32,18 +30,12 @@ describe('Knowledge embedding settings', () => {
     expect(document.body.textContent).not.toContain('secret.internal');
     expect(document.body.textContent).not.toContain('supplier-private-detail');
   });
-  it('shows actionable empty state without exposing provider connection data', async () => {
+  it('shows model configuration guidance and its link without any identity context', async () => {
     vi.mocked(getKnowledgeEmbeddingProfile).mockResolvedValue({ ...profile, availableModels: [] });
     setup();
-    expect(await screen.findByTestId('knowledge-embedding-empty')).toHaveTextContent('请联系平台管理员接入或启用服务');
+    expect(await screen.findByTestId('knowledge-embedding-empty')).toHaveTextContent('请在“模型服务”中接入或启用服务');
     expect(screen.getByTestId('knowledge-embedding-save')).toBeDisabled();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-  });
-  it('offers the platform model management link to super administrators', async () => {
-    permissions.isSuperAdmin = true;
-    vi.mocked(getKnowledgeEmbeddingProfile).mockResolvedValue({ ...profile, availableModels: [] });
-    setup();
-    expect(await screen.findByRole('link')).toHaveAttribute('href', '/admin/system/assistant-models');
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/admin/system/assistant-models');
   });
   it('confirms existing-document impact and saves the exact revision and dimensions', async () => {
     vi.mocked(saveKnowledgeEmbeddingProfile).mockResolvedValue({ ...profile, revision: 1, status: 'pending_rebuild', target: { ...model, generation: 1 } });
@@ -83,7 +75,7 @@ describe('Knowledge embedding settings', () => {
     vi.mocked(getKnowledgeEmbeddingProfile).mockResolvedValue({ ...profile, revision: 1, status: 'model_unavailable', target: old, active: old, availableModels: [] });
     setup();
     expect(await screen.findByTestId('knowledge-embedding-state')).toHaveTextContent('模型不可用');
-    expect(screen.getByText('原内容使用的模型服务已不可用，请联系平台管理员恢复或启用服务后再测试回答。')).toHaveAttribute('role', 'alert');
+    expect(screen.getByText('原内容使用的模型服务已不可用，请在“模型服务”中恢复或启用服务后再测试回答。')).toHaveAttribute('role', 'alert');
     expect(screen.queryByText('新内容整理完成前，继续使用原来可用的内容回答。')).not.toBeInTheDocument();
   });
 });

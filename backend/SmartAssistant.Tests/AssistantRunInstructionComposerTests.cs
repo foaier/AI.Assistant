@@ -1,4 +1,4 @@
-using SmartAssistant.Modules.Application;
+using SmartAssistant.Services.Application;
 using Xunit;
 
 namespace SmartAssistant.Tests;

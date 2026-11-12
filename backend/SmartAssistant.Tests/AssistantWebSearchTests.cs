@@ -12,14 +12,17 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using SmartAssistant.Extensions.DAL;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Infrastructure.AI;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Modules.Domain;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Infrastructure.AI;
+using SmartAssistant.Services.Contracts;
+using SmartAssistant.Services.Domain;
 using SmartAssistant.Platform;
 using Xunit;
-using SmartAssistant.Modules.Domain.Entities;
+using SmartAssistant.Services.Domain.Entities;
+using SmartAssistant.Models.AI;
+using SmartAssistant.Models.Policies;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 
@@ -39,7 +42,7 @@ public sealed class AssistantWebSearchTests
         var service = new AssistantWebSearchConfigurationService(repository, db);
         const string testCredential = "test-only-volc-key";
 
-        var first = await service.SaveAsync("platform-admin", new(
+        var first = await service.SaveAsync(new(
             new(AssistantWebSearchConfigurationService.DefaultEndpoint,
                 AssistantWebSearchConfigurationService.DefaultBotId,
                 AssistantWebSearchConfigurationService.DefaultServiceName, testCredential), 0));
@@ -56,13 +59,13 @@ public sealed class AssistantWebSearchTests
         Assert.Equal("volc-agent-chat@1", await InvokeInternalAsync<string>(
             service, "GetCurrentExecutionRefAsync", CancellationToken.None));
 
-        var second = await service.SaveAsync("platform-admin", new(
+        var second = await service.SaveAsync(new(
             new(first.Endpoint, "rotated-bot", first.ServiceName, "", first.TimeoutSeconds), first.Revision));
         Assert.Equal(2, second.Revision);
         Assert.DoesNotContain(testCredential, JsonSerializer.Serialize(second));
         Assert.Contains(testCredential, repository.Current!.SettingsJson);
 
-        var disabled = await service.SetStatusAsync("platform-admin", new(false, second.Revision));
+        var disabled = await service.SetStatusAsync(new(false, second.Revision));
         Assert.False(disabled.Enabled);
         var unavailable = await service.GetAvailabilityAsync();
         Assert.True(unavailable.Configured);
@@ -70,7 +73,7 @@ public sealed class AssistantWebSearchTests
         await Assert.ThrowsAsync<BizResultException>(() => InvokeInternalAsync<(AssistantWebSearchSettings Settings, long Revision)>(
             service, "ResolveForRunAsync", "volc-agent-chat@1", CancellationToken.None));
 
-        await service.SetStatusAsync("platform-admin", new(true, disabled.Revision));
+        await service.SetStatusAsync(new(true, disabled.Revision));
         var frozen = await InvokeInternalAsync<(AssistantWebSearchSettings Settings, long Revision)>(
             service, "ResolveForRunAsync", "volc-agent-chat@1", CancellationToken.None);
         Assert.Equal(AssistantWebSearchConfigurationService.DefaultBotId, frozen.Settings.BotId);
@@ -78,7 +81,7 @@ public sealed class AssistantWebSearchTests
         Assert.DoesNotContain(testCredential, JsonSerializer.Serialize(
             new AssistantWebSearchExecutionProfile("volc-agent-chat@1")));
 
-        var conflict = await Assert.ThrowsAsync<BizResultException>(() => service.SaveAsync("platform-admin", new(
+        var conflict = await Assert.ThrowsAsync<BizResultException>(() => service.SaveAsync(new(
             new(first.Endpoint, first.BotId, first.ServiceName, "replacement-key"), first.Revision)));
         Assert.Equal("assistant_web_search_revision_conflict", conflict.BusinessMessage);
     }
@@ -126,7 +129,7 @@ public sealed class AssistantWebSearchTests
         var db = DispatchProxy.Create<IDbContext, NoopDbContext>();
         var webSearch = new AssistantWebSearchConfigurationService(repository, db);
         const string testCredential = "test-only-volc-key";
-        await webSearch.SaveAsync("platform-admin", new(Settings(testCredential), 0));
+        await webSearch.SaveAsync(new(Settings(testCredential), 0));
 
         var policy = DispatchProxy.Create<IAssistantPolicyService, StaticPolicyService>();
         ((StaticPolicyService)(object)policy).Policy = ResolvedPolicy(supportsTools: true);
@@ -136,7 +139,7 @@ public sealed class AssistantWebSearchTests
         var snapshots = new AssistantExecutionSnapshotService(policy, knowledge, documents, embeddingProfiles, webSearch);
         var draft = AssistantDraft.Create("assistant-1", "客服", null,
             "{\"businessPolicyId\":\"policy-1\",\"capabilities\":{\"webSearch\":true}}",
-            "admin-1", null);
+            null);
 
         var json = await snapshots.FreezeAsync(draft, CancellationToken.None);
 
@@ -165,7 +168,7 @@ public sealed class AssistantWebSearchTests
         var db = DispatchProxy.Create<IDbContext, NoopDbContext>();
         var configuration = new AssistantWebSearchConfigurationService(repository, db);
         const string testCredential = "test-only-volc-key";
-        await configuration.SaveAsync("platform-admin", new(Settings(testCredential), 0));
+        await configuration.SaveAsync(new(Settings(testCredential), 0));
         var client = new StaticWebSearchClient();
         var handler = new AssistantVolcengineWebSearchToolHandler(configuration, client);
         using var input = JsonDocument.Parse("{\"query\":\"展会开放时间\"}");
@@ -304,7 +307,7 @@ public sealed class AssistantWebSearchTests
         /// 验证获取修订相关行为、预期结果及错误边界。
         /// </summary>
         public Task<AssistantPolicyRevisionEntity?> GetRevisionAsync(
-string kind, string id, long revision, CancellationToken ct)
+            string kind, string id, long revision, CancellationToken ct)
         {
             var frozen = Revisions.FirstOrDefault(item => item.RecordId == id && item.Kind == kind && item.Revision == revision);
             return Task.FromResult(frozen is null || _current?.Enabled != true || !frozen.Enabled

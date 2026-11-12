@@ -1,11 +1,12 @@
 using System.Data;
 using Microsoft.Extensions.Configuration;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Modules.Domain;
-using SmartAssistant.Modules.Infrastructure;
+using SmartAssistant.Services.Contracts;
+using SmartAssistant.Services.Domain;
+using SmartAssistant.Services.Infrastructure;
 using SmartAssistant.Persistence;
 using SqlSugar;
 using Xunit;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 
@@ -15,7 +16,7 @@ namespace SmartAssistant.Tests;
 public sealed class AssistantAuditRemovalTests
 {
     /// <summary>
-    /// 验证新建数据库不包含审计、租户及组织字段，同时保留业务时间和乐观锁字段。
+    /// 验证新建数据库不包含审计、范围及用户身份字段，同时保留业务时间和乐观锁字段。
     /// </summary>
     [Fact]
     public void Fresh_database_omits_audit_and_scope_columns_and_keeps_business_state()
@@ -27,7 +28,8 @@ public sealed class AssistantAuditRemovalTests
         var removed = new[]
         {
             "is_deleted", "deleted_at", "deleted_by", "created_at", "created_by",
-            "updated_at", "updated_by", "tenant_id", "org_id"
+            "updated_at", "updated_by", "tenant_id", "org_id",
+            "actor_id", "published_by", "revoked_by"
         };
         foreach (DataRow table in db.Ado.GetDataTable("SELECT name FROM sqlite_master WHERE type = 'table'").Rows)
         {
@@ -145,6 +147,53 @@ public sealed class AssistantAuditRemovalTests
     }
 
     /// <summary>
+    /// 验证已执行范围精简的数据库可移除剩余身份列，并保留发布、会话及预览数据。
+    /// </summary>
+    [Fact]
+    public async Task Identity_removal_preserves_publication_session_and_preview_business_data()
+    {
+        var config = Configuration();
+        var directory = LocalDatabase.DataDirectory(config);
+        using (var db = LocalDatabase.Open(directory))
+        {
+            ApplyThroughAuditMigration(db, includeScopeRemoval: true);
+            Insert(db, "assistant_draft", "assistant");
+            InsertRuntime(db);
+            Insert(db, "assistant_published_version", "published",
+                ("name", "保留发布"), ("snapshot_json", "{\"welcomeMessage\":\"欢迎\"}"),
+                ("published_at", "2026-11-01T00:00:00Z"),
+                ("revoked_at", "2026-11-02T00:00:00Z"),
+                ("published_by", "legacy-publisher"), ("revoked_by", "legacy-operator"));
+            db.Ado.ExecuteCommand("""
+                UPDATE assistant_anonymous_session
+                SET revoked_at = '2026-11-02T00:00:00Z', revoked_by = 'legacy-operator'
+                WHERE id = 'session'
+                """);
+            Insert(db, "assistant_preview_snapshot", "preview",
+                ("actor_id", "legacy-operator"), ("configuration_json", "{\"welcomeMessage\":\"预览\"}"),
+                ("session_id", "session"), ("conversation_id", "conversation"),
+                ("expires_at", "2099-01-01T00:00:00Z"));
+        }
+
+        LocalDatabase.Migrate(directory);
+        LocalDatabase.Migrate(directory);
+        using var upgraded = new LocalDbContext(config);
+        var client = upgraded.GetSugarScope();
+        Assert.Equal("保留发布", client.Ado.GetString("SELECT name FROM assistant_published_version WHERE id = 'published'"));
+        Assert.Equal("2026-11-01T00:00:00Z", client.Ado.GetString("SELECT published_at FROM assistant_published_version WHERE id = 'published'"));
+        Assert.Equal("2026-11-02T00:00:00Z", client.Ado.GetString("SELECT revoked_at FROM assistant_published_version WHERE id = 'published'"));
+        Assert.Equal("2026-11-02T00:00:00Z", client.Ado.GetString("SELECT revoked_at FROM assistant_anonymous_session WHERE id = 'session'"));
+        var previews = new AssistantPreviewRepository(upgraded);
+        var preview = await previews.GetAsync("assistant", "preview", CancellationToken.None);
+        Assert.NotNull(preview);
+        Assert.Equal("{\"welcomeMessage\":\"预览\"}", preview.ConfigurationJson);
+        Assert.Equal("conversation", preview.ConversationId);
+        Assert.Equal(2099, preview.ExpiresAt.Year);
+        Assert.Null(await previews.GetAsync("other-assistant", "preview", CancellationToken.None));
+        Assert.Empty(client.Ado.GetDataTable("PRAGMA foreign_key_check").Rows.Cast<DataRow>());
+    }
+
+    /// <summary>
     /// 验证取消旧范围后若幂等键冲突，迁移完整回滚并保留原始数据和约束。
     /// </summary>
     [Fact]
@@ -245,16 +294,16 @@ public sealed class AssistantAuditRemovalTests
         LocalDatabase.Migrate(LocalDatabase.DataDirectory(config));
         using var db = new LocalDbContext(config);
         var repository = new AssistantDraftRepository(db);
-        var draft = AssistantDraft.Create("old", "助手", null, "{}", "actor", "key");
+        var draft = AssistantDraft.Create("old", "助手", null, "{}", "key");
         await repository.AddAsync(draft, CancellationToken.None);
         await db.CommitAsync();
         await repository.DeleteAsync(draft.Id, CancellationToken.None);
         await db.CommitAsync();
         Assert.Null(await repository.GetByIdempotencyKeyAsync("key", CancellationToken.None));
-        draft.Save("过期副本", null, "{}", 1, "actor");
+        draft.Save("过期副本", null, "{}", 1);
         await repository.SaveAsync(draft, 1, CancellationToken.None);
         await Assert.ThrowsAsync<AssistantDraftRepository.DraftRevisionConflictException>(() => db.CommitAsync());
-        var replacement = AssistantDraft.Create("new", "新助手", null, "{}", "actor", "key");
+        var replacement = AssistantDraft.Create("new", "新助手", null, "{}", "key");
         await repository.AddAsync(replacement, CancellationToken.None);
         await db.CommitAsync();
         Assert.Equal("new", (await repository.GetByIdempotencyKeyAsync("key", CancellationToken.None))!.Id);
@@ -320,12 +369,14 @@ public sealed class AssistantAuditRemovalTests
     ];
 
     /// <summary>
-    /// 建立仅执行初始及审计迁移的升级前数据库，并登记实际脚本校验值。
+    /// 建立执行指定历史迁移的升级前数据库，并登记实际脚本校验值。
     /// </summary>
-    private static void ApplyThroughAuditMigration(ISqlSugarClient db)
+    private static void ApplyThroughAuditMigration(ISqlSugarClient db, bool includeScopeRemoval = false)
     {
         db.Ado.ExecuteCommand("CREATE TABLE assistant_schema_migration (version TEXT PRIMARY KEY, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL)");
-        foreach (var version in new[] { "001_initial.sql", "002_remove_audit_fields.sql" })
+        var versions = new List<string> { "001_initial.sql", "002_remove_audit_fields.sql" };
+        if (includeScopeRemoval) versions.Add("003_remove_tenant_org_fields.sql");
+        foreach (var version in versions)
         {
             var bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Migrations", version));
             foreach (var statement in System.Text.Encoding.UTF8.GetString(bytes).Split(';', StringSplitOptions.RemoveEmptyEntries))

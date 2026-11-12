@@ -2,7 +2,7 @@
 // Spec: specs/136-public-assistant/requests/REQ-20260926-005-public-assistant-s2-runtime-wiring.md
 using System;
 using System.Linq;
-using SmartAssistant.Modules.Infrastructure.AssistantTransport;
+using SmartAssistant.Services.Infrastructure.AssistantTransport;
 using SmartAssistant.Platform.Security;
 using Microsoft.Extensions.Configuration;
 using Xunit;

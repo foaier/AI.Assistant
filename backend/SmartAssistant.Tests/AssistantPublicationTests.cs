@@ -1,7 +1,7 @@
 #nullable enable
 // Spec: specs/136-public-assistant/requests/REQ-20260927-006-public-assistant-publication-authority.md
 using System;
-using SmartAssistant.Modules.Domain;
+using SmartAssistant.Services.Domain;
 using SmartAssistant.Platform;
 using Xunit;
 
@@ -20,9 +20,9 @@ public sealed class AssistantPublicationTests
     {
         var draft = AssistantDraft.Create(
             "assistant-1", "客服", "说明",
-            "{ \"enabled\": true, \"n\": 1 }", "actor-1", null);
+            "{ \"enabled\": true, \"n\": 1 }", null);
 
-        var version = AssistantPublishedVersion.Create(draft, 1, "actor-1", DateTime.UtcNow, draft.DraftJson);
+        var version = AssistantPublishedVersion.Create(draft, 1, DateTime.UtcNow, draft.DraftJson);
 
         Assert.Equal("assistant-1", version.AssistantKey);
         Assert.Equal("{\"enabled\":true,\"n\":1}", version.SnapshotJson);
@@ -37,15 +37,15 @@ public sealed class AssistantPublicationTests
     public void Pointer_advance_requires_revision_and_rejects_cross_scope()
     {
         var now = DateTime.UtcNow;
-        var firstDraft = AssistantDraft.Create("assistant-1", "客服", null, "{}", "actor-1", null);
+        var firstDraft = AssistantDraft.Create("assistant-1", "客服", null, "{}", null);
         var pointer = AssistantPublicationPointer.Create(
-            AssistantPublishedVersion.Create(firstDraft, 1, "actor-1", now, firstDraft.DraftJson), "actor-1");
-        var secondDraft = AssistantDraft.Create("assistant-2", "客服2", null, "{}", "actor-1", null);
-        var secondVersion = AssistantPublishedVersion.Create(secondDraft, 2, "actor-1", now, secondDraft.DraftJson);
+            AssistantPublishedVersion.Create(firstDraft, 1, now, firstDraft.DraftJson));
+        var secondDraft = AssistantDraft.Create("assistant-2", "客服2", null, "{}", null);
+        var secondVersion = AssistantPublishedVersion.Create(secondDraft, 2, now, secondDraft.DraftJson);
 
-        Assert.Throws<BizResultException>(() => pointer.Advance(secondVersion, 1, "actor-1"));
+        Assert.Throws<BizResultException>(() => pointer.Advance(secondVersion, 1));
         Assert.Throws<BizResultException>(() => pointer.Advance(
-            AssistantPublishedVersion.Create(firstDraft, 2, "actor-1", now, firstDraft.DraftJson), 0, "actor-1"));
+            AssistantPublishedVersion.Create(firstDraft, 2, now, firstDraft.DraftJson), 0));
     }
 
     /// <summary>
@@ -55,18 +55,18 @@ public sealed class AssistantPublicationTests
     public void Revoke_clears_pointer_and_marks_version_terminal()
     {
         var now = DateTime.UtcNow;
-        var draft = AssistantDraft.Create("assistant-1", "客服", null, "{}", "actor-1", null);
-        var version = AssistantPublishedVersion.Create(draft, 1, "actor-1", now, draft.DraftJson);
-        var pointer = AssistantPublicationPointer.Create(version, "actor-1");
+        var draft = AssistantDraft.Create("assistant-1", "客服", null, "{}", null);
+        var version = AssistantPublishedVersion.Create(draft, 1, now, draft.DraftJson);
+        var pointer = AssistantPublicationPointer.Create(version);
 
-        var revokedId = pointer.Revoke(1, "actor-2");
-        version.Revoke("actor-2", now.AddMinutes(1));
+        var revokedId = pointer.Revoke(1);
+        version.Revoke(now.AddMinutes(1));
 
         Assert.Equal(version.Id, revokedId);
         Assert.Null(pointer.CurrentPublishedVersionId);
         Assert.Equal(AssistantPublicationPointerStatus.Revoked, pointer.Status);
         Assert.True(version.IsRevoked);
-        Assert.Throws<BizResultException>(() => pointer.Revoke(2, "actor-2"));
+        Assert.Throws<BizResultException>(() => pointer.Revoke(2));
     }
 
     /// <summary>
@@ -81,8 +81,7 @@ public sealed class AssistantPublicationTests
         AssistantPublicationRevokedEvent Create(long revision) => new(
             "assistant-12345678901234567890123456789012",
             "version-12345678901234567890123456789012",
-            revision,
-            "actor-1");
+            revision);
 
         var first = Create(7);
         var replay = Create(7);

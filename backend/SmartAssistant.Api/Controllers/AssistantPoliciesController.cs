@@ -1,14 +1,9 @@
 #nullable enable
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using SmartAssistant.Extensions.Common;
-using SmartAssistant.Authentication;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Platform;
-
 using Microsoft.AspNetCore.Mvc;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Models.Policies;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Contracts;
 
 namespace SmartAssistant.Controllers;
 
@@ -39,7 +34,6 @@ public sealed class AssistantPoliciesController : ControllerBase
     [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<BizResult<AssistantWebSearchAvailabilityDto>> WebSearchAvailability(CancellationToken ct)
     {
-        var actor = User.GetUserId();
         NoStore();
         return BizResult.BusinessSuccess(await _webSearch.GetAvailabilityAsync(ct));
     }
@@ -50,7 +44,6 @@ public sealed class AssistantPoliciesController : ControllerBase
     [HttpGet("providers")]
     public async Task<BizResult<IReadOnlyList<AssistantModelServiceDto>>> Providers(CancellationToken ct)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(await _service.ListProvidersAsync(false, ct));
     }
     /// <summary>
@@ -59,7 +52,6 @@ public sealed class AssistantPoliciesController : ControllerBase
     [HttpGet("providers/available")]
     public async Task<BizResult<IReadOnlyList<AssistantModelServiceDto>>> AvailableProviders(CancellationToken ct)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(await _service.ListAvailableChatProvidersAsync(ct));
     }
     /// <summary>
@@ -68,7 +60,6 @@ public sealed class AssistantPoliciesController : ControllerBase
     [HttpGet("policies")]
     public async Task<BizResult<IReadOnlyList<AssistantBusinessPolicyDto>>> Policies(CancellationToken ct)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(await _service.ListPoliciesAsync(ct));
     }
     /// <summary>
@@ -86,8 +77,7 @@ public sealed class AssistantPoliciesController : ControllerBase
     /// </summary>
     private async Task<BizResult<AssistantBusinessPolicyDto>> SavePolicy(string? id, SaveAssistantBusinessPolicyCommand command, CancellationToken ct)
     {
-        var actor = User.GetUserId();
-        return BizResult.BusinessSuccess(await _service.SavePolicyAsync(actor, id, command, ct));
+        return BizResult.BusinessSuccess(await _service.SavePolicyAsync(id, command, ct));
     }
     /// <summary>
     /// 按预期修订切换策略启用状态。
@@ -95,8 +85,7 @@ public sealed class AssistantPoliciesController : ControllerBase
     [HttpPut("policies/{id}/status")]
     public async Task<BizResult<AssistantBusinessPolicyDto>> PolicyStatus(string id, [FromBody] AssistantPolicyStatusCommand command, CancellationToken ct)
     {
-        var actor = User.GetUserId();
-        return BizResult.BusinessSuccess(await _service.SetPolicyStatusAsync(actor, id, command, ct));
+        return BizResult.BusinessSuccess(await _service.SetPolicyStatusAsync(id, command, ct));
     }
 
     /// <summary>

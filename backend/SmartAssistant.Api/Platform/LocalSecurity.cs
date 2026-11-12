@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using SmartAssistant.Platform.Security;
+using SmartAssistant.Models.Configuration;
 
 namespace SmartAssistant;
 
@@ -39,11 +40,6 @@ public sealed class ConfigurationCredentialMaterialResolver(IConfiguration confi
     public async Task<string?> ResolveOptionalAsync(string? reference, string? version, CancellationToken cancellationToken = default)
         => string.IsNullOrWhiteSpace(reference) ? null : await ResolveRequiredAsync(reference, version ?? "v1", cancellationToken);
 }
-
-/// <summary>
-/// 本地持久化的令牌签名根密钥和凭据加密密钥。
-/// </summary>
-internal sealed record LocalKeys(string JwtRootKey, string EncryptionKey);
 /// <summary>
 /// 初始化独立数据目录与本地密钥，并为未显式配置的安全选项填充默认值。
 /// </summary>

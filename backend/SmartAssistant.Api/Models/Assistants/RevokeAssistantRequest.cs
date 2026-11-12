@@ -1,0 +1,13 @@
+#nullable enable
+namespace SmartAssistant.Models.Assistants;
+
+/// <summary>
+/// 撤回助手时提交的预期发布指针修订号。
+/// </summary>
+public sealed class RevokeAssistantRequest
+{
+    /// <summary>
+    /// 记录调用方期望的发布指针修订，用于拒绝并发发布冲突。
+    /// </summary>
+    public long ExpectedPointerRevision { get; set; }
+}

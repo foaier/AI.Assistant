@@ -1,9 +1,8 @@
-using System.Security.Claims;
-using SmartAssistant.Extensions.Common;
+using SmartAssistant;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Persistence;
 using SmartAssistant.Platform;
 using SmartAssistant.Platform.Assets;
-using SmartAssistant;
-using SmartAssistant.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true).AddEnvironmentVariables();
@@ -17,12 +16,6 @@ app.Use(async (context, next) =>
 {
     try
     {
-        /*
-         * 独立工作台使用固定的本地操作人，供领域审计和资源归属判断使用。
-         */
-        if (context.Request.Path.StartsWithSegments("/api/admin") || context.Request.Path.StartsWithSegments("/api/assets"))
-            context.User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, "administrator")], "Standalone"));
         /*
          * 浏览器发起管理写操作时拒绝跨站请求，避免外部页面触发本地数据修改。
          */
@@ -54,7 +47,7 @@ app.MapPost("/api/assets/upload", async (HttpRequest request, AssetApplicationSe
     var form = await request.ReadFormAsync(ct);
     var file = form.Files.GetFile("file") ?? throw new BizResultException(1001, "file_required");
     var result = await assets.UploadAsync(file, null,
-        form["category"].FirstOrDefault() ?? "assistant-image", "administrator", cancellationToken: ct);
+        form["category"].FirstOrDefault() ?? "assistant-image", cancellationToken: ct);
     return Results.Ok(BizResult.BusinessSuccess(result));
 });
 app.MapGet("/api/assets/{id}/content", async (string id, AssetApplicationService assets, CancellationToken ct) =>

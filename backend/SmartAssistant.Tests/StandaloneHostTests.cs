@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -127,6 +128,9 @@ public sealed class StandaloneHostTests
             (await client.GetAsync($"/api/admin/assistants/{otherId}/previews/{previewId}/messages")).StatusCode);
         var publication = await Data(await client.PostAsJsonAsync($"/api/admin/assistants/{id}/publish", new { expectedDraftRevision = 1, expectedPointerRevision = 0 }));
         Assert.Equal(1, publication.GetProperty("pointerRevision").GetInt64());
+        var version = publication.GetProperty("version");
+        Assert.False(version.TryGetProperty("publishedBy", out _));
+        Assert.False(version.TryGetProperty("revokedBy", out _));
 
         using var anonymous = host.CreateClient();
         var bootstrap = await Data(await anonymous.GetAsync($"/api/public/assistants/{id}/bootstrap"));
@@ -163,6 +167,9 @@ public sealed class StandaloneHostTests
         Assert.Equal("guide.md", document.GetProperty("fileName").GetString());
         var assetId = document.GetProperty("assetId").GetString();
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync($"/api/assets/{assetId}/content")).StatusCode);
+        var documentId = document.GetProperty("id").GetString();
+        var preview = await Data(await client.GetAsync($"/api/admin/knowledge-bases/{id}/documents/{documentId}/preview"));
+        Assert.Contains("上午九点开始", preview.GetProperty("originalText").GetString());
         Assert.Single((await Data(await client.GetAsync($"/api/admin/knowledge-bases/{id}/documents"))).EnumerateArray());
         var listed = (await Data(await client.GetAsync("/api/admin/knowledge-bases"))).EnumerateArray().Single();
         Assert.Equal(1, listed.GetProperty("qnaCount").GetInt32());
@@ -289,9 +296,34 @@ public sealed class StandaloneHostTests
                 ["Assistant:DataDirectory"] = _directory,
                 ["AssistantSecrets:FixtureChat"] = ChatProviderFixture.TestToken
             }));
-            if (upstream is not null)
-                builder.ConfigureServices(services => services.AddHttpClient("assistant-provider").ConfigurePrimaryHttpMessageHandler(() => upstream));
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<IStartupFilter>(new NoUserIdentityFilter());
+                if (upstream is not null)
+                    services.AddHttpClient("assistant-provider").ConfigurePrimaryHttpMessageHandler(() => upstream);
+            });
         }
+    }
+
+    /// <summary>
+    /// 在真实请求处理结束后确认宿主没有注入任何固定用户或身份声明。
+    /// </summary>
+    private sealed class NoUserIdentityFilter : IStartupFilter
+    {
+        /// <summary>
+        /// 包装实际应用管线，所有管理及公开聊天请求均应保持无用户身份。
+        /// </summary>
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+            => app =>
+            {
+                app.Use(async (context, nextMiddleware) =>
+                {
+                    await nextMiddleware();
+                    Assert.False(context.User.Identity?.IsAuthenticated == true);
+                    Assert.Empty(context.User.Claims);
+                });
+                next(app);
+            };
     }
 
     /// <summary>

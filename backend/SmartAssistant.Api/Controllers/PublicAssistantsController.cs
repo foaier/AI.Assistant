@@ -1,17 +1,14 @@
 #nullable enable
-using System;
 using System.Net.WebSockets;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using SmartAssistant.Extensions.Common;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Infrastructure.AssistantTransport;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Platform;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Models.Runtime;
+using SmartAssistant.Platform;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Contracts;
+using SmartAssistant.Services.Infrastructure.AssistantTransport;
 
 namespace SmartAssistant.Controllers;
 
@@ -263,53 +260,4 @@ public sealed class PublicAssistantsController : ControllerBase
            && !string.IsNullOrWhiteSpace(value)
             ? value.ToString().Trim()
             : throw new BizResultException(BusinessCodes.BusinessException, $"{name}_required");
-}
-
-/// <summary>
-/// 公开聊天创建匿名会话时提交的客户端信息。
-/// </summary>
-public sealed class CreatePublicSessionRequest
-{
-    /// <summary>
-    /// 保存会话主体标识的摘要。
-    /// </summary>
-    public string? SubjectHash { get; set; }
-    /// <summary>
-    /// 记录会话或请求使用的语言区域。
-    /// </summary>
-    public string? Locale { get; set; }
-}
-
-/// <summary>
-/// 公开聊天创建对话时提交的语言设置。
-/// </summary>
-public sealed class CreatePublicConversationRequest
-{
-    /// <summary>
-    /// 记录会话或请求使用的语言区域。
-    /// </summary>
-    public string? Locale { get; set; }
-}
-
-/// <summary>
-/// 公开聊天提交消息的请求体，包含客户端幂等键、消息类型、文本和语言。
-/// </summary>
-public sealed class SubmitPublicTurnRequest
-{
-    /// <summary>
-    /// 保留客户端幂等标识，用于识别同一消息的重试。
-    /// </summary>
-    public string ClientMessageId { get; set; } = string.Empty;
-    /// <summary>
-    /// 保存请求中的消息类型字段。
-    /// </summary>
-    public string? MessageType { get; set; }
-    /// <summary>
-    /// 保存请求中的文本字段。
-    /// </summary>
-    public string Text { get; set; } = string.Empty;
-    /// <summary>
-    /// 记录会话或请求使用的语言区域。
-    /// </summary>
-    public string? Locale { get; set; }
 }

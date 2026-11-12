@@ -8,7 +8,6 @@ import { listModelServices, listPlatformModelServices, listAvailableModelService
 import { ApiError } from '@/lib/ApiClient';
 import { publicAssistantMessages } from '@/i18n/publicAssistantMessages';
 vi.mock('@/context/i18nContext', () => ({ useI18n: () => ({ t: (key: string) => (publicAssistantMessages.zhCN as Record<string, string>)[key] ?? key }) }));
-vi.mock('@/context/permissionContext', () => ({ usePermissions: () => ({ isSuperAdmin: true, hasPermission: () => true }) }));
 vi.mock('../services/assistantPolicyService', () => ({ listModelServices: vi.fn(), listPlatformModelServices: vi.fn(), listAvailableModelServices: vi.fn(), getPlatformModelServiceForEdit: vi.fn(), listBusinessPolicies: vi.fn(), savePlatformModelService: vi.fn(), saveBusinessPolicy: vi.fn(), checkPlatformModelService: vi.fn(), setPlatformModelServiceStatus: vi.fn(), setBusinessPolicyStatus: vi.fn(), getPlatformAssistantWebSearchConfig: vi.fn(), savePlatformAssistantWebSearchConfig: vi.fn(), setPlatformAssistantWebSearchStatus: vi.fn() }));
 beforeEach(() => {
   vi.mocked(listModelServices).mockResolvedValue([]);
@@ -132,7 +131,7 @@ it('offers enabled platform chat services to business policies without a separat
   expect(provider).toHaveValue('provider-current');
   expect(provider.querySelector('option[value="provider-other"]')).toBeInTheDocument();
 });
-it('blocks editing a policy whose model service is no longer available and explains the administrator action', async () => {
+it('blocks editing a policy whose model service is no longer available and explains how to configure the model service', async () => {
   vi.mocked(listBusinessPolicies).mockResolvedValue([{
     id: 'policy-1', revision: 1, enabled: true,
     settings: {
@@ -144,16 +143,16 @@ it('blocks editing a policy whose model service is no longer available and expla
   }]);
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage /></QueryClientProvider>);
   fireEvent.click(await screen.findByRole('button', { name: '编辑 客服策略' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('所选模型服务已停用或不再提供对话模型。请选择列表中的其他服务；若没有可选项，请联系平台管理员接入或启用对话模型服务。选到可用服务前，策略不会提交。');
+  expect(await screen.findByRole('alert')).toHaveTextContent('所选模型服务已停用或不再提供对话模型。请选择列表中的其他服务；若没有可选项，请在“模型服务”中接入或启用对话模型。选到可用服务前，策略不会提交。');
   expect(screen.getByTestId('assistant-policy-provider')).toHaveValue('provider-revoked');
   expect(screen.getByTestId('assistant-models-save')).toBeDisabled();
   fireEvent.click(screen.getByTestId('assistant-models-save'));
   expect(saveBusinessPolicy).not.toHaveBeenCalled();
 });
-it('explains the administrator action when the platform has no available chat model', async () => {
+it('explains how to configure the model service when the platform has no available chat model', async () => {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AssistantModelsPage /></QueryClientProvider>);
   fireEvent.click(await screen.findByTestId('assistant-policy-create'));
-  expect(await screen.findByRole('status')).toHaveTextContent('平台尚无已启用的对话模型服务，请联系平台管理员接入或启用服务。');
+  expect(await screen.findByRole('status')).toHaveTextContent('尚无已启用的对话模型服务，请在“模型服务”中接入或启用服务。');
   expect(screen.getByTestId('assistant-policy-provider')).toHaveValue('');
 });
 it.each(['provider', 'policy'])('returns keyboard focus to the %s create button after Escape', async (editor) => {

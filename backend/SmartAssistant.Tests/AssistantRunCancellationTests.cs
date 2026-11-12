@@ -5,14 +5,18 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using SmartAssistant.Extensions.DAL;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Domain;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Infrastructure.AssistantTransport;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Domain;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Infrastructure.AssistantTransport;
+using SmartAssistant.Services.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 using SqlSugar;
 using Xunit;
+using SmartAssistant.Models.AI;
+using SmartAssistant.Models.Policies;
+using SmartAssistant.Models.Publication;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 

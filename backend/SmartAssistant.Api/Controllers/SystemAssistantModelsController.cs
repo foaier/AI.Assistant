@@ -1,14 +1,9 @@
 #nullable enable
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using SmartAssistant.Extensions.Common;
-using SmartAssistant.Authentication;
-using SmartAssistant.Modules.Admin.Public.Contracts;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Contracts;
-
 using Microsoft.AspNetCore.Mvc;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Models.Policies;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Contracts;
 
 namespace SmartAssistant.Controllers;
 
@@ -28,58 +23,38 @@ public sealed class SystemAssistantModelsController : ControllerBase
     /// </summary>
     private readonly AssistantWebSearchConfigurationService _webSearch;
     /// <summary>
-    /// 保存管理权限服务依赖，供助手模型控制器执行相关操作。
-    /// </summary>
-    private readonly IAdminPermissionService _permissions;
-
-    /// <summary>
     /// 接收并保存助手模型控制器执行所需的依赖，建立后续操作使用的运行状态。
     /// </summary>
     public SystemAssistantModelsController(IAssistantPolicyService service,
-        AssistantWebSearchConfigurationService webSearch, IAdminPermissionService permissions)
-        => (_service, _webSearch, _permissions) = (service, webSearch, permissions);
+        AssistantWebSearchConfigurationService webSearch)
+        => (_service, _webSearch) = (service, webSearch);
 
     /// <summary>
-    /// 校验当前操作人具有平台超级管理员权限，否则拒绝访问管理接口。
-    /// </summary>
-    private async Task<string> RequireSuperAdminAsync()
-    {
-        var actor = User.GetUserId();
-        await _permissions.RequireSuperAdminAsync(actor);
-        Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
-        Response.Headers["Pragma"] = "no-cache";
-        Response.Headers["Expires"] = "0";
-        return actor;
-    }
-
-    /// <summary>
-    /// 校验系统管理权限后列出模型供应商。
+    /// 列出模型供应商。
     /// </summary>
     [HttpGet("providers")]
     public async Task<BizResult<IReadOnlyList<AssistantModelServiceDto>>> Providers(CancellationToken ct)
     {
-        await RequireSuperAdminAsync();
         return BizResult.BusinessSuccess(await _service.ListProvidersAsync(true, ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后返回供应商编辑视图。
+    /// 返回供应商编辑视图。
     /// </summary>
     [HttpGet("providers/{id}/edit")]
     public async Task<BizResult<AssistantModelServiceDto>> EditProvider(string id, CancellationToken ct)
     {
-        await RequireSuperAdminAsync();
         return BizResult.BusinessSuccess(await _service.GetProviderForEditAsync(id, ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后创建模型供应商配置。
+    /// 创建模型供应商配置。
     /// </summary>
     [HttpPost("providers")]
     public Task<BizResult<AssistantModelServiceDto>> CreateProvider([FromBody] SaveAssistantModelServiceCommand command, CancellationToken ct) => SaveProvider(null, command, ct);
 
     /// <summary>
-    /// 校验系统管理权限后更新模型供应商配置。
+    /// 更新模型供应商配置。
     /// </summary>
     [HttpPut("providers/{id}")]
     public Task<BizResult<AssistantModelServiceDto>> UpdateProvider(string id, [FromBody] SaveAssistantModelServiceCommand command, CancellationToken ct) => SaveProvider(id, command, ct);
@@ -89,57 +64,51 @@ public sealed class SystemAssistantModelsController : ControllerBase
     /// </summary>
     private async Task<BizResult<AssistantModelServiceDto>> SaveProvider(string? id, SaveAssistantModelServiceCommand command, CancellationToken ct)
     {
-        var actor = await RequireSuperAdminAsync();
-        return BizResult.BusinessSuccess(await _service.SaveProviderAsync(actor, id, command, ct));
+        return BizResult.BusinessSuccess(await _service.SaveProviderAsync(id, command, ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后切换供应商启用状态。
+    /// 切换供应商启用状态。
     /// </summary>
     [HttpPut("providers/{id}/status")]
     public async Task<BizResult<AssistantModelServiceDto>> ProviderStatus(string id, [FromBody] AssistantPolicyStatusCommand command, CancellationToken ct)
     {
-        var actor = await RequireSuperAdminAsync();
-        return BizResult.BusinessSuccess(await _service.SetProviderStatusAsync(actor, id, command, ct));
+        return BizResult.BusinessSuccess(await _service.SetProviderStatusAsync(id, command, ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后检查模型供应商连接。
+    /// 检查模型供应商连接。
     /// </summary>
     [HttpPost("providers/{id}/check")]
     public async Task<BizResult<AssistantConnectionCheck>> Check(string id, CancellationToken ct)
     {
-        await RequireSuperAdminAsync();
         return BizResult.BusinessSuccess(await _service.CheckProviderAsync(id, ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后读取联网搜索管理配置。
+    /// 读取联网搜索管理配置。
     /// </summary>
     [HttpGet("web-search")]
     public async Task<BizResult<AssistantWebSearchConfigDto>> WebSearchConfig(CancellationToken ct)
     {
-        await RequireSuperAdminAsync();
         return BizResult.BusinessSuccess(await _webSearch.GetForAdminAsync(ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后保存联网搜索设置。
+    /// 保存联网搜索设置。
     /// </summary>
     [HttpPost("web-search"), HttpPut("web-search")]
     public async Task<BizResult<AssistantWebSearchConfigDto>> SaveWebSearchConfig([FromBody] SaveAssistantWebSearchConfigCommand command, CancellationToken ct)
     {
-        var actor = await RequireSuperAdminAsync();
-        return BizResult.BusinessSuccess(await _webSearch.SaveAsync(actor, command, ct));
+        return BizResult.BusinessSuccess(await _webSearch.SaveAsync(command, ct));
     }
 
     /// <summary>
-    /// 校验系统管理权限后切换联网搜索启用状态。
+    /// 切换联网搜索启用状态。
     /// </summary>
     [HttpPut("web-search/status")]
     public async Task<BizResult<AssistantWebSearchConfigDto>> WebSearchStatus([FromBody] AssistantPolicyStatusCommand command, CancellationToken ct)
     {
-        var actor = await RequireSuperAdminAsync();
-        return BizResult.BusinessSuccess(await _webSearch.SetStatusAsync(actor, command, ct));
+        return BizResult.BusinessSuccess(await _webSearch.SetStatusAsync(command, ct));
     }
 }

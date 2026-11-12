@@ -1,14 +1,10 @@
 #nullable enable
-using System.Collections.Generic;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using SmartAssistant.Extensions.Common;
-using SmartAssistant.Authentication;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Platform;
-
 using Microsoft.AspNetCore.Mvc;
+using SmartAssistant.Models.Assistants;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Models.Publication;
+using SmartAssistant.Services.Contracts;
 
 namespace SmartAssistant.Controllers;
 
@@ -46,9 +42,8 @@ public sealed class AssistantsController : ControllerBase
     [HttpGet]
     public async Task<BizResult<IReadOnlyList<AssistantListItemDto>>> ListAsync(CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(
-            await _service.ListAsync(actor, cancellationToken));
+            await _service.ListAsync(cancellationToken));
     }
 
     /// <summary>
@@ -60,10 +55,8 @@ public sealed class AssistantsController : ControllerBase
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(
             await _service.CreateAssistantAsync(
-                actor,
                 new CreateAssistantDraftCommand(
                     request.Name,
                     request.Description,
@@ -80,9 +73,8 @@ public sealed class AssistantsController : ControllerBase
         string assistantId,
         CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(
-            await _service.GetAssistantAsync(actor, assistantId, cancellationToken));
+            await _service.GetAssistantAsync(assistantId, cancellationToken));
     }
 
     /// <summary>
@@ -93,10 +85,8 @@ public sealed class AssistantsController : ControllerBase
         [FromBody] SaveAssistantDraftRequest request,
         CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(
             await _service.SaveAssistantDraftAsync(
-                actor,
                 assistantId,
                 new SaveAssistantDraftCommand(
                     request.Name,
@@ -112,8 +102,7 @@ public sealed class AssistantsController : ControllerBase
     [HttpDelete("{assistantId}")]
     public async Task<BizResult<object>> DeleteAsync(string assistantId, CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
-        await _service.DeleteAssistantAsync(actor, assistantId, cancellationToken);
+        await _service.DeleteAssistantAsync(assistantId, cancellationToken);
         return BizResult.BusinessSuccess<object>(new { deleted = true });
     }
 
@@ -133,9 +122,7 @@ public sealed class AssistantsController : ControllerBase
     public async Task<BizResult<AssistantPublicationResult>> PublishAsync(string assistantId, [FromBody] PublishAssistantRequest request,
         CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(await _publicationService.PublishAsync(
-            actor,
             assistantId,
             new PublishAssistantCommand(request.ExpectedDraftRevision, request.ExpectedPointerRevision),
             cancellationToken));
@@ -147,9 +134,7 @@ public sealed class AssistantsController : ControllerBase
     [HttpPost("{assistantId}/revoke")]
     public async Task<BizResult<AssistantPublicationResult>> RevokeAsync(string assistantId, [FromBody] RevokeAssistantRequest request, CancellationToken cancellationToken)
     {
-        var actor = User.GetUserId();
         return BizResult.BusinessSuccess(await _publicationService.RevokeAsync(
-            actor,
             assistantId,
             new RevokeAssistantPublicationCommand(request.ExpectedPointerRevision),
             cancellationToken));
@@ -162,72 +147,4 @@ public sealed class AssistantsController : ControllerBase
         => configuration.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
             ? "{}"
             : configuration.GetRawText();
-}
-
-/// <summary>
-/// 创建助手的 HTTP 请求体，包含展示信息、配置和幂等键。
-/// </summary>
-public sealed class CreateAssistantRequest
-{
-    /// <summary>
-    /// 记录此资源的展示名称。
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
-    /// <summary>
-    /// 记录此资源的可选说明。
-    /// </summary>
-    public string? Description { get; set; }
-    /// <summary>
-    /// 保存请求中的配置字段。
-    /// </summary>
-    public JsonElement Configuration { get; set; }
-}
-
-/// <summary>
-/// 保存草稿的 HTTP 请求体，携带当前预期修订号。
-/// </summary>
-public sealed class SaveAssistantDraftRequest
-{
-    /// <summary>
-    /// 记录此资源的展示名称。
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
-    /// <summary>
-    /// 记录此资源的可选说明。
-    /// </summary>
-    public string? Description { get; set; }
-    /// <summary>
-    /// 保存请求中的配置字段。
-    /// </summary>
-    public JsonElement Configuration { get; set; }
-    /// <summary>
-    /// 记录调用方期望的草稿修订，用于拒绝并发覆盖。
-    /// </summary>
-    public long ExpectedDraftRevision { get; set; }
-}
-
-/// <summary>
-/// 发布助手时提交的草稿与发布指针修订号。
-/// </summary>
-public sealed class PublishAssistantRequest
-{
-    /// <summary>
-    /// 记录调用方期望的草稿修订，用于拒绝并发覆盖。
-    /// </summary>
-    public long ExpectedDraftRevision { get; set; }
-    /// <summary>
-    /// 记录调用方期望的发布指针修订，用于拒绝并发发布冲突。
-    /// </summary>
-    public long? ExpectedPointerRevision { get; set; }
-}
-
-/// <summary>
-/// 撤回助手时提交的预期发布指针修订号。
-/// </summary>
-public sealed class RevokeAssistantRequest
-{
-    /// <summary>
-    /// 记录调用方期望的发布指针修订，用于拒绝并发发布冲突。
-    /// </summary>
-    public long ExpectedPointerRevision { get; set; }
 }

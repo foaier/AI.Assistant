@@ -6,10 +6,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SmartAssistant.Modules.Infrastructure.AssistantTransport;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Infrastructure.AssistantTransport;
+using SmartAssistant.Services.Contracts;
 using SmartAssistant.Platform;
 using Xunit;
+using SmartAssistant.Models.Runtime;
 
 namespace SmartAssistant.Tests;
 

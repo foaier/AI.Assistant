@@ -1,6 +1,6 @@
 // Regression: database API tokens must work for checks and model execution.
 #nullable enable
-using SmartAssistant.Modules.Infrastructure;
+using SmartAssistant.Services.Infrastructure;
 using SmartAssistant.Platform.Security;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;

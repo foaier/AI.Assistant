@@ -1,8 +1,9 @@
 #nullable enable
 using System.Linq;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Contracts;
 using Xunit;
+using SmartAssistant.Models.Knowledge;
 
 namespace SmartAssistant.Tests;
 

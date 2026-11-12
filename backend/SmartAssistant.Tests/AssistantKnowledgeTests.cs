@@ -1,7 +1,7 @@
 #nullable enable
 // Spec: specs/136-public-assistant/requests/REQ-20260928-007-public-assistant-knowledge-qna-asset-analytics.md
 // Focused proof for Q&A input normalization used by the exact-match direct-answer path.
-using SmartAssistant.Modules.Application;
+using SmartAssistant.Services.Application;
 using Xunit;
 
 namespace SmartAssistant.Tests;

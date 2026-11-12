@@ -1,13 +1,9 @@
 #nullable enable
-using System.Threading;
-using System.Threading.Tasks;
-using SmartAssistant.Extensions.Common;
-using SmartAssistant.Authentication;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Contracts;
-using SmartAssistant.Platform;
-
 using Microsoft.AspNetCore.Mvc;
+using SmartAssistant.Models.Common;
+using SmartAssistant.Models.Preview;
+using SmartAssistant.Models.Runtime;
+using SmartAssistant.Services.Application;
 
 namespace SmartAssistant.Controllers;
 
@@ -23,8 +19,7 @@ public sealed class AssistantPreviewController(AssistantPreviewService service) 
     [HttpPost]
     public async Task<BizResult<AssistantPreviewCreated>> Create(string assistantId, CreateAssistantPreviewRequest request, CancellationToken ct)
     {
-        var actor = User.GetUserId();
-        return BizResult.BusinessSuccess(await service.CreateAsync(actor, assistantId, request.ExpectedDraftRevision, ct));
+        return BizResult.BusinessSuccess(await service.CreateAsync(assistantId, request.ExpectedDraftRevision, ct));
     }
     /// <summary>
     /// 向指定助手的预览会话提交用户消息。
@@ -32,8 +27,7 @@ public sealed class AssistantPreviewController(AssistantPreviewService service) 
     [HttpPost("{previewId}/turns")]
     public async Task<BizResult<AssistantTurnAccepted>> Submit(string assistantId, string previewId, SubmitAssistantPreviewRequest request, CancellationToken ct)
     {
-        var actor = User.GetUserId();
-        return BizResult.BusinessSuccess(await service.SubmitAsync(actor, assistantId, previewId, request, ct));
+        return BizResult.BusinessSuccess(await service.SubmitAsync(assistantId, previewId, request, ct));
     }
     /// <summary>
     /// 读取指定预览的消息与运行状态。
@@ -41,7 +35,6 @@ public sealed class AssistantPreviewController(AssistantPreviewService service) 
     [HttpGet("{previewId}/messages")]
     public async Task<BizResult<AssistantPreviewMessages>> Messages(string assistantId, string previewId, CancellationToken ct)
     {
-        var actor = User.GetUserId();
-        return BizResult.BusinessSuccess(await service.MessagesAsync(actor, assistantId, previewId, ct));
+        return BizResult.BusinessSuccess(await service.MessagesAsync(assistantId, previewId, ct));
     }
 }

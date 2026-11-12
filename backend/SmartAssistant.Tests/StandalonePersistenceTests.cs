@@ -1,10 +1,11 @@
 using SmartAssistant.Extensions.DAL;
-using SmartAssistant.Modules.Domain;
-using SmartAssistant.Modules.Infrastructure;
+using SmartAssistant.Services.Domain;
+using SmartAssistant.Services.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using SmartAssistant.Persistence;
 using Xunit;
-using SmartAssistant.Modules.Domain.Entities;
+using SmartAssistant.Services.Domain.Entities;
+using SmartAssistant.Models.Knowledge;
 
 namespace SmartAssistant.Tests;
 
@@ -52,9 +53,9 @@ public sealed class StandalonePersistenceTests
         using var db = new LocalDbContext(config);
         var repository = new AssistantDraftRepository(db);
         var publisher = new LocalEventPublisher(db);
-        var draft = AssistantDraft.Create("rollback-draft", "事务助手", null, "{}", "actor", null);
+        var draft = AssistantDraft.Create("rollback-draft", "事务助手", null, "{}", null);
         await repository.AddAsync(draft, CancellationToken.None);
-        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, 1, "actor"));
+        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, 1));
         db.AddCommand(_ => Task.FromException<int>(new InvalidOperationException("forced-last-command-failure")));
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => db.CommitAsync());
@@ -63,7 +64,7 @@ public sealed class StandalonePersistenceTests
         Assert.Equal(0, await db.GetSugarScope().Queryable<LocalOutboxEventEntity>().CountAsync());
 
         await repository.AddAsync(draft, CancellationToken.None);
-        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, 1, "actor"));
+        await publisher.PublishAsync(new AssistantDraftSavedEvent(draft.Id, 1));
         await db.CommitAsync();
         Assert.NotNull(await repository.GetAsync(draft.Id, CancellationToken.None));
         var message = Assert.Single(await db.GetSugarScope().Queryable<LocalOutboxEventEntity>().ToListAsync());

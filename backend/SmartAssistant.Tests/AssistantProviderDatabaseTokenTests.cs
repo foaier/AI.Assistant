@@ -3,14 +3,15 @@
 using System.Text.Json;
 using System.Reflection;
 using SmartAssistant.Extensions.DAL;
-using SmartAssistant.Modules.Application;
-using SmartAssistant.Modules.Infrastructure;
-using SmartAssistant.Modules.Contracts;
+using SmartAssistant.Services.Application;
+using SmartAssistant.Services.Infrastructure;
+using SmartAssistant.Services.Contracts;
 using SmartAssistant.Platform;
 using SmartAssistant.Platform.Security;
 using Microsoft.Extensions.Configuration;
 using Xunit;
-using SmartAssistant.Modules.Domain.Entities;
+using SmartAssistant.Services.Domain.Entities;
+using SmartAssistant.Models.Policies;
 
 namespace SmartAssistant.Tests;
 
@@ -47,7 +48,7 @@ public sealed class AssistantProviderDatabaseTokenTests
         var service = new AssistantPolicyService(repository, DispatchProxy.Create<IDbContext, NoopDbContext>(),
             new NoSecrets(), new NoHttp(), new AssistantProviderSecretProtector(new ConfigurationBuilder().Build()));
 
-        var error = await Assert.ThrowsAsync<BizResultException>(() => service.SavePolicyAsync("editor", null,
+        var error = await Assert.ThrowsAsync<BizResultException>(() => service.SavePolicyAsync(null,
             new(new AssistantBusinessPolicySettings("客服", "customer_service", "provider", 10, "chat-v1", "礼貌回答"), 0)));
 
         Assert.Equal(expectedMessage, error.BusinessMessage);
@@ -76,9 +77,9 @@ public sealed class AssistantProviderDatabaseTokenTests
         };
         var service = new AssistantPolicyService(repository, DispatchProxy.Create<IDbContext, NoopDbContext>(),
             new NoSecrets(), new NoHttp(), new AssistantProviderSecretProtector(new ConfigurationBuilder().Build()));
-        var policy = await service.SavePolicyAsync("editor", null,
+        var policy = await service.SavePolicyAsync(null,
             new(new AssistantBusinessPolicySettings("客服", "customer_service", "provider", 10, "chat-v1", "礼貌回答"), 0));
-        await service.SetProviderStatusAsync("admin", "provider", new(false, 1));
+        await service.SetProviderStatusAsync("provider", new(false, 1));
 
         var error = await Assert.ThrowsAsync<BizResultException>(() => service.ResolveAsync(policy.Id));
 
@@ -99,7 +100,7 @@ public sealed class AssistantProviderDatabaseTokenTests
         var settings = new AssistantModelServiceSettings("模型", "https://models.example.test/v1", "sk-db-token", "v1",
             new[] { new AssistantModelOption("chat-v1", "chat") });
 
-        var created = await service.SaveProviderAsync("admin", null, new(settings, 0));
+        var created = await service.SaveProviderAsync(null, new(settings, 0));
 
         Assert.Equal(AssistantPolicyService.ConfiguredCredentialMarker, created.Settings!.SecretReference);
         Assert.DoesNotContain("sk-db-token", JsonSerializer.Serialize(created));
@@ -111,7 +112,7 @@ public sealed class AssistantProviderDatabaseTokenTests
         var edit = await service.GetProviderForEditAsync(created.Id);
         Assert.Equal("sk-db-token", edit.Settings!.SecretReference);
 
-        var updated = await service.SaveProviderAsync("admin", created.Id,
+        var updated = await service.SaveProviderAsync(created.Id,
             new(created.Settings with
             {
                 Name = "更新名称",
@@ -185,7 +186,7 @@ public sealed class AssistantProviderDatabaseTokenTests
         Assert.Contains("env://MODEL_TOKEN", JsonSerializer.Serialize((await service.ListProvidersAsync(true)).Single()));
         Assert.DoesNotContain("resolved-token", JsonSerializer.Serialize(await service.ListProvidersAsync(true)));
 
-        await service.SaveProviderAsync("admin", "provider-1",
+        await service.SaveProviderAsync("provider-1",
             new(edit.Settings! with { Name = "更新名称" }, edit.Revision));
         var stored = await repository.GetAsync("provider", "provider-1", default);
         Assert.Contains("env://MODEL_TOKEN", stored!.SettingsJson);
