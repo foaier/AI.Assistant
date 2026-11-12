@@ -6,8 +6,11 @@
 **/playwright-report/
 **/test-results/
 .run/
+.vs/
 data/
 *.user
 .env
 .env.local
 appsettings.Local.json
+DesignTimeBuild
+FileContentIndex
