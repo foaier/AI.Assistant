@@ -2,11 +2,11 @@
 using System.Text.Json;
 using AI.Assistant.Extensions.DAL;
 using AI.Assistant.Models.Assistants;
-using AI.Assistant.Platform;
-using AI.Assistant.Platform.Events;
+using AI.Assistant.Infrastructure;
+using AI.Assistant.Infrastructure.Events;
 using AI.Assistant.Services.Contracts;
 using AI.Assistant.Services.Domain;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Services.Application;
 

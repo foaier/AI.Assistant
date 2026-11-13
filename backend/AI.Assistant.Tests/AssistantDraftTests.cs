@@ -2,7 +2,7 @@
 #nullable enable
 using System;
 using AI.Assistant.Services.Domain;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using Xunit;
 
 namespace AI.Assistant.Tests;
@@ -61,7 +61,7 @@ public sealed class AssistantDraftTests
         var @event = new AssistantDraftSavedEvent("a1", 3);
 
         Assert.Equal("assistant-draft-saved:a1:3", @event.Id);
-        Assert.IsAssignableFrom<AI.Assistant.Platform.Events.IDeterministicOutboxIdEvent>(@event);
+        Assert.IsAssignableFrom<AI.Assistant.Infrastructure.Events.IDeterministicOutboxIdEvent>(@event);
     }
 
 }

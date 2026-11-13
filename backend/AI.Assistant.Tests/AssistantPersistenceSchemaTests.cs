@@ -2,7 +2,7 @@ using System.Data;
 using Microsoft.Extensions.Configuration;
 using AI.Assistant.Services.Contracts;
 using AI.Assistant.Services.Domain;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 using AI.Assistant.Persistence;
 using SqlSugar;
 using Xunit;
@@ -179,7 +179,7 @@ public sealed class AssistantPersistenceSchemaTests
         Insert(client, "assistant_preview_snapshot", "preview");
         var repository = new AssistantDraftRepository(db);
         await repository.DeleteAsync("assistant", CancellationToken.None);
-        await Assert.ThrowsAsync<AI.Assistant.Platform.BizResultException>(() => db.CommitAsync());
+        await Assert.ThrowsAsync<AI.Assistant.Infrastructure.BizResultException>(() => db.CommitAsync());
         Assert.Equal(1, client.Ado.GetInt("SELECT COUNT(*) FROM assistant_anonymous_session"));
         client.Ado.ExecuteCommand("UPDATE assistant_publication_pointer SET status = 2");
         await repository.DeleteAsync("assistant", CancellationToken.None);

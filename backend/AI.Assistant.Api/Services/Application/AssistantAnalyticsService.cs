@@ -1,9 +1,9 @@
 #nullable enable
 using AI.Assistant.Models.Analytics;
 using AI.Assistant.Models.Runtime;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using AI.Assistant.Services.Contracts;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Services.Application;
 

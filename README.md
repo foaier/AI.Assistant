@@ -2,30 +2,90 @@
 
 源码仓库：[foaier/AI.Assistant](https://github.com/foaier/AI.Assistant)。
 
-AI.Assistant 是从 Glevent 的 Assistant 功能抽离的独立前后端项目。保留助手管理、工作台、外观设置、模型服务和业务策略、知识库、发布管理、公开聊天、会话记录，以及 SSE / WebSocket 流式响应。
+AI.Assistant 是一个 AI 智能助手。包含助手管理、工作台、外观设置、模型服务和业务策略、知识库、发布管理、公开聊天、会话记录，以及 SSE / WebSocket 流式响应。
 
-运行和构建均不依赖 Glevent 源目录，不连接原项目数据库。打开页面即可管理助手，无需登录。此项目使用本地 SQLite 数据库和文件存储，不设租户或组织；前端保留原助手页面和中英文文案。
+打开页面即可管理助手，无需登录。默认使用本地 SQLite 数据库、文件存储和持久化向量索引。
 
-## 快速启动（Windows PowerShell）
+## 快速启动
 
-需要 .NET 10 SDK、Node.js 22.12+ 和 pnpm 11.4。
+所有启动命令集中在 [`run`](run/README.md) 目录。以下命令均在项目根目录执行，也可以在 Windows 中双击对应的 `.bat` 文件。
+
+| 方式 | 环境要求 | 启动入口 | 访问地址 |
+|---|---|---|---|
+| Windows 本地开发 | .NET 10 SDK、Node.js 22.12+、pnpm 11.4.0 | `run/start.bat` | <http://127.0.0.1:5188> |
+| Windows Docker | 已启动的 Docker Desktop，使用 Linux 容器 | `run/docker-start.bat` | <http://127.0.0.1:5088> |
+| Linux/macOS Docker | Docker、Docker Compose v2 或更新版本 | `sh run/docker-start.sh` | <http://127.0.0.1:5088> |
+
+两种运行模式默认共用后端 5088 端口，切换前先停止正在运行的另一种模式。Docker 模式不要求本机安装 .NET、Node.js 或 pnpm。
+
+### Windows 本地开发
+
+安装 .NET 10 SDK、Node.js 22.12+ 和 pnpm 11.4.0，然后执行：
 
 ```powershell
-cd D:\MyCode\AI.Assistant
-.\start-dev.ps1
+.\run\start.bat
 ```
 
-打开 <http://127.0.0.1:5188>，直接进入助手工作台。
+首次启动会安装前端依赖、还原并编译后端，再同时启动前后端。打开 <http://127.0.0.1:5188> 进入助手工作台，后端 API 地址为 <http://127.0.0.1:5088>。
 
 停止本项目的两个进程：
 
 ```powershell
-.\stop-dev.ps1
+.\run\stop.bat
 ```
 
 脚本会检查 5088 / 5188 端口；如已被占用则退出。它只停止自己记录的进程。日志位于 `.run/`，数据位于 `data/`，二者都不纳入版本控制。
 
-已安装依赖时，可以运行 `.\start-dev.ps1 -SkipInstall`。自定义数据目录使用 `-DataDirectory 'D:\AssistantData'`。
+已安装依赖时，可以运行 `.\run\start.bat -SkipInstall`。自定义数据目录使用 `-DataDirectory "D:\AssistantData"`。
+
+### Docker 一键启动
+
+Windows PowerShell：
+
+```powershell
+# 构建镜像并启动，等待健康检查通过
+.\run\docker-start.bat
+
+# 停止并移除容器，保留数据卷
+.\run\docker-stop.bat
+```
+
+Linux/macOS：
+
+```sh
+# 构建镜像并启动
+sh run/docker-start.sh
+
+# 停止并移除容器，保留数据卷
+sh run/docker-stop.sh
+```
+
+也可以直接使用 Compose：
+
+```sh
+docker compose --project-directory run -f run/compose.yaml up -d --build --wait --wait-timeout 120
+
+# 查看运行状态与最近日志
+docker compose --project-directory run -f run/compose.yaml ps
+docker compose --project-directory run -f run/compose.yaml logs --tail=100 -f assistant
+
+# 停止，保留数据卷
+docker compose --project-directory run -f run/compose.yaml down
+```
+
+打开 <http://127.0.0.1:5088>，同一容器提供已构建的前端与后端 API。数据库、上传文件、加密密钥和默认本地向量索引保存在 `ai-assistant_assistant-data` 数据卷中，时区默认使用 `Asia/Shanghai`。
+
+**修改代码后，再次执行 Docker 启动命令即可重新构建并更新容器。** 仅执行 `docker compose restart` 不会把代码变更打包到镜像中。
+
+如需修改访问端口或绑定地址，首次配置时将 `run/.env.example` 复制为 `run/.env`，修改 `ASSISTANT_PORT`、`ASSISTANT_BIND_ADDRESS` 后重新执行启动命令。详细说明见 [`run/README.md`](run/README.md)。
+
+### 向量存储与 Qdrant
+
+**当前 Docker 启动配置没有安装或启动 Qdrant。** `run/compose.yaml` 只有 `assistant` 服务；默认由应用把向量持久化到 SQLite，并执行本地余弦相似度检索，因此无需额外启动向量数据库。
+
+后端已支持接入单独部署的 Qdrant。配置 `Assistant__Knowledge__Qdrant__Endpoint` 为可访问的 gRPC 地址后，会改用 Qdrant；常用端口为 **6334**，6333 是 HTTP API / Dashboard 端口。接入配置方式见 [`run/README.md`](run/README.md#向量库与-qdrant)。
+
+无论使用本地索引还是 Qdrant，知识库文档向量化仍需要在页面配置可用的 Embedding 模型服务。
 
 ## 使用
 
@@ -46,7 +106,7 @@ backend/
     Controllers/      助手管理与公开聊天接口
     Models/           DTO、请求/响应、执行快照及其他数据容器，按用途分目录
     Services/         Assistant 业务、接口、仓储及 Domain/Entities 实体
-    Platform/         本地事务、文件、凭据、向量存储适配
+    Infrastructure/   本地事务、文件、凭据、向量存储适配
     Migrations/       当前 SQLite 初始化结构及校验
     Program.cs        独立 ASP.NET Core 宿主
   AI.Assistant.Tests/    抽离的原测试及独立 HTTP/SQLite 集成测试
@@ -54,15 +114,15 @@ frontend/
   client/features/public-assistant/  原助手页面、组件、服务
   client/context/                   界面语言上下文
   e2e/                              浏览器联调
-docs/                               来源清单及验证说明
+run/                                Windows 批处理、Docker 配置和启动说明
 data/                               本机数据库、资产、加密密钥
 ```
 
 ## 构建与验证
 
 ```powershell
-.\build.ps1
-.\test.ps1
+.\run\build.bat
+.\run\test.bat
 ```
 
 构建输出：`frontend/dist/`、`.run/publish/`。保留项目目录结构时，使用已构建版本运行：
@@ -77,7 +137,7 @@ dotnet ..\..\.run\publish\AI.Assistant.Api.dll
 浏览器验收使用独立测试数据目录（不要对已有业务数据运行）：
 
 ```powershell
-.\start-dev.ps1 -SkipInstall -DataDirectory "$PWD\.run\browser-data"
+.\run\start.bat -SkipInstall -DataDirectory "$PWD\.run\browser-data"
 cd frontend
 pnpm exec playwright install chromium
 pnpm test:e2e
@@ -92,20 +152,10 @@ pnpm test:e2e
 | 配置 | 用途 |
 |---|---|
 | `Assistant__DataDirectory` | 独立数据目录 |
-| `Assistant__Knowledge__Qdrant__Endpoint` | 可选 Qdrant gRPC 地址；缺省使用本地持久化余弦检索 |
+| `Assistant__Knowledge__Qdrant__Endpoint` | 可选 Qdrant gRPC 地址，通常使用 6334 端口；缺省使用 SQLite 持久化向量索引 |
 | `Assistant__Knowledge__Qdrant__ApiKey` | 可选 Qdrant 密钥 |
 | `Assistant__Redis__ConnectionString` | 可选 Redis 事件传输；缺省使用单进程内存事件代理 |
 
 模型服务中的 `config://AssistantSecrets:ModelKey` 引用本地配置对应键；`appsettings://` 同义，原有 `apollo://` 引用也只从本地对应键读取，不会请求 Apollo。`env://变量名` 继续支持显式环境变量凭据。
 
 备份整个 `data/` 目录，并同时保留本地配置。数据库内加密的凭据还需要 `keys.json` 才能解密。开发阶段仅维护 `001_initial.sql` 中的当前结构及对应校验值，结构变更后重建开发数据库。
-
-## 抽离边界
-
-- 原 Glevent 活动/日程查询工具依赖业务模块，独立项目不注册这两类工具；绑定不可用工具的发布会被拒绝。需要时可实现独立集成后再注册。
-- 模型、Embedding 和联网搜索保留真实服务调用。知识文档支持文本、Markdown、JSON、DOCX，与抽离时原解析器一致。
-- 默认 SQLite、本地向量索引和内存事件代理适合单机运行。本地向量检索按集合扫描；更大规模可配置 Qdrant。多副本部署还需要共享文件和会话运行状态，本项目默认部署方式为单进程。
-- 领域事件在事务内写入本地 Outbox，当前独立项目没有外部事件订阅者；没有复制原系统消息总线和业务消费者。
-- 助手、知识库和问答采用物理删除；关联运行、文档及索引记录级联清理，同一问题可以删除后重新创建。
-
-来源记录见 `docs/backend-source-manifest.json`、`frontend/source-manifest.json` 和 `backend/AI.Assistant.Tests/source-manifest.json`。来源清单只用于追溯；构建与运行没有源项目路径依赖。

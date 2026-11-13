@@ -1,0 +1,23 @@
+# 同一容器提供已构建的前端页面和后端 API。
+# 配置与数据使用独立命名卷，停止或重新构建后仍然保留。
+name: ai-assistant
+services:
+  assistant:
+    image: ai-assistant:local
+    build:
+      context: ..
+      dockerfile: run/Dockerfile
+    ports:
+      - "${ASSISTANT_BIND_ADDRESS:-127.0.0.1}:${ASSISTANT_PORT:-5088}:8080"
+    environment:
+      URLS: http://0.0.0.0:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      Assistant__DataDirectory: /app/data
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - assistant-data:/app/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  assistant-data:

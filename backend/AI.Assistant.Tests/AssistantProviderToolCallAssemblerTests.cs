@@ -2,9 +2,9 @@
 // S2-C-02 deterministic streamed tool-call argument assembly.
 #nullable enable
 using System;
-using AI.Assistant.Services.Infrastructure.AI;
+using AI.Assistant.Services.Repositorys.AI;
 using AI.Assistant.Services.Contracts;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using Xunit;
 using AI.Assistant.Models.AI;
 

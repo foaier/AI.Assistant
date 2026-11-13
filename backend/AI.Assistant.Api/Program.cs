@@ -1,9 +1,9 @@
 using AI.Assistant;
 using AI.Assistant.Models.Common;
 using AI.Assistant.Persistence;
-using AI.Assistant.Platform;
-using AI.Assistant.Platform.Assets;
-using AI.Assistant.Platform.Serialization;
+using AI.Assistant.Infrastructure;
+using AI.Assistant.Infrastructure.Assets;
+using AI.Assistant.Infrastructure.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true).AddEnvironmentVariables();

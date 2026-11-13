@@ -2,7 +2,7 @@ using System.Text.Json;
 using AI.Assistant.Services.Application;
 using AI.Assistant.Services.Domain;
 using AI.Assistant.Services.Contracts;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using Xunit;
 using AI.Assistant.Models.Policies;
 

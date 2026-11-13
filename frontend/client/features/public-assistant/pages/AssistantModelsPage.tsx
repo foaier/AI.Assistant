@@ -1,6 +1,22 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, RefreshCw } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  Check,
+  CircleCheck,
+  Cpu,
+  Globe2,
+  KeyRound,
+  Layers3,
+  MessageSquare,
+  Pencil,
+  PlugZap,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  SlidersHorizontal,
+} from "lucide-react";
 import { AdminPageHeading } from "@/components/admin/AdminPageHeading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +67,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export default function AssistantModelsPage({ mode = "business" }: { mode?: "business" | "platform" }) {
+export default function AssistantModelsPage({
+  mode = "business",
+}: {
+  mode?: "business" | "platform";
+}) {
   const { t } = useI18n();
   const m = (key: string) => t(`publicAssistant.models.${key}`);
   const saveErrorMessage = (error: unknown) => {
@@ -164,7 +184,8 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
   }, [webSearchConfig.data]);
   const save = useMutation({
     mutationFn: async () => {
-      if (editor === "provider") await savePlatformModelService(serviceForm, provider);
+      if (editor === "provider")
+        await savePlatformModelService(serviceForm, provider);
       else await saveBusinessPolicy(policyForm, policy);
     },
     onSuccess: async () => {
@@ -310,47 +331,109 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
   const formError = save.isError ? saveErrorMessage(save.error) : "";
   return (
     <div
-      className="mx-auto w-full max-w-7xl space-y-5 p-5"
+      className="model-workspace mx-auto w-full max-w-7xl"
       data-testid="assistant-models-page"
     >
-      <AdminPageHeading
-        title={m(isPlatform ? "platformTitle" : "policyTitle")}
-        subtitle={m(isPlatform ? "platformDescription" : "policyDescription")}
-        actions={
-          tab === "policies" ? (
-            <Button
-              data-testid="assistant-policy-create"
-              onClick={(event) => openPolicy(event.currentTarget)}
-            >
-              <Plus aria-hidden className="mr-2 h-4 w-4" />
-              {m("newPolicy")}
-            </Button>
-          ) : tab === "providers" && isPlatform ? (
-            <Button
-              data-testid="assistant-provider-create"
-              onClick={(event) => openProvider(event.currentTarget)}
-            >
-              <Plus aria-hidden className="mr-2 h-4 w-4" />
-              {m("newProvider")}
-            </Button>
-          ) : undefined
-        }
-      />
-      {notice && <p role="status">{notice}</p>}
-      <Tabs value={tab} onValueChange={setTab}>
-        {isPlatform && <TabsList variant="underline" className="max-w-full overflow-x-auto">
-          {["providers", "webSearch"].map((name) => (
-            <TabsTrigger
-              variant="underline"
-              key={name}
-              value={name}
-              data-testid={`assistant-models-tab-${name}`}
-            >
-              {m(name)}
-            </TabsTrigger>
+      <div className="model-page-intro">
+        <div className="model-page-eyebrow">
+          <span aria-hidden />
+          <span>
+            {m(isPlatform ? "connectionsEyebrow" : "policiesEyebrow")}
+          </span>
+        </div>
+        <AdminPageHeading
+          className="model-page-heading"
+          title={m(isPlatform ? "platformTitle" : "policyTitle")}
+          subtitle={m(isPlatform ? "platformDescription" : "policyDescription")}
+          actions={
+            tab === "policies" ? (
+              <Button
+                data-testid="assistant-policy-create"
+                onClick={(event) => openPolicy(event.currentTarget)}
+              >
+                <Plus aria-hidden className="mr-2 h-4 w-4" />
+                {m("newPolicy")}
+              </Button>
+            ) : tab === "providers" && isPlatform ? (
+              <Button
+                data-testid="assistant-provider-create"
+                onClick={(event) => openProvider(event.currentTarget)}
+              >
+                <Plus aria-hidden className="mr-2 h-4 w-4" />
+                {m("newProvider")}
+              </Button>
+            ) : undefined
+          }
+        />
+      </div>
+      {isPlatform && (
+        <dl className="model-overview" aria-label={m("overview")}>
+          {[
+            {
+              label: "connectedServices",
+              value: providers.data?.length,
+              icon: PlugZap,
+              tone: "blue",
+            },
+            {
+              label: "enabledServices",
+              value: providers.data?.filter((item) => item.enabled).length,
+              icon: CircleCheck,
+              tone: "green",
+            },
+            {
+              label: "configuredModels",
+              value: providers.data?.reduce(
+                (total, item) => total + item.models.length,
+                0,
+              ),
+              icon: Layers3,
+              tone: "violet",
+            },
+          ].map(({ label, value, icon: Icon, tone }) => (
+            <div className="model-overview-item" key={label}>
+              <span
+                className={`model-overview-icon model-overview-icon--${tone}`}
+              >
+                <Icon size={20} strokeWidth={1.7} aria-hidden />
+              </span>
+              <div>
+                <dt>{m(label)}</dt>
+                <dd>
+                  {providers.isError ? "—" : (value ?? "—")}
+                  <span>{m("countUnit")}</span>
+                </dd>
+              </div>
+            </div>
           ))}
-        </TabsList>}
-        {((providers.isError || (isPlatform ? false : availableProviders.isError || policies.isError))) && (
+        </dl>
+      )}
+      {notice && <p role="status">{notice}</p>}
+      <Tabs value={tab} onValueChange={setTab} className="model-tabs">
+        {isPlatform && (
+          <TabsList variant="underline" className="model-tabs-list">
+            {["providers", "webSearch"].map((name) => (
+              <TabsTrigger
+                variant="underline"
+                key={name}
+                value={name}
+                data-testid={`assistant-models-tab-${name}`}
+                className="model-tab-trigger"
+              >
+                {name === "providers" ? (
+                  <Cpu size={17} aria-hidden />
+                ) : (
+                  <Globe2 size={17} aria-hidden />
+                )}
+                {m(name)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
+        {(providers.isError ||
+          (isPlatform
+            ? false
+            : availableProviders.isError || policies.isError)) && (
           <div role="alert" className="my-4 rounded-lg border p-4">
             {m("loadFailed")}{" "}
             <Button variant="outline" onClick={() => void refresh()}>
@@ -358,20 +441,33 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
             </Button>
           </div>
         )}
-        {(providers.isLoading || (!isPlatform && (availableProviders.isLoading || policies.isLoading))) && (
-          <p role="status" className="py-8">
+        {(providers.isLoading ||
+          (!isPlatform &&
+            (availableProviders.isLoading || policies.isLoading))) && (
+          <div role="status" className="model-loading">
+            <RefreshCw
+              size={20}
+              className="motion-safe:animate-spin"
+              aria-hidden
+            />
             {m("loading")}
-          </p>
+          </div>
         )}
         <TabsContent value="policies" className="space-y-3">
           {!policies.isLoading &&
             !policies.isError &&
             policies.data?.length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  {m("emptyPolicies")}
-                </CardContent>
-              </Card>
+              <div className="model-empty model-empty--policy">
+                <span className="model-empty-simple-icon">
+                  <SlidersHorizontal size={30} aria-hidden />
+                </span>
+                <h2>{m("policyEmptyTitle")}</h2>
+                <p>{m("emptyPolicies")}</p>
+                <Button onClick={(event) => openPolicy(event.currentTarget)}>
+                  <Plus className="mr-2" aria-hidden />
+                  {m("startPolicy")}
+                </Button>
+              </div>
             )}
           {policies.data?.map((item) => (
             <Card key={item.id} data-testid={`assistant-policy-${item.id}`}>
@@ -413,27 +509,114 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
             </Card>
           ))}
         </TabsContent>
-        <TabsContent value="providers" className="space-y-3">
-          <p className="py-2 text-sm text-[var(--text-subtle)]">
-            {m("providerAdminHelp")}
-          </p>
+        <TabsContent
+          value="providers"
+          className="model-provider-panel space-y-4"
+        >
+          <div className="model-section-heading">
+            <div>
+              <h2>{m("yourConnections")}</h2>
+              <p>{m("providerSectionHelp")}</p>
+            </div>
+            <span className="model-security-note">
+              <ShieldCheck size={15} aria-hidden />
+              {m("encryptedCredentials")}
+            </span>
+          </div>
           {!providers.isLoading &&
             !providers.isError &&
             providers.data?.length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  {m("emptyProviders")}
-                </CardContent>
-              </Card>
+              <div className="model-onboarding">
+                <div className="model-empty">
+                  <div className="model-empty-art" aria-hidden>
+                    <span className="model-art-orbit" />
+                    <span className="model-art-satellite model-art-satellite--left">
+                      <MessageSquare size={23} strokeWidth={1.5} />
+                    </span>
+                    <span className="model-art-core">
+                      <Cpu size={38} strokeWidth={1.4} />
+                      <span>
+                        <Plus size={13} strokeWidth={2.5} />
+                      </span>
+                    </span>
+                    <span className="model-art-satellite model-art-satellite--right">
+                      <Layers3 size={23} strokeWidth={1.5} />
+                    </span>
+                    <span className="model-art-dot model-art-dot--one" />
+                    <span className="model-art-dot model-art-dot--two" />
+                  </div>
+                  <h2>{m("providerEmptyTitle")}</h2>
+                  <p>{m("providerEmptyDescription")}</p>
+                  <Button
+                    className="model-empty-action"
+                    onClick={(event) => openProvider(event.currentTarget)}
+                  >
+                    {m("startConnecting")}
+                    <ArrowRight className="ml-2" aria-hidden />
+                  </Button>
+                  <div className="model-capabilities">
+                    <span>
+                      <Check size={14} aria-hidden />
+                      {m("openAiCompatible")}
+                    </span>
+                    <span>
+                      <Check size={14} aria-hidden />
+                      {m("chatAndEmbedding")}
+                    </span>
+                  </div>
+                </div>
+                <ol className="model-setup-steps" aria-label={m("setupSteps")}>
+                  {[
+                    {
+                      title: "stepConnect",
+                      description: "stepConnectHelp",
+                      icon: KeyRound,
+                    },
+                    {
+                      title: "stepConfigure",
+                      description: "stepConfigureHelp",
+                      icon: SlidersHorizontal,
+                    },
+                    {
+                      title: "stepCreate",
+                      description: "stepCreateHelp",
+                      icon: Bot,
+                    },
+                  ].map(({ title, description, icon: Icon }, index) => (
+                    <li key={title}>
+                      <span className="model-step-number">0{index + 1}</span>
+                      <div>
+                        <h3>
+                          <Icon size={15} aria-hidden />
+                          {m(title)}
+                        </h3>
+                        <p>{m(description)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
           {providers.data?.map((item) => (
-            <Card key={item.id} data-testid={`assistant-provider-${item.id}`}>
+            <Card
+              key={item.id}
+              className="model-provider-card"
+              data-testid={`assistant-provider-${item.id}`}
+            >
               <CardHeader className="flex flex-row flex-wrap justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="break-words">{item.name}</CardTitle>
-                  <p className="mt-2 text-sm">
-                    {m(item.enabled ? "enabled" : "disabled")}
-                  </p>
+                <div className="model-provider-identity">
+                  <span className="model-provider-icon">
+                    <Cpu size={22} aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <CardTitle className="break-words">{item.name}</CardTitle>
+                    <p
+                      className={`model-provider-status ${item.enabled ? "is-enabled" : ""}`}
+                    >
+                      <span aria-hidden />
+                      {m(item.enabled ? "enabled" : "disabled")}
+                    </p>
+                  </div>
                 </div>
                 {isPlatform && (
                   <div className="flex flex-wrap gap-2">
@@ -475,7 +658,7 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
                 <div className="flex flex-wrap gap-2">
                   {item.models.map((model) => (
                     <span
-                      className="rounded-md bg-[var(--surface-neutral-muted)] px-3 py-1 text-sm"
+                      className="model-tag"
                       key={`${model.purpose}:${model.id}`}
                     >
                       {model.id} · {m(model.purpose)}
@@ -516,7 +699,10 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
               </p>
             ) : (
               webSearchConfig.data && (
-                <Card data-testid="assistant-web-search-config">
+                <Card
+                  className="model-web-search-card"
+                  data-testid="assistant-web-search-config"
+                >
                   <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
                     <div>
                       <CardTitle>{m("webSearchTitle")}</CardTitle>
@@ -684,7 +870,8 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
         }}
       >
         <DialogContent
-          className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"
+          className="model-editor max-h-[90dvh] overflow-y-auto sm:max-w-2xl"
+          closeButtonClassName="h-11 w-11"
           data-testid="assistant-models-editor"
           onCloseAutoFocus={(event) => {
             if (editorTrigger.current?.isConnected) {
@@ -1310,7 +1497,10 @@ export default function AssistantModelsPage({ mode = "business" }: { mode?: "bus
           if (!open && !status.isPending) setStatusTarget(null);
         }}
       >
-        <DialogContent>
+        <DialogContent
+          className="model-editor"
+          closeButtonClassName="h-11 w-11"
+        >
           <DialogHeader>
             <DialogTitle>
               {m(statusTarget?.value.enabled ? "disable" : "enable")}

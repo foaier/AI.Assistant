@@ -11,7 +11,11 @@
     <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="Services/Infrastructure/AssistantPublicFactToolHandlers.cs" />
+    <!--
+      活动和日程工具仅保留为参考实现，依赖未引入的原业务模块，不参与独立项目编译。
+      移动该文件时，需要同步更新此处的排除路径。
+    -->
+    <Compile Remove="Services/Repositorys/AssistantPublicFactToolHandlers.cs" />
     <Content Include="Migrations/*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

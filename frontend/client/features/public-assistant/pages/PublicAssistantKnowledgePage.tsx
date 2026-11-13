@@ -40,7 +40,7 @@ export default function PublicAssistantKnowledgePage() {
       await cache.invalidateQueries({ queryKey: ['assistant-knowledge-bases'] });
     },
   });
-  return <div className="mx-auto min-h-full w-full max-w-[1680px] space-y-5 bg-[var(--surface-page)] p-5" data-testid="assistant-knowledge-page">
+  return <div className="mx-auto min-h-full w-full max-w-[1680px] space-y-5" data-testid="assistant-knowledge-page">
     <AdminPageHeading title={k('title')} subtitle={k('subtitle')} />
     <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
       <Card className="min-w-0 h-fit shadow-none">

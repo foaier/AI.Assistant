@@ -1,6 +1,6 @@
 using AI.Assistant.Extensions.DAL;
 using AI.Assistant.Services.Domain;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 using Microsoft.Extensions.Configuration;
 using AI.Assistant.Persistence;
 using Xunit;

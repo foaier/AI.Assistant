@@ -2,7 +2,7 @@ using System.Reflection;
 using Grpc.Core;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 using Xunit;
 using AI.Assistant.Models.Knowledge;
 

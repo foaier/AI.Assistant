@@ -108,7 +108,7 @@ export default function PublicAssistantListPage() {
   const error = listQuery.error;
 
   return (
-    <div className="mx-auto min-h-full w-full max-w-[1440px] space-y-6 bg-[var(--surface-page)] p-5" data-testid="public-assistant-list">
+    <div className="mx-auto min-h-full w-full max-w-[1440px] space-y-6" data-testid="public-assistant-list">
       <AdminPageHeading
         title={t('publicAssistant.title')}
         subtitle={t('publicAssistant.description')}

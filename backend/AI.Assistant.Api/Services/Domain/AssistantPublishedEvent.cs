@@ -1,5 +1,5 @@
 #nullable enable
-using AI.Assistant.Platform.Events;
+using AI.Assistant.Infrastructure.Events;
 
 namespace AI.Assistant.Services.Domain;
 

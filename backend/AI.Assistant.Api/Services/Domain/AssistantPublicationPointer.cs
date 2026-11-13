@@ -1,6 +1,6 @@
 #nullable enable
 using System;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 
 namespace AI.Assistant.Services.Domain;
 

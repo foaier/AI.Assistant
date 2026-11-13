@@ -1,6 +1,6 @@
 #nullable enable
 using System.Linq;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 using AI.Assistant.Services.Contracts;
 using Xunit;
 using AI.Assistant.Models.Knowledge;

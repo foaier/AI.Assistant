@@ -5,10 +5,10 @@ using AI.Assistant.Models.Knowledge;
 using AI.Assistant.Models.Policies;
 using AI.Assistant.Models.Publication;
 using AI.Assistant.Models.Runtime;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using AI.Assistant.Services.Contracts;
 using AI.Assistant.Services.Domain;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Services.Application;
 

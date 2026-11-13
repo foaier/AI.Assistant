@@ -2,7 +2,7 @@
 // Spec: specs/136-public-assistant/requests/REQ-20260927-006-public-assistant-publication-authority.md
 using System;
 using AI.Assistant.Services.Domain;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using Xunit;
 
 namespace AI.Assistant.Tests;

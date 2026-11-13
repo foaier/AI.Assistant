@@ -4,7 +4,9 @@
 
 ## 开发
 
-要求 Node.js 22.12+、pnpm 11.4。先启动独立后端（`http://127.0.0.1:5088`），再执行：
+要求 Node.js 22.12+、pnpm 11.4。推荐双击项目根目录下的 `run/start.bat` 一键启动前后端，使用 `run/stop.bat` 停止；Docker 启动方式见 [`run/README.md`](../run/README.md)。
+
+如需单独运行前端，先启动独立后端（`http://127.0.0.1:5088`），再在本目录执行：
 
 ```powershell
 pnpm install --frozen-lockfile

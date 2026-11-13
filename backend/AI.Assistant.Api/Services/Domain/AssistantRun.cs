@@ -1,7 +1,7 @@
 #nullable enable
 using AI.Assistant.Models.AI;
 using AI.Assistant.Models.Runtime;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 
 namespace AI.Assistant.Services.Domain;
 

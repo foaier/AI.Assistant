@@ -50,9 +50,7 @@ public sealed class AssistantsController : ControllerBase
     /// 校验配置与幂等键后创建助手草稿，重复的相同请求复用已有结果。
     /// </summary>
     [HttpPost]
-    public async Task<BizResult<AssistantDto>> CreateAsync(
-        [FromBody] CreateAssistantRequest request,
-        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+    public async Task<BizResult<AssistantDto>> CreateAsync([FromBody] CreateAssistantRequest request, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(
@@ -69,9 +67,7 @@ public sealed class AssistantsController : ControllerBase
     /// 读取指定助手草稿；资源不存在时返回相应业务错误。
     /// </summary>
     [HttpGet("{assistantId}")]
-    public async Task<BizResult<AssistantDto>> GetAsync(
-        string assistantId,
-        CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantDto>> GetAsync(string assistantId, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(
             await _service.GetAssistantAsync(assistantId, cancellationToken));
@@ -81,9 +77,7 @@ public sealed class AssistantsController : ControllerBase
     /// 保存助手草稿，并返回最新修订。
     /// </summary>
     [HttpPut("{assistantId}/draft")]
-    public async Task<BizResult<AssistantDto>> SaveDraftAsync(string assistantId,
-        [FromBody] SaveAssistantDraftRequest request,
-        CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantDto>> SaveDraftAsync(string assistantId, [FromBody] SaveAssistantDraftRequest request, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(
             await _service.SaveAssistantDraftAsync(

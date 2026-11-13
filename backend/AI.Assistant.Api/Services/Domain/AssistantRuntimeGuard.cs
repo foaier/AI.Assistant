@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AI.Assistant.Models.Runtime;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 
 namespace AI.Assistant.Services.Domain;
 

@@ -1,7 +1,7 @@
 #nullable enable
 using System;
 using System.Text.Json;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 
 namespace AI.Assistant.Services.Domain;
 

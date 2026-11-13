@@ -3,7 +3,7 @@ using System;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using AI.Assistant.Platform.Events;
+using AI.Assistant.Infrastructure.Events;
 
 namespace AI.Assistant.Services.Domain;
 

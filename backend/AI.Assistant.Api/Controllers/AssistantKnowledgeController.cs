@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using AI.Assistant.Models.Common;
 using AI.Assistant.Models.Knowledge;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using AI.Assistant.Services.Contracts;
 
 namespace AI.Assistant.Controllers;
@@ -11,7 +11,6 @@ namespace AI.Assistant.Controllers;
 /// 提供知识库、问答、文档、分块和索引管理接口。
 /// </summary>
 [ApiController]
-
 [Route("api/admin/knowledge-bases")]
 public sealed class AssistantKnowledgeController : ControllerBase
 {
@@ -69,8 +68,7 @@ public sealed class AssistantKnowledgeController : ControllerBase
     /// 保存文档分块策略。
     /// </summary>
     [HttpPut("{knowledgeBaseId}/chunking-policy")]
-    public async Task<BizResult<AssistantKnowledgeChunkingPolicyDto>> SaveChunkingPolicyAsync(
-        string knowledgeBaseId, [FromBody] SaveChunkingPolicyRequest request, CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantKnowledgeChunkingPolicyDto>> SaveChunkingPolicyAsync(string knowledgeBaseId, [FromBody] SaveChunkingPolicyRequest request, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(await _service.SaveChunkingPolicyAsync(knowledgeBaseId,
             new SaveAssistantKnowledgeChunkingPolicyCommand(request.Mode, request.MaxChunkSize, request.MinChunkSize, request.OverlapSize,
@@ -81,8 +79,7 @@ public sealed class AssistantKnowledgeController : ControllerBase
     /// 返回知识库目标与生效嵌入配置。
     /// </summary>
     [HttpGet("{knowledgeBaseId}/embedding-profile")]
-    public async Task<BizResult<AssistantKnowledgeEmbeddingProfileDto>> GetEmbeddingProfileAsync(
-        string knowledgeBaseId, CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantKnowledgeEmbeddingProfileDto>> GetEmbeddingProfileAsync(string knowledgeBaseId, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(await _service.GetEmbeddingProfileAsync(
             knowledgeBaseId, cancellationToken));
@@ -92,24 +89,22 @@ public sealed class AssistantKnowledgeController : ControllerBase
     /// 更新嵌入模型选择。
     /// </summary>
     [HttpPut("{knowledgeBaseId}/embedding-profile")]
-    public async Task<BizResult<AssistantKnowledgeEmbeddingProfileDto>> SaveEmbeddingProfileAsync(
-        string knowledgeBaseId, [FromBody] SaveAssistantKnowledgeEmbeddingProfileCommand command,
-        CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantKnowledgeEmbeddingProfileDto>> SaveEmbeddingProfileAsync(string knowledgeBaseId, [FromBody] SaveAssistantKnowledgeEmbeddingProfileCommand command, CancellationToken cancellationToken)
     {
-        return BizResult.BusinessSuccess(await _service.SaveEmbeddingProfileAsync(
-            knowledgeBaseId, command, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.SaveEmbeddingProfileAsync(knowledgeBaseId, command, cancellationToken));
     }
 
     /// <summary>
     /// 返回指定文档按分块策略切分的预览。
     /// </summary>
     [HttpPost("{knowledgeBaseId}/chunking-preview/{documentId}")]
-    public async Task<BizResult<AssistantKnowledgeChunkPreviewDto>> PreviewChunkingAsync(
-        string knowledgeBaseId, string documentId, [FromBody] SaveChunkingPolicyRequest request, CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantKnowledgeChunkPreviewDto>> PreviewChunkingAsync(string knowledgeBaseId, string documentId, [FromBody] SaveChunkingPolicyRequest request, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(await _service.PreviewChunkingAsync(knowledgeBaseId, documentId,
-            new SaveAssistantKnowledgeChunkingPolicyCommand(request.Mode, request.MaxChunkSize, request.MinChunkSize, request.OverlapSize,
-                request.MaxHeadingLevel, request.PreserveHeadingPath, request.MergeShortChunks, false), cancellationToken));
+            new SaveAssistantKnowledgeChunkingPolicyCommand(request.Mode,
+                request.MaxChunkSize, request.MinChunkSize, request.OverlapSize,
+                request.MaxHeadingLevel, request.PreserveHeadingPath, request.MergeShortChunks, false
+             ), cancellationToken));
     }
 
     /// <summary>
@@ -145,8 +140,7 @@ public sealed class AssistantKnowledgeController : ControllerBase
     /// 返回问题在知识库固定问答中的匹配结果。
     /// </summary>
     [HttpPost("{knowledgeBaseId}/qna/{qnaId}/test")]
-    public async Task<BizResult<AssistantKnowledgeQnaTestResult>> TestQnaAsync(
-        string knowledgeBaseId, string qnaId, [FromBody] TestQnaRequest request, CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantKnowledgeQnaTestResult>> TestQnaAsync(string knowledgeBaseId, string qnaId, [FromBody] TestQnaRequest request, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(await _service.TestQnaAsync(knowledgeBaseId, qnaId,
             new TestAssistantKnowledgeQnaCommand(request.Question), cancellationToken));
@@ -156,8 +150,7 @@ public sealed class AssistantKnowledgeController : ControllerBase
     /// 返回知识库文档列表及处理状态。
     /// </summary>
     [HttpGet("{knowledgeBaseId}/documents")]
-    public async Task<BizResult<IReadOnlyList<AssistantKnowledgeDocumentDto>>> ListDocumentsAsync(
-        string knowledgeBaseId, CancellationToken cancellationToken)
+    public async Task<BizResult<IReadOnlyList<AssistantKnowledgeDocumentDto>>> ListDocumentsAsync(string knowledgeBaseId, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(await _service.ListDocumentsAsync(knowledgeBaseId, cancellationToken));
     }
@@ -167,8 +160,7 @@ public sealed class AssistantKnowledgeController : ControllerBase
     /// </summary>
     [HttpPost("{knowledgeBaseId}/documents")]
     [RequestSizeLimit(50 * 1024 * 1024)]
-    public async Task<BizResult<AssistantKnowledgeDocumentDto>> UploadDocumentAsync(
-        string knowledgeBaseId, [FromForm] IFormFile file, CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantKnowledgeDocumentDto>> UploadDocumentAsync(string knowledgeBaseId, [FromForm] IFormFile file, CancellationToken cancellationToken)
     {
         if (file is null)
             throw new BizResultException(BusinessCodes.BusinessException, "knowledge_document_file_required");

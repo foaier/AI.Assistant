@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using AI.Assistant.Services.Infrastructure.AI;
+using AI.Assistant.Services.Repositorys.AI;
 using AI.Assistant.Services.Contracts;
 using Xunit;
 using AI.Assistant.Models.AI;
@@ -203,7 +203,7 @@ public sealed class OpenAiCompatibleChatModelProviderTests
                 new HttpClient(handler),
                 new FakeCredentialResolver("http://provider.example"),
                 new OpenAiCompatibleProviderOptions(TimeSpan.FromSeconds(5)));
-        var exception = await Assert.ThrowsAsync<AI.Assistant.Platform.BizResultException>(() =>
+        var exception = await Assert.ThrowsAsync<AI.Assistant.Infrastructure.BizResultException>(() =>
             ReadAllAsync(provider.StreamAsync(new AssistantProviderRequest("profile", "model", Array.Empty<AssistantProviderMessage>()))));
 
         Assert.Equal("assistant_provider_base_url_must_be_https", exception.BusinessMessage);

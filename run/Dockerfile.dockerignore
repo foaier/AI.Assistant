@@ -1,0 +1,31 @@
+# 构建上下文从项目根目录读取，仅发送镜像实际需要的源码。
+**
+!backend/
+!backend/AI.Assistant.Api/
+!backend/AI.Assistant.Api/**
+!frontend/
+!frontend/**
+
+# 排除本机产物、运行数据及本地凭据，避免混入镜像。
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/TestResults/
+**/playwright-report/
+**/test-results/
+**/data/
+**/.env
+**/.env.*
+**/appsettings.Local.json
+**/*.user
+**/*.suo
+**/.DS_Store
+**/Thumbs.db
+.git/
+.github/
+.vs/
+.vscode/
+.run/
+Dockerfile
+.dockerignore

@@ -5,10 +5,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AI.Assistant.Models.Common;
 using AI.Assistant.Models.Runtime;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using AI.Assistant.Services.Application;
 using AI.Assistant.Services.Contracts;
-using AI.Assistant.Services.Infrastructure.AssistantTransport;
+using AI.Assistant.Services.Repositorys.AssistantTransport;
 
 namespace AI.Assistant.Controllers;
 
@@ -62,10 +62,7 @@ public sealed class PublicAssistantsController : ControllerBase
     /// 读取公开助手初始化数据，供聊天页面展示欢迎信息与能力。
     /// </summary>
     [HttpGet("bootstrap")]
-    public async Task<BizResult<AssistantPublicBootstrap>> BootstrapAsync(
-        string assistantKey,
-        [FromQuery] string? locale,
-        CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantPublicBootstrap>> BootstrapAsync(string assistantKey, [FromQuery] string? locale, CancellationToken cancellationToken)
         => BizResult.BusinessSuccess(await _runtime.GetBootstrapAsync(assistantKey, locale ?? "zh-cn", cancellationToken));
 
     /// <summary>
@@ -87,10 +84,7 @@ public sealed class PublicAssistantsController : ControllerBase
     /// 读取匿名会话凭据并请求创建对话。
     /// </summary>
     [HttpPost("conversations")]
-    public async Task<BizResult<AssistantConversationAccepted>> CreateConversationAsync(
-        string assistantKey,
-        [FromBody] CreatePublicConversationRequest request,
-        CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantConversationAccepted>> CreateConversationAsync(string assistantKey, [FromBody] CreatePublicConversationRequest request, CancellationToken cancellationToken)
     {
         var sessionId = RequireSessionId();
         var bearer = RequireBearerToken();
@@ -126,10 +120,7 @@ public sealed class PublicAssistantsController : ControllerBase
     /// 读取会话凭据并请求取消指定运行。
     /// </summary>
     [HttpPost("runs/{runId}/cancel")]
-    public async Task<BizResult<AssistantCancelResult>> CancelRunAsync(
-        string assistantKey,
-        string runId,
-        CancellationToken cancellationToken)
+    public async Task<BizResult<AssistantCancelResult>> CancelRunAsync(string assistantKey, string runId, CancellationToken cancellationToken)
     {
         var sessionId = RequireSessionId();
         var bearer = RequireBearerToken();

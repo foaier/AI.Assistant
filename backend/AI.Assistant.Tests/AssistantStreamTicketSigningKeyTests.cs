@@ -2,8 +2,8 @@
 // Spec: specs/136-public-assistant/requests/REQ-20260926-005-public-assistant-s2-runtime-wiring.md
 using System;
 using System.Linq;
-using AI.Assistant.Services.Infrastructure.AssistantTransport;
-using AI.Assistant.Platform.Security;
+using AI.Assistant.Services.Repositorys.AssistantTransport;
+using AI.Assistant.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 

@@ -1,7 +1,7 @@
 // Regression: database API tokens must work for checks and model execution.
 #nullable enable
-using AI.Assistant.Services.Infrastructure;
-using AI.Assistant.Platform.Security;
+using AI.Assistant.Services.Repositorys;
+using AI.Assistant.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using Xunit;

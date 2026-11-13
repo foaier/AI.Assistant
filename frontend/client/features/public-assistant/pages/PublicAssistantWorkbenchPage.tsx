@@ -511,7 +511,7 @@ export default function PublicAssistantWorkbenchPage() {
 
   return (
     <div
-      className="mx-auto min-h-full w-full max-w-[1680px] space-y-5 bg-[var(--surface-page)] p-5"
+      className="mx-auto min-h-full w-full max-w-[1680px] space-y-5"
       data-testid="assistant-workbench"
     >
       <AdminPageHeading

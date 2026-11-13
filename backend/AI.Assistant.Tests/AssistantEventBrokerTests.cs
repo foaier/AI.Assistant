@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AI.Assistant.Services.Infrastructure.AssistantTransport;
+using AI.Assistant.Services.Repositorys.AssistantTransport;
 using AI.Assistant.Services.Contracts;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using Xunit;
 using AI.Assistant.Models.Runtime;
 

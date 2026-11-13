@@ -1,4 +1,4 @@
-using AI.Assistant.Platform.Security;
+using AI.Assistant.Infrastructure.Security;
 
 namespace AI.Assistant.Tests;
 

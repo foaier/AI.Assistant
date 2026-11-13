@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AI.Assistant.Services.Application;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 using AI.Assistant.Services.Contracts;
 using Xunit;
 using AI.Assistant.Services.Domain.Entities;

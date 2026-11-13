@@ -4,10 +4,10 @@ using AI.Assistant.Extensions.DAL;
 using AI.Assistant.Models.Preview;
 using AI.Assistant.Models.Publication;
 using AI.Assistant.Models.Runtime;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 using AI.Assistant.Services.Domain;
 using AI.Assistant.Services.Domain.Entities;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Services.Application;
 

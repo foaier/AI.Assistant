@@ -6,7 +6,7 @@
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 using Xunit;
 
 namespace AI.Assistant.Tests;

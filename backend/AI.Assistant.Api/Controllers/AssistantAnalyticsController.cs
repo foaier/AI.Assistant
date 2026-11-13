@@ -31,11 +31,9 @@ public sealed class AssistantAnalyticsController : ControllerBase
     /// 分页返回指定助手的会话列表。
     /// </summary>
     [HttpGet("conversations")]
-    public async Task<BizResult<AssistantConversationsPage>> ConversationsAsync(string assistantId, [FromQuery] int limit = 50,
-        [FromQuery] int page = 1, CancellationToken cancellationToken = default)
+    public async Task<BizResult<AssistantConversationsPage>> ConversationsAsync(string assistantId, [FromQuery] int limit = 50, [FromQuery] int page = 1, CancellationToken cancellationToken = default)
     {
-        return BizResult.BusinessSuccess(
-            await _service.ListConversationsAsync(assistantId, limit, page, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.ListConversationsAsync(assistantId, limit, page, cancellationToken));
     }
 
     /// <summary>
@@ -51,10 +49,8 @@ public sealed class AssistantAnalyticsController : ControllerBase
     /// 返回指定助手会话的消息。
     /// </summary>
     [HttpGet("conversations/{conversationId}/messages")]
-    public async Task<BizResult<AssistantMessagesPage>> MessagesAsync(string assistantId, string conversationId,
-        [FromQuery] int limit = 50, [FromQuery] string? cursor = null, CancellationToken cancellationToken = default)
+    public async Task<BizResult<AssistantMessagesPage>> MessagesAsync(string assistantId, string conversationId, [FromQuery] int limit = 50, [FromQuery] string? cursor = null, CancellationToken cancellationToken = default)
     {
-        return BizResult.BusinessSuccess(
-            await _service.GetMessagesAsync(assistantId, conversationId, limit, cursor, cancellationToken));
+        return BizResult.BusinessSuccess(await _service.GetMessagesAsync(assistantId, conversationId, limit, cursor, cancellationToken));
     }
 }

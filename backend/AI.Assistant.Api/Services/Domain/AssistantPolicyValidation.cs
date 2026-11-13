@@ -1,7 +1,7 @@
 #nullable enable
 using System.Text.RegularExpressions;
 using AI.Assistant.Models.Policies;
-using AI.Assistant.Platform;
+using AI.Assistant.Infrastructure;
 
 namespace AI.Assistant.Services.Domain;
 

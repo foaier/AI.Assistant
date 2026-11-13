@@ -45,14 +45,14 @@ public sealed class AssistantPresentationTests
         using var unsafeIcon = JsonDocument.Parse("""
             {"quickLinks":[{"id":"help","label":"Help","url":"/help","icon":"help","iconUrl":"javascript:alert(1)"}]}
             """);
-        Assert.Throws<AI.Assistant.Platform.BizResultException>(
+        Assert.Throws<AI.Assistant.Infrastructure.BizResultException>(
             () => AssistantPresentation.Validate(unsafeIcon.RootElement));
         Assert.Null(AssistantPresentation.Links(unsafeIcon.RootElement).Single().IconUrl);
 
         using var insecureIcon = JsonDocument.Parse("""
             {"quickLinks":[{"id":"help","label":"Help","url":"/help","icon":"help","iconUrl":"http://example.test/icon.png"}]}
             """);
-        Assert.Throws<AI.Assistant.Platform.BizResultException>(
+        Assert.Throws<AI.Assistant.Infrastructure.BizResultException>(
             () => AssistantPresentation.Validate(insecureIcon.RootElement));
     }
 
@@ -67,7 +67,7 @@ public sealed class AssistantPresentationTests
               {"id":"same","label":"One","url":"/one"},
               {"id":"same","label":"Two","url":"/two"}]}
             """);
-        Assert.Throws<AI.Assistant.Platform.BizResultException>(() => AssistantPresentation.Validate(invalid.RootElement));
+        Assert.Throws<AI.Assistant.Infrastructure.BizResultException>(() => AssistantPresentation.Validate(invalid.RootElement));
 
         using var configuration = JsonDocument.Parse("""
             {"suggestedQuestions":["  Registration status? ","When does it start?", "Registration status?"]}
@@ -95,13 +95,13 @@ public sealed class AssistantPresentationTests
         using var malformed = JsonDocument.Parse("""
             {"chatBackgroundColor":"navy"}
             """);
-        Assert.Throws<AI.Assistant.Platform.BizResultException>(() =>
+        Assert.Throws<AI.Assistant.Infrastructure.BizResultException>(() =>
             AssistantPresentation.Validate(malformed.RootElement));
 
         using var unreadable = JsonDocument.Parse("""
             {"primaryColor":"#2563eb","chatBackgroundColor":"#808080"}
             """);
-        Assert.Throws<AI.Assistant.Platform.BizResultException>(() =>
+        Assert.Throws<AI.Assistant.Infrastructure.BizResultException>(() =>
             AssistantPresentation.Validate(unreadable.RootElement));
     }
 }

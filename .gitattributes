@@ -1,1 +1,6 @@
 backend/AI.Assistant.Api/Migrations/*.sql text eol=lf
+run/*.bat text eol=crlf
+run/*.ps1 text eol=crlf
+run/*.sh text eol=lf
+run/Dockerfile* text eol=lf
+run/*.yaml text eol=lf

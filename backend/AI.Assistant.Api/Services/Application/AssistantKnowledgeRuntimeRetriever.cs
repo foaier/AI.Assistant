@@ -3,7 +3,7 @@ using Grpc.Core;
 using AI.Assistant.Models.Knowledge;
 using AI.Assistant.Models.Runtime;
 using AI.Assistant.Services.Domain.Entities;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Services.Application;
 

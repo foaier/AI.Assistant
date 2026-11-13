@@ -3,8 +3,8 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AI.Assistant.Services.Application;
-using AI.Assistant.Services.Infrastructure;
-using AI.Assistant.Services.Infrastructure.AI;
+using AI.Assistant.Services.Repositorys;
+using AI.Assistant.Services.Repositorys.AI;
 using AI.Assistant.Services.Contracts;
 using Microsoft.Extensions.Configuration;
 using Xunit;

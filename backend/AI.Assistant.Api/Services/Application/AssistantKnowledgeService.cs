@@ -5,11 +5,11 @@ using System.Text.Json;
 using Grpc.Core;
 using AI.Assistant.Extensions.DAL;
 using AI.Assistant.Models.Knowledge;
-using AI.Assistant.Platform;
-using AI.Assistant.Platform.Assets;
+using AI.Assistant.Infrastructure;
+using AI.Assistant.Infrastructure.Assets;
 using AI.Assistant.Services.Contracts;
 using AI.Assistant.Services.Domain.Entities;
-using AI.Assistant.Services.Infrastructure;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Services.Application;
 
