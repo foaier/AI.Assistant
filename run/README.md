@@ -68,6 +68,8 @@ docker compose --project-directory run -f run/compose.yaml down
 
 后端根据 `Assistant:Knowledge:Qdrant:Endpoint` 选择向量存储：未配置时使用本地索引，配置有效地址后使用 Qdrant。Qdrant 负责保存和检索向量；生成向量所需的 Embedding 模型服务仍需在页面单独配置。
 
+Windows 原生程序的下载、解压、配置、启动验证、可选 Dashboard 和开机自启步骤，见项目 [README：Windows 原生安装 Qdrant](../README.md#windows-原生安装-qdrant)。其中也包含 Docker Desktop 应用连接 Windows 宿主机 Qdrant 的配置方式。
+
 接入已部署的 Qdrant 时，使用以下配置：
 
 | 配置 | 说明 |

@@ -87,6 +87,130 @@ docker compose --project-directory run -f run/compose.yaml down
 
 无论使用本地索引还是 Qdrant，知识库文档向量化仍需要在页面配置可用的 Embedding 模型服务。
 
+## Windows 原生安装 Qdrant
+
+以下步骤适用于 Windows 10/11 x64，直接运行 `qdrant.exe`。示例安装目录为 `C:\Qdrant`，命令使用 PowerShell；也可以改成自己有写入权限的目录。
+
+### 1. 下载并解压
+
+打开 [Qdrant 官方 Releases](https://github.com/qdrant/qdrant/releases)，在稳定版本的 **Assets** 中下载 `qdrant-x86_64-pc-windows-msvc.zip`。不要选择页面底部的 Source code 源码压缩包。
+
+假设安装包已下载到当前用户的 `Downloads` 目录，首次安装时执行：
+
+```powershell
+New-Item -ItemType Directory -Path 'C:\Qdrant' -Force | Out-Null
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\qdrant-x86_64-pc-windows-msvc.zip" -DestinationPath 'C:\Qdrant'
+New-Item -ItemType Directory -Path 'C:\Qdrant\config', 'C:\Qdrant\storage', 'C:\Qdrant\snapshots' -Force | Out-Null
+```
+
+确认 `qdrant.exe` 位于安装目录顶层。后续使用的目录结构如下：
+
+```text
+C:\Qdrant\
+  qdrant.exe
+  config\
+    config.yaml
+  storage\        向量数据，重启后继续使用
+  snapshots\      快照目录
+  static\         可选的 Dashboard 静态文件
+```
+
+### 2. 创建配置文件
+
+新建 `C:\Qdrant\config\config.yaml`，以 UTF-8 保存以下内容：
+
+```yaml
+log_level: INFO
+
+storage:
+  storage_path: ./storage
+  snapshots_path: ./snapshots
+
+service:
+  host: 127.0.0.1
+  http_port: 6333
+  grpc_port: 6334
+```
+
+该配置供 Windows 本机访问。`6333` 是 HTTP API 和 Dashboard 端口，`6334` 是 AI.Assistant 使用的 gRPC 端口。相对存储路径以进程的工作目录为基准，因此启动时应先进入 `C:\Qdrant`。
+
+### 3. 启动并验证
+
+在第一个 PowerShell 窗口启动 Qdrant：
+
+```powershell
+Set-Location 'C:\Qdrant'
+.\qdrant.exe --config-path .\config\config.yaml
+```
+
+保持该窗口运行，在另一个 PowerShell 窗口检查服务：
+
+```powershell
+Invoke-RestMethod -Uri 'http://127.0.0.1:6333/healthz'
+Invoke-RestMethod -Uri 'http://127.0.0.1:6333/collections' | ConvertTo-Json -Depth 5
+Test-NetConnection -ComputerName 127.0.0.1 -Port 6334
+```
+
+健康接口应正常返回，首次运行时集合列表为空是正常情况；端口检查的 `TcpTestSucceeded` 应为 `True`。停止时在 Qdrant 窗口按 `Ctrl+C`，再次执行启动命令即可恢复运行，`storage` 中的数据会保留。
+
+### 4. 安装 Dashboard（可选）
+
+Qdrant 的向量读写和 AI.Assistant 接入不依赖 Dashboard。如果希望使用浏览器管理集合：
+
+1. 打开 [Qdrant Web UI Releases](https://github.com/qdrant/qdrant-web-ui/releases)，下载发布附件 `dist-qdrant.zip`。
+2. 解压后，将包含 `index.html` 那一层目录中的全部内容放入 `C:\Qdrant\static`，确保最终路径为 `C:\Qdrant\static\index.html`。
+3. 重启 Qdrant，打开 <http://127.0.0.1:6333/dashboard>。
+
+如果 `/healthz` 正常而 `/dashboard` 返回 404，先检查静态资源是否解压到了正确层级。
+
+### 5. 让 AI.Assistant 连接 Qdrant
+
+**AI.Assistant 在 Windows 本地运行时**，将以下配置合并到 `backend/AI.Assistant.Api/appsettings.Local.json`。如果文件已有其他配置，保留原内容：
+
+```json
+{
+  "Assistant": {
+    "Knowledge": {
+      "Qdrant": {
+        "Endpoint": "http://127.0.0.1:6334"
+      }
+    }
+  }
+}
+```
+
+先保持 Qdrant 运行，再在项目根目录执行 `.\run\start.bat`；如果应用已经启动，先用 `.\run\stop.bat` 停止后重新启动，使新配置生效。也可以按下方“配置与数据”说明使用环境变量。
+
+**AI.Assistant 在 Docker Desktop 中运行时**，需要连接 Windows 宿主机上的 Qdrant：
+
+1. 将 Qdrant 的 `service.host` 改为 `0.0.0.0`，重启 Qdrant，使 Docker 网络能够连接它。
+2. 在 `run/compose.yaml` 的 `services.assistant.environment` 中追加下面这一项，保留其他环境变量：
+
+```yaml
+Assistant__Knowledge__Qdrant__Endpoint: http://host.docker.internal:6334
+```
+
+3. 在项目根目录重新执行 `.\run\docker-start.bat`。如果 Windows 防火墙阻止连接，允许 Docker Desktop 访问 Qdrant 的 6334 端口。
+
+`host.docker.internal` 用于 Docker Desktop 访问宿主机；容器中的 `127.0.0.1` 指向应用容器自身。本项目启动脚本不会代替用户启动或停止 Windows 原生 Qdrant。
+
+在“模型服务”中配置 Embedding 模型，然后到知识库选择该模型并整理文档。切换向量存储不会自动迁移已有的本地索引，已有文档需重新整理，以便向 Qdrant 写入索引。
+
+### 6. 注册 Windows 服务（可选）
+
+需要开机自动运行时，可使用 [NSSM](https://nssm.cc/download)。先停止前面手动启动的 Qdrant，避免端口冲突；将下载包内的 `win64/nssm.exe` 放入工具目录。以下示例假设其路径为 `C:\Tools\nssm.exe`，在**管理员 PowerShell** 中执行：
+
+```powershell
+& 'C:\Tools\nssm.exe' install Qdrant 'C:\Qdrant\qdrant.exe' --config-path 'C:\Qdrant\config\config.yaml'
+& 'C:\Tools\nssm.exe' set Qdrant AppDirectory 'C:\Qdrant'
+& 'C:\Tools\nssm.exe' set Qdrant Start SERVICE_AUTO_START
+& 'C:\Tools\nssm.exe' start Qdrant
+```
+
+之后可以在 Windows“服务”中管理 `Qdrant`，也可以执行 `Stop-Service Qdrant` 和 `Start-Service Qdrant`。工作目录仍应设置为 `C:\Qdrant`，以便继续使用同一份数据和静态资源。
+
+本节参考 [CSDN 的 Windows 原生安装教程](https://blog.csdn.net/jjhenda00/article/details/155230743)，并按 Qdrant 官方发布附件和启动参数核对整理。Web UI 的发布附件名为 `dist-qdrant.zip`，管理界面属于可选组件。
+
 ## 使用
 
 1. 在“模型服务”配置 OpenAI 兼容服务地址、API Key 和模型。密钥可以使用 `config://配置键` 引用 `appsettings.json` 中的值，也可以直接输入后由本项目 AES-GCM 密钥加密存储。
