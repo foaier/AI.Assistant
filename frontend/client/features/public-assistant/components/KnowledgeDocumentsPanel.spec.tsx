@@ -36,7 +36,7 @@ function selectDocument(sizeBytes: number, fileName = 'guide.docx') {
 it('shows a 10 MB document upload limit in both supported source locales', async () => {
   vi.mocked(listKnowledgeDocuments).mockResolvedValue([]);
   setup(<KnowledgeDocumentsPanel knowledgeBaseId="kb" />);
-  expect(await screen.findByText(/支持 TXT、Markdown、JSON、DOCX，最大 10 MB/)).toBeInTheDocument();
+  expect(await screen.findByText(/支持 TXT、Markdown、JSON、DOCX 和可提取文字的 PDF，最大 10 MB/)).toBeInTheDocument();
   expect(publicAssistantMessages.enUS['publicAssistant.p0.uploadHelp']).toContain('up to 10 MB');
 });
 
@@ -69,7 +69,7 @@ it('clears the size warning when a valid document is selected next', async () =>
   expect(screen.getByTestId('knowledge-document-file')).toHaveValue('');
 });
 
-it.each([[0, 'empty.docx'], [1024, 'unsupported.pdf']] as const)('still blocks invalid documents (%i bytes, %s)', async (sizeBytes, fileName) => {
+it.each([[0, 'empty.docx'], [1024, 'unsupported.exe']] as const)('still blocks invalid documents (%i bytes, %s)', async (sizeBytes, fileName) => {
   vi.mocked(listKnowledgeDocuments).mockResolvedValue([]);
   setup(<KnowledgeDocumentsPanel knowledgeBaseId="kb" />);
   selectDocument(sizeBytes, fileName);

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using AI.Assistant.Models.Knowledge;
 using Xunit;
 
 namespace AI.Assistant.Tests;
@@ -267,6 +268,149 @@ public sealed class StandaloneHostTests
     }
 
     /// <summary>
+    /// 验证网页导入、HTML 解析、嵌入索引、发布和公开回答引用组成完整链路。
+    /// </summary>
+    [Fact]
+    public async Task Imported_web_knowledge_is_indexed_and_cited_in_public_chat()
+    {
+        using var model = new KnowledgeProviderFixture();
+        using var web = new WebPageFixture();
+        using var host = new TestHost(upstream: model, webUpstream: web);
+        using var admin = host.CreateClient();
+
+        var provider = await Data(await admin.PostAsJsonAsync("/api/admin/system/assistant-models/providers", new
+        {
+            expectedRevision = 0,
+            settings = new
+            {
+                name = "本地模拟模型",
+                baseUrl = "https://fixture.example.com/v1",
+                secretReference = "config://AssistantSecrets:FixtureChat",
+                secretVersion = "v1",
+                models = new object[]
+                {
+                    new { id = "fixture-chat", purpose = "chat", supportsTools = false },
+                    new { id = "fixture-embedding", purpose = "embedding", supportsTools = false, dimension = 4 }
+                }
+            }
+        }));
+        var providerId = provider.GetProperty("id").GetString()!;
+        var providerRevision = provider.GetProperty("revision").GetInt64();
+
+        var knowledge = await Data(await admin.PostAsJsonAsync("/api/admin/knowledge-bases", new
+        {
+            name = "报名知识库",
+            description = "本地端到端验收"
+        }));
+        var knowledgeId = knowledge.GetProperty("id").GetString()!;
+        await Data(await admin.PutAsJsonAsync($"/api/admin/knowledge-bases/{knowledgeId}/embedding-profile", new
+        {
+            providerId,
+            providerRevision,
+            model = "fixture-embedding",
+            dimension = 4,
+            expectedRevision = 0
+        }));
+
+        var document = await Data(await admin.PostAsJsonAsync($"/api/admin/knowledge-bases/{knowledgeId}/web-pages", new
+        {
+            url = "https://docs.example.com/2026-registration"
+        }));
+        var documentId = document.GetProperty("id").GetString()!;
+        Assert.Equal("https://docs.example.com/2026-registration", document.GetProperty("sourceUrl").GetString());
+        Assert.Equal("2026 活动报名指南.html", document.GetProperty("fileName").GetString());
+
+        var preview = await Data(await admin.GetAsync($"/api/admin/knowledge-bases/{knowledgeId}/documents/{documentId}/preview"));
+        Assert.Contains("报名截止日期为 2026 年 12 月 31 日", preview.GetProperty("originalText").GetString());
+        Assert.DoesNotContain("privateScriptMarker", preview.GetProperty("originalText").GetString());
+
+        var processed = await Data(await admin.PostAsJsonAsync($"/api/admin/knowledge-bases/{knowledgeId}/documents/{documentId}/process", new { }));
+        Assert.Equal("ready", processed.GetProperty("document").GetProperty("indexStatus").GetString());
+        Assert.Equal((int)AssistantKnowledgeIndexJobStatus.Succeeded,
+            processed.GetProperty("job").GetProperty("status").GetInt32());
+        Assert.True(model.EmbeddingCalls > 0);
+
+        var policy = await Data(await admin.PostAsJsonAsync("/api/admin/assistant-models/policies", new
+        {
+            expectedRevision = 0,
+            settings = new
+            {
+                name = "知识库问答策略",
+                businessCode = "registration_help",
+                providerId,
+                providerRevision,
+                model = "fixture-chat",
+                instructions = "请根据知识资料准确回答。",
+                knowledgeEnabled = true,
+                retrievalLimit = 5,
+                requireEvidence = true,
+                noAnswerMessage = "知识库中没有相关内容。"
+            }
+        }));
+        var assistant = await Data(await admin.PostAsJsonAsync("/api/admin/assistants", new
+        {
+            name = "报名助手",
+            configuration = new
+            {
+                businessPolicyId = policy.GetProperty("id").GetString(),
+                knowledgeBaseId = knowledgeId,
+                welcomeMessage = "欢迎咨询报名安排。",
+                anonymousChatEnabled = true,
+                capabilities = new { knowledgeQa = true, customQa = false, webSearch = false },
+                retrieval = new { topK = 5, rerank = false }
+            }
+        }));
+        var assistantId = assistant.GetProperty("id").GetString()!;
+        await Data(await admin.PostAsJsonAsync($"/api/admin/assistants/{assistantId}/publish", new
+        {
+            expectedDraftRevision = 1,
+            expectedPointerRevision = 0
+        }));
+
+        using var visitor = host.CreateClient();
+        var browserSession = await Data(await visitor.PostAsJsonAsync(
+            $"/api/public/assistants/{assistantId}/sessions",
+            new { subjectHash = "local-mock-e2e", locale = "zh-cn" }));
+        visitor.DefaultRequestHeaders.Add("X-Assistant-Session-Id",
+            browserSession.GetProperty("session").GetProperty("id").GetString());
+        visitor.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", browserSession.GetProperty("bearerToken").GetString());
+        var conversation = await Data(await visitor.PostAsJsonAsync(
+            $"/api/public/assistants/{assistantId}/conversations", new { locale = "zh-cn" }));
+        var conversationId = conversation.GetProperty("conversationId").GetString()!;
+        var turn = await Data(await visitor.PostAsJsonAsync(
+            $"/api/public/assistants/{assistantId}/conversations/{conversationId}/turns",
+            new { clientMessageId = "local-mock-e2e-message", messageType = "text", text = KnowledgeProviderFixture.Question, locale = "zh-cn" }));
+        var runId = turn.GetProperty("runId").GetString()!;
+        var ticket = Uri.EscapeDataString(turn.GetProperty("streamTicket").GetString()!);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var stream = await visitor.GetAsync(
+            $"/api/public/assistants/{assistantId}/runs/{runId}/events?conversationId={conversationId}&ticket={ticket}",
+            HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+        stream.EnsureSuccessStatusCode();
+        var frames = await stream.Content.ReadAsStringAsync(deadline.Token);
+        var envelopes = frames.Split('\n')
+            .Where(line => line.StartsWith("data: {", StringComparison.Ordinal))
+            .Select(line => JsonDocument.Parse(line[6..]).RootElement.Clone())
+            .ToArray();
+        var completed = Assert.Single(envelopes, value => value.GetProperty("type").GetString() == "message.completed");
+        Assert.Equal(KnowledgeProviderFixture.Answer, completed.GetProperty("payload").GetProperty("text").GetString());
+        var citation = Assert.Single(completed.GetProperty("payload").GetProperty("citations").EnumerateArray());
+        Assert.Equal("2026 活动报名指南.html", citation.GetProperty("documentName").GetString());
+        Assert.Equal("https://docs.example.com/2026-registration", citation.GetProperty("sourceUrl").GetString());
+        Assert.Contains("报名截止日期为 2026 年 12 月 31 日", citation.GetProperty("excerpt").GetString());
+        Assert.Contains("报名截止日期为 2026 年 12 月 31 日", model.LastSystemMessage, StringComparison.Ordinal);
+
+        var messages = await Data(await visitor.GetAsync(
+            $"/api/public/assistants/{assistantId}/conversations/{conversationId}/messages"));
+        var savedAnswer = Assert.Single(messages.GetProperty("items").EnumerateArray(),
+            value => value.GetProperty("role").GetInt32() == 2);
+        using var savedBody = JsonDocument.Parse(savedAnswer.GetProperty("contentJson").GetString()!);
+        Assert.Equal(1, savedBody.RootElement.GetProperty("citations").GetArrayLength());
+        Assert.Equal(1, model.ChatCalls);
+    }
+
+    /// <summary>
     /// 确认 HTTP 响应成功并拆取统一业务响应中的返回对象。
     /// </summary>
     private static async Task<JsonElement> Data(HttpResponseMessage response)
@@ -283,7 +427,10 @@ public sealed class StandaloneHostTests
     /// <summary>
     /// 仅供独立项目测试使用的测试辅助类型。
     /// </summary>
-    private sealed class TestHost(string? directory = null, HttpMessageHandler? upstream = null) : WebApplicationFactory<Program>
+    private sealed class TestHost(
+        string? directory = null,
+        HttpMessageHandler? upstream = null,
+        HttpMessageHandler? webUpstream = null) : WebApplicationFactory<Program>
     {
         /// <summary>
         /// 保存测试在处理目录时所需的数据或状态。
@@ -309,6 +456,8 @@ public sealed class StandaloneHostTests
                 services.AddSingleton<IStartupFilter>(new NoUserIdentityFilter());
                 if (upstream is not null)
                     services.AddHttpClient("assistant-provider").ConfigurePrimaryHttpMessageHandler(() => upstream);
+                if (webUpstream is not null)
+                    services.AddHttpClient("assistant-web-import").ConfigurePrimaryHttpMessageHandler(() => webUpstream);
             });
         }
     }
@@ -371,6 +520,117 @@ public sealed class StandaloneHostTests
             var chunk = JsonSerializer.Serialize(new { id = "fixture-completion", choices = new[] { new { index = 0, delta = new { content = Answer }, finish_reason = (string?)null } } });
             var done = JsonSerializer.Serialize(new { id = "fixture-completion", choices = new[] { new { index = 0, delta = new { }, finish_reason = "stop" } }, usage = new { prompt_tokens = 12, completion_tokens = 10, total_tokens = 22 } });
             return new(HttpStatusCode.OK) { Content = new StringContent($"data: {chunk}\n\ndata: {done}\n\ndata: [DONE]\n\n", Encoding.UTF8, "text/event-stream") };
+        }
+    }
+
+    /// <summary>
+    /// 为完整知识问答链路提供确定性的 OpenAI 兼容聊天和嵌入响应。
+    /// </summary>
+    private sealed class KnowledgeProviderFixture : HttpMessageHandler
+    {
+        /// <summary>
+        /// 定义端到端验收使用的问题配置值。
+        /// </summary>
+        public const string Question = "报名截止日期是什么？";
+        /// <summary>
+        /// 定义端到端验收使用的模型回答配置值。
+        /// </summary>
+        public const string Answer = "报名截止日期为 2026 年 12 月 31 日。";
+        /// <summary>
+        /// 表示模拟嵌入服务接收的请求数量。
+        /// </summary>
+        public int EmbeddingCalls { get; private set; }
+        /// <summary>
+        /// 表示模拟聊天服务接收的请求数量。
+        /// </summary>
+        public int ChatCalls { get; private set; }
+        /// <summary>
+        /// 保存最近一次聊天请求的系统提示词，供检索上下文断言使用。
+        /// </summary>
+        public string LastSystemMessage { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// 根据请求路径返回确定性嵌入向量或流式聊天完成事件。
+        /// </summary>
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal(ChatProviderFixture.TestToken, request.Headers.Authorization?.Parameter);
+            var path = request.RequestUri?.AbsolutePath;
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
+
+            if (path?.EndsWith("/embeddings", StringComparison.Ordinal) == true)
+            {
+                Assert.Equal("fixture-embedding", body.RootElement.GetProperty("model").GetString());
+                var inputCount = body.RootElement.GetProperty("input").GetArrayLength();
+                EmbeddingCalls++;
+                var vectors = Enumerable.Range(0, inputCount)
+                    .Select(index => new { index, embedding = new[] { 1f, 0f, 0f, 0f } })
+                    .ToArray();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new { data = vectors, model = "fixture-embedding" })
+                };
+            }
+
+            Assert.EndsWith("/chat/completions", path, StringComparison.Ordinal);
+            Assert.Equal("fixture-chat", body.RootElement.GetProperty("model").GetString());
+            Assert.True(body.RootElement.GetProperty("stream").GetBoolean());
+            var messages = body.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+            LastSystemMessage = messages.First(value => value.GetProperty("role").GetString() == "system")
+                .GetProperty("content").GetString()!;
+            Assert.Contains(Question, messages.Select(value => value.GetProperty("content").GetString()), StringComparer.Ordinal);
+            ChatCalls++;
+
+            var chunk = JsonSerializer.Serialize(new
+            {
+                id = "knowledge-fixture-completion",
+                choices = new[] { new { index = 0, delta = new { content = Answer }, finish_reason = (string?)null } }
+            });
+            var done = JsonSerializer.Serialize(new
+            {
+                id = "knowledge-fixture-completion",
+                choices = new[] { new { index = 0, delta = new { }, finish_reason = "stop" } }
+            });
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    $"data: {chunk}\n\ndata: {done}\n\ndata: [DONE]\n\n",
+                    Encoding.UTF8, "text/event-stream")
+            };
+        }
+    }
+
+    /// <summary>
+    /// 为网页导入流程提供固定 HTML，避免测试访问公网。
+    /// </summary>
+    private sealed class WebPageFixture : HttpMessageHandler
+    {
+        /// <summary>
+        /// 定义模拟网页中的正文内容配置值。
+        /// </summary>
+        public const string Html = """
+            <!doctype html><html><head><title>2026 活动报名指南</title></head>
+            <body><nav>导航栏不应进入知识库</nav><main><h1>报名安排</h1>
+            <p>本项目报名截止日期为 2026 年 12 月 31 日，请通过活动官网提交申请。</p>
+            </main><script>privateScriptMarker()</script></body></html>
+            """;
+
+        /// <summary>
+        /// 返回模拟公开网页内容，并确认测试请求的目标地址。
+        /// </summary>
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.Equal("https://docs.example.com/2026-registration", request.RequestUri?.AbsoluteUri);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(Html, Encoding.UTF8, "text/html")
+            });
         }
     }
 }

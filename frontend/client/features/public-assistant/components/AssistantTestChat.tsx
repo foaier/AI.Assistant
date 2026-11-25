@@ -5,6 +5,8 @@ import { AssistantCountedInput } from './AssistantCountedField';
 import { useI18n } from '@/context/i18nContext';
 import { getAssistantPreviewMessages, submitAssistantPreview, type AssistantPreview } from '../services/publicAssistantService';
 import { AssistantAnswerDisclosure } from './AssistantAnswerDisclosure';
+import { AssistantKnowledgeCitations } from './AssistantKnowledgeCitations';
+import type { AssistantCitation } from '../services/assistantChatService';
 
 export function AssistantTestChat({ assistantId, dirty, create }: {
   assistantId: string;
@@ -61,7 +63,7 @@ export function AssistantTestChat({ assistantId, dirty, create }: {
       </p>
       <div className="max-h-96 space-y-3 overflow-y-auto" role="log" aria-live="polite" aria-label={label('messages')}>
         {messages.data?.items.map(message => {
-          let body: { text?: string; source?: string } = {};
+          let body: { text?: string; source?: string; citations?: AssistantCitation[] } = {};
           try { body = JSON.parse(message.contentJson); } catch { /* Preserve status when content is unavailable. */ }
           if (!body.text) return null;
           return <div key={message.id} data-testid={message.role === 1 ? 'assistant-test-user-message' : 'assistant-test-answer'}
@@ -72,6 +74,7 @@ export function AssistantTestChat({ assistantId, dirty, create }: {
             ) : (
               <AssistantAnswerDisclosure>
                 <div className="whitespace-pre-wrap break-words">{body.text}</div>
+                <AssistantKnowledgeCitations citations={body.citations} />
               </AssistantAnswerDisclosure>
             )}
           </div>;

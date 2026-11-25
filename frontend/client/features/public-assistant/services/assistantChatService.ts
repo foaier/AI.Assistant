@@ -30,10 +30,24 @@ export interface ChatTurn {
   streamTicket: string;
   acceptedSequence: number;
 }
+export interface AssistantCitation {
+  segmentId: string;
+  documentId: string;
+  documentName: string;
+  segmentIndex: number;
+  relevance: number;
+  excerpt: string;
+  sourceUrl?: string | null;
+}
 export interface ChatEvent {
   type: string;
   sequence: number;
-  payload: { text?: string; source?: string; code?: string };
+  payload: {
+    text?: string;
+    source?: string;
+    code?: string;
+    citations?: AssistantCitation[];
+  };
 }
 export class AssistantStreamTimeoutError extends Error {
   constructor() {

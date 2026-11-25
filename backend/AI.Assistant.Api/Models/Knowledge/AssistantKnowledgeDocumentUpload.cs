@@ -8,4 +8,5 @@ public sealed record AssistantKnowledgeDocumentUpload(
     string FileName,
     string ContentType,
     long SizeBytes,
-    Stream Content);
+    Stream Content,
+    string? SourceUrl = null);

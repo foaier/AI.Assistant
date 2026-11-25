@@ -73,7 +73,7 @@ public sealed class AssistantKnowledgeRuntimeRetriever : IAssistantKnowledgeRunt
         if (await _knowledge.GetBaseAsync(snapshot.KnowledgeBaseId, cancellationToken) is null)
             return Array.Empty<AssistantKnowledgeRuntimeMatch>();
 
-        var candidates = new Dictionary<string, (AssistantKnowledgeChunkEntity Chunk, string DocumentId, string DocumentName)>();
+        var candidates = new Dictionary<string, (AssistantKnowledgeChunkEntity Chunk, string DocumentId, string DocumentName, string? SourceUrl)>();
         foreach (var frozen in snapshot.Documents)
         {
             var document = await _documents.GetDocumentAsync(
@@ -92,7 +92,7 @@ public sealed class AssistantKnowledgeRuntimeRetriever : IAssistantKnowledgeRunt
 
             foreach (var chunk in await _documents.ListChunksAsync(
                 version.Id, cancellationToken))
-                candidates[chunk.Id] = (chunk, document.Id, frozen.Name);
+                candidates[chunk.Id] = (chunk, document.Id, frozen.Name, frozen.SourceUrl);
         }
 
         if (candidates.Count == 0)
@@ -133,7 +133,7 @@ public sealed class AssistantKnowledgeRuntimeRetriever : IAssistantKnowledgeRunt
             var relevance = Math.Clamp(hit.Score * 0.75d + lexical * 0.25d, 0d, 1d);
             result.Add(new AssistantKnowledgeRuntimeMatch(
                 candidate.Chunk.Id, candidate.DocumentId, candidate.DocumentName,
-                candidate.Chunk.ChunkIndex, candidate.Chunk.Content, relevance));
+                candidate.Chunk.ChunkIndex, candidate.Chunk.Content, relevance, candidate.SourceUrl));
         }
 
         return result.OrderByDescending(x => x.Relevance)

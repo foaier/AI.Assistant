@@ -43,7 +43,7 @@ namespace AI.Assistant.Persistence
         /// </summary>
         private static readonly (string Version, string Sha256)[] Migrations =
         [
-            ("001_initial.sql", "353b344c285e184536a118871ffbe8cac9a286c249048cb1665e2b663d65e925")
+            ("001_initial.sql", "4b8ee87aa3a392b964149ca4f7abc3422b5b2812b839b44a49068de753c48cce")
         ];
 
         /// <summary>

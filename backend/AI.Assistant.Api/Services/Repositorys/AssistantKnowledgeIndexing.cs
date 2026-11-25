@@ -4,9 +4,12 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
+using System.Text.RegularExpressions;
 using Grpc.Core;
+using HtmlAgilityPack;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
+using UglyToad.PdfPig;
 using AI.Assistant.Models.AI;
 using AI.Assistant.Models.Knowledge;
 
@@ -18,13 +21,13 @@ namespace AI.Assistant.Services.Repositorys;
 public interface IAssistantDocumentParser
 {
     /// <summary>
-    /// 按媒体类型读取文本或 DOCX 正文，返回标准化文本与解析器版本。
+    /// 按媒体类型读取文本、DOCX、PDF 或 HTML 正文，返回标准化文本与解析器版本。
     /// </summary>
     Task<AssistantParsedDocument> ParseAsync(string contentType, string fileName, Stream content, CancellationToken ct);
 }
 
 /// <summary>
-/// 解析文本、Markdown、JSON 和 DOCX 文档，并拒绝不支持或空白的内容。
+/// 解析文本、Markdown、JSON、DOCX、PDF 和 HTML 文档，并拒绝不支持或空白的内容。
 /// </summary>
 public sealed class AssistantDocumentParser : IAssistantDocumentParser
 {
@@ -37,6 +40,12 @@ public sealed class AssistantDocumentParser : IAssistantDocumentParser
         if (normalized == "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             return await ParseDocxAsync(content, ct);
 
+        if (normalized == "application/pdf")
+            return ParsePdf(content, ct);
+
+        if (normalized is "text/html" or "application/xhtml+xml")
+            return await ParseHtmlAsync(content, ct);
+
         if (normalized is not ("text/plain" or "text/markdown" or "application/json"))
             throw new InvalidDataException("knowledge_document_parser_unsupported_type");
 
@@ -45,6 +54,112 @@ public sealed class AssistantDocumentParser : IAssistantDocumentParser
         if (string.IsNullOrWhiteSpace(text))
             throw new InvalidDataException("knowledge_document_empty");
         return new AssistantParsedDocument(text.Replace("\r\n", "\n", StringComparison.Ordinal), "text-v1");
+    }
+
+    /// <summary>
+    /// 逐页提取 PDF 文本，并将解析器错误转换为稳定的业务错误码。
+    /// </summary>
+    private static AssistantParsedDocument ParsePdf(Stream content, CancellationToken ct)
+    {
+        var pages = new List<string>();
+        var totalTextLength = 0;
+        try
+        {
+            using var document = PdfDocument.Open(content);
+            foreach (var page in document.GetPages())
+            {
+                ct.ThrowIfCancellationRequested();
+                var text = page.Text.Trim();
+                if (text.Length > 0)
+                {
+                    pages.Add(text);
+                    totalTextLength += text.Length;
+                    if (totalTextLength > 25 * 1024 * 1024)
+                        throw new InvalidDataException("knowledge_document_text_too_large");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (InvalidDataException ex) when (ex.Message == "knowledge_document_text_too_large")
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidDataException("knowledge_document_pdf_invalid", ex);
+        }
+
+        var extracted = string.Join("\n\n", pages);
+        if (string.IsNullOrWhiteSpace(extracted))
+            throw new InvalidDataException("knowledge_document_empty");
+        return new AssistantParsedDocument(extracted, "pdf-v1");
+    }
+
+    /// <summary>
+    /// 读取 UTF-8 HTML 后提取可见标题和正文。
+    /// </summary>
+    private static async Task<AssistantParsedDocument> ParseHtmlAsync(Stream content, CancellationToken ct)
+    {
+        using var reader = new StreamReader(content, new UTF8Encoding(false, true),
+            detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        var html = await reader.ReadToEndAsync(ct);
+        var document = new HtmlDocument { OptionFixNestedTags = true };
+        document.LoadHtml(html);
+        foreach (var node in document.DocumentNode.SelectNodes(
+            "//script|//style|//nav|//header|//footer|//aside|//noscript|//svg|//iframe|//form|//template|//comment()")
+            ?? Enumerable.Empty<HtmlNode>())
+            node.Remove();
+
+        var title = document.DocumentNode.SelectSingleNode("//title")?.InnerText;
+        title = string.IsNullOrWhiteSpace(title) ? null : HtmlEntity.DeEntitize(title).Trim();
+        var root = document.DocumentNode.SelectSingleNode("//main")
+            ?? document.DocumentNode.SelectSingleNode("//article")
+            ?? document.DocumentNode.SelectSingleNode("//body")
+            ?? document.DocumentNode;
+        var builder = new StringBuilder();
+        AppendVisibleHtmlText(root, builder);
+        var text = Regex.Replace(builder.ToString(), @"[ \t]+\n", "\n", RegexOptions.CultureInvariant);
+        text = Regex.Replace(text, @"\n{3,}", "\n\n", RegexOptions.CultureInvariant).Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new InvalidDataException("knowledge_document_empty");
+        return new AssistantParsedDocument(text, "html-v1", title);
+    }
+
+    /// <summary>
+    /// 递归保留 HTML 正文中的段落和标题，跳过不可见节点。
+    /// </summary>
+    private static void AppendVisibleHtmlText(HtmlNode node, StringBuilder builder)
+    {
+        if (node.NodeType == HtmlNodeType.Comment)
+            return;
+        if (node.NodeType == HtmlNodeType.Text)
+        {
+            var value = Regex.Replace(HtmlEntity.DeEntitize(node.InnerText), @"\s+", " ", RegexOptions.CultureInvariant);
+            if (value.Length > 0)
+                builder.Append(value);
+            return;
+        }
+
+        var name = node.Name.ToLowerInvariant();
+        var isBlock = name is "address" or "article" or "blockquote" or "div" or "dl" or "dt" or "dd"
+            or "fieldset" or "figcaption" or "figure" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
+            or "li" or "main" or "ol" or "p" or "pre" or "section" or "table" or "tr" or "ul";
+        if (isBlock && builder.Length > 0 && builder[^1] != '\n')
+            builder.Append('\n');
+        if (name is "h1" or "h2" or "h3" or "h4" or "h5" or "h6")
+            builder.Append(new string('#', name[1] - '0')).Append(' ');
+
+        if (name == "br")
+            builder.Append('\n');
+        else
+            foreach (var child in node.ChildNodes)
+                AppendVisibleHtmlText(child, builder);
+
+        if (isBlock && (builder.Length == 0 || builder[^1] != '\n'))
+            builder.Append('\n');
     }
 
     /// <summary>
@@ -213,8 +328,7 @@ public sealed class OpenAiCompatibleEmbeddingProvider : IAssistantEmbeddingProvi
     /// <summary>
     /// 分批请求兼容 OpenAI 的嵌入接口，并校验返回数量、顺序和向量维度。
     /// </summary>
-    private static async Task<IReadOnlyList<float[]>> EmbedBatchAsync(HttpClient client, IReadOnlyList<string> inputs,
-        OpenAiCompatibleProviderCredential credential, AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
+    private static async Task<IReadOnlyList<float[]>> EmbedBatchAsync(HttpClient client, IReadOnlyList<string> inputs, OpenAiCompatibleProviderCredential credential, AssistantKnowledgeEmbeddingExecutionProfile profile, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Application.AssistantPolicyService.ApiEndpoint(credential.BaseUrl.ToString(), "embeddings"));
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential.ApiKey);
@@ -269,9 +383,7 @@ public interface IAssistantVectorIndexStore
     /// <summary>
     /// 在指定集合内检索相似向量；提供片段白名单时只返回允许范围内的候选。
     /// </summary>
-    Task<IReadOnlyList<AssistantVectorSearchHit>> SearchAsync(
-        string collectionName, ReadOnlyMemory<float> vector, int limit, CancellationToken ct,
-        IReadOnlyCollection<string>? allowedChunkIds = null);
+    Task<IReadOnlyList<AssistantVectorSearchHit>> SearchAsync(string collectionName, ReadOnlyMemory<float> vector, int limit, CancellationToken ct, IReadOnlyCollection<string>? allowedChunkIds = null);
 }
 
 /// <summary>

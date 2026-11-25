@@ -17,4 +17,5 @@ public sealed record AssistantKnowledgeDocumentDto(
     AssistantKnowledgeIndexJobStatus? LastIndexJobStatus,
     string? LastErrorCode,
     string IndexStatus = "unknown",
-    long? IndexGeneration = null);
+    long? IndexGeneration = null,
+    string? SourceUrl = null);

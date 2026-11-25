@@ -8,4 +8,5 @@ public sealed record AssistantFrozenDocument(
     string Id,
     string VersionId,
     int VersionNo,
-    string Name);
+    string Name,
+    string? SourceUrl = null);

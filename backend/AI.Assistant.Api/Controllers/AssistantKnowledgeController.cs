@@ -1,9 +1,11 @@
 #nullable enable
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using AI.Assistant.Models.Common;
 using AI.Assistant.Models.Knowledge;
 using AI.Assistant.Infrastructure;
 using AI.Assistant.Services.Contracts;
+using AI.Assistant.Services.Repositorys;
 
 namespace AI.Assistant.Controllers;
 
@@ -20,11 +22,19 @@ public sealed class AssistantKnowledgeController : ControllerBase
     private readonly IAssistantKnowledgeService _service;
 
     /// <summary>
+    /// 保存经过公网地址校验的网页导入服务。
+    /// </summary>
+    private readonly IAssistantWebPageImporter _webPageImporter;
+
+    /// <summary>
     /// 接收并保存助手知识控制器执行所需的依赖，建立后续操作使用的运行状态。
     /// </summary>
-    public AssistantKnowledgeController(IAssistantKnowledgeService service)
+    public AssistantKnowledgeController(
+        IAssistantKnowledgeService service,
+        IAssistantWebPageImporter webPageImporter)
     {
         _service = service;
+        _webPageImporter = webPageImporter;
     }
 
     /// <summary>
@@ -172,6 +182,28 @@ public sealed class AssistantKnowledgeController : ControllerBase
     }
 
     /// <summary>
+    /// 抓取单个公开网页并将其保存为待整理的私有知识文档。
+    /// </summary>
+    [HttpPost("{knowledgeBaseId}/web-pages")]
+    [RequestSizeLimit(64 * 1024)]
+    public async Task<BizResult<AssistantKnowledgeDocumentDto>> ImportWebPageAsync(
+        string knowledgeBaseId,
+        [FromBody] ImportWebPageRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Url) || request.Url.Length > 2048)
+            throw new InvalidDataException("knowledge_web_page_url_invalid");
+
+        var page = await _webPageImporter.FetchAsync(request.Url, cancellationToken);
+        var title = SanitizeWebPageTitle(page.Title, new Uri(page.SourceUrl).Host);
+        await using var content = new MemoryStream(Encoding.UTF8.GetBytes(page.Html), writable: false);
+        var upload = new AssistantKnowledgeDocumentUpload(
+            $"{title}.html", "text/html", content.Length, content, page.SourceUrl);
+        return BizResult.BusinessSuccess(await _service.UploadDocumentAsync(
+            knowledgeBaseId, upload, cancellationToken));
+    }
+
+    /// <summary>
     /// 请求处理文档及其索引。
     /// </summary>
     [HttpPost("{knowledgeBaseId}/documents/{documentId}/process")]
@@ -210,5 +242,21 @@ public sealed class AssistantKnowledgeController : ControllerBase
         string knowledgeBaseId, CancellationToken cancellationToken)
     {
         return BizResult.BusinessSuccess(await _service.ListIndexJobsAsync(knowledgeBaseId, cancellationToken));
+    }
+
+    /// <summary>
+    /// 清理网页标题中的路径分隔符和文件系统保留字符，生成可读文档名。
+    /// </summary>
+    private static string SanitizeWebPageTitle(string title, string fallback)
+    {
+        var invalid = Path.GetInvalidFileNameChars()
+            .Concat("<>:\"/\\|?*".ToCharArray())
+            .ToHashSet();
+        var safe = new string((string.IsNullOrWhiteSpace(title) ? fallback : title)
+            .Where(character => !invalid.Contains(character) && !char.IsControl(character))
+            .ToArray()).Trim().TrimEnd('.');
+        if (safe.Length > 120)
+            safe = safe[..120].TrimEnd();
+        return string.IsNullOrWhiteSpace(safe) ? "web-page" : safe;
     }
 }

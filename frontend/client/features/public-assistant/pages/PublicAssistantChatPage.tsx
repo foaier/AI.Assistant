@@ -28,6 +28,7 @@ import {
 } from "../components/AssistantIdentity";
 import AssistantMessageMarkdown from "../components/AssistantMessageMarkdown";
 import { AssistantAnswerDisclosure } from "../components/AssistantAnswerDisclosure";
+import { AssistantKnowledgeCitations } from "../components/AssistantKnowledgeCitations";
 import { splitAssistantWelcomeMessage } from "../services/assistantPresentation";
 import {
   readAssistantHistory,
@@ -45,6 +46,7 @@ import {
   type ChatEvent,
   type ChatSession,
   type ChatTurn,
+  type AssistantCitation,
 } from "../services/assistantChatService";
 import { resolveChatBackground } from "../services/assistantTheme";
 
@@ -54,6 +56,7 @@ type Bubble = {
   role: number;
   text: string;
   source?: string;
+  citations?: AssistantCitation[];
 };
 type ActivePending = {
   id: string;
@@ -184,7 +187,7 @@ function AssistantChat({ assistantKey }: { assistantKey: string }) {
     const result = await readChat(assistantKey, value);
     const bubbles = result.items
       .map((item) => {
-        let body: { text?: string; source?: string } = {};
+        let body: { text?: string; source?: string; citations?: AssistantCitation[] } = {};
         try {
           body = JSON.parse(item.contentJson);
         } catch {
@@ -196,6 +199,7 @@ function AssistantChat({ assistantKey }: { assistantKey: string }) {
           role: item.role,
           text: body.text ?? "",
           source: body.source,
+          citations: body.citations,
           clientMessageId: item.clientMessageId,
           status: item.status,
         };
@@ -398,6 +402,10 @@ function AssistantChat({ assistantKey }: { assistantKey: string }) {
                   ? (event.payload.text ?? "")
                   : (existing?.text ?? "") + (event.payload.text ?? ""),
               source: event.payload.source,
+              citations:
+                event.type === "message.completed"
+                  ? event.payload.citations
+                  : existing?.citations,
             };
             return [
               ...previous.filter(
@@ -808,6 +816,7 @@ function AssistantChat({ assistantKey }: { assistantKey: string }) {
                       }}
                     >
                       <AssistantMessageMarkdown text={message.text} />
+                      <AssistantKnowledgeCitations citations={message.citations} />
                     </AssistantAnswerDisclosure>
                   )}
                 </div>

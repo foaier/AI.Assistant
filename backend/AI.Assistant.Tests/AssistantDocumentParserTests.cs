@@ -56,12 +56,48 @@ public sealed class AssistantDocumentParserTests
     }
 
     /// <summary>
+    /// 验证 PDF 文本可以按页面顺序提取，并保留页面之间的分隔。
+    /// </summary>
+    [Fact]
+    public async Task Pdf_documents_extract_page_text()
+    {
+        var parser = new AssistantDocumentParser();
+        await using var content = CreatePdf("PDF extraction marker");
+
+        var parsed = await parser.ParseAsync("application/pdf", "guide.pdf", content, CancellationToken.None);
+
+        Assert.Equal("pdf-v1", parsed.ParserVersion);
+        Assert.Contains("PDF extraction marker", parsed.Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 验证 HTML 正文会提取标题和主体内容，并排除脚本及导航文本。
+    /// </summary>
+    [Fact]
+    public async Task Html_documents_extract_title_and_visible_body_text()
+    {
+        var parser = new AssistantDocumentParser();
+        const string html = """
+            <!doctype html><html><head><title>报名指南</title><script>privateScriptMarker()</script></head>
+            <body><nav>导航不应进入知识库</nav><main><h1>活动报名</h1><p>请在 10 月 1 日前提交申请。</p></main></body></html>
+            """;
+        await using var content = new MemoryStream(Encoding.UTF8.GetBytes(html));
+
+        var parsed = await parser.ParseAsync("text/html", "guide.html", content, CancellationToken.None);
+
+        Assert.Equal("html-v1", parsed.ParserVersion);
+        Assert.Equal("报名指南", parsed.Title);
+        Assert.Contains("活动报名", parsed.Text, StringComparison.Ordinal);
+        Assert.Contains("10 月 1 日", parsed.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("privateScriptMarker", parsed.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("导航不应进入知识库", parsed.Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// 验证缺少真实解析器的格式被明确拒绝。
     /// </summary>
     [Theory]
-    [InlineData("application/pdf")]
     [InlineData("application/msword")]
-    [InlineData("text/html")]
     public async Task Formats_without_a_real_parser_fail_closed(string contentType)
     {
         var parser = new AssistantDocumentParser();
@@ -71,6 +107,21 @@ public sealed class AssistantDocumentParserTests
             parser.ParseAsync(contentType, "document.bin", content, CancellationToken.None));
 
         Assert.Equal("knowledge_document_parser_unsupported_type", error.Message);
+    }
+
+    /// <summary>
+    /// 验证内容并非有效 PDF 时返回稳定的解析错误。
+    /// </summary>
+    [Fact]
+    public async Task Invalid_pdf_documents_fail_with_a_stable_error()
+    {
+        var parser = new AssistantDocumentParser();
+        await using var content = new MemoryStream("not a pdf"u8.ToArray());
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            parser.ParseAsync("application/pdf", "broken.pdf", content, CancellationToken.None));
+
+        Assert.Equal("knowledge_document_pdf_invalid", error.Message);
     }
 
     /// <summary>
@@ -85,6 +136,41 @@ public sealed class AssistantDocumentParserTests
             writer.Write(documentXml);
         }
 
+        stream.Position = 0;
+        return stream;
+    }
+
+    /// <summary>
+    /// 生成带有有效交叉引用表的单页 PDF 测试文档。
+    /// </summary>
+    private static MemoryStream CreatePdf(string text)
+    {
+        var stream = new MemoryStream();
+        var offsets = new List<long> { 0 };
+        void Write(string value) => stream.Write(Encoding.ASCII.GetBytes(value));
+
+        Write("%PDF-1.4\n");
+        var objects = new[]
+        {
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+        };
+        foreach (var (body, index) in objects.Select((body, index) => (body, index)))
+        {
+            offsets.Add(stream.Position);
+            Write($"{index + 1} 0 obj\n{body}\nendobj\n");
+        }
+
+        var content = $"BT\n/F1 12 Tf\n72 720 Td\n({text}) Tj\nET\n";
+        offsets.Add(stream.Position);
+        Write($"5 0 obj\n<< /Length {Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}endstream\nendobj\n");
+        var xrefOffset = stream.Position;
+        Write("xref\n0 6\n0000000000 65535 f \n");
+        foreach (var offset in offsets.Skip(1))
+            Write($"{offset:0000000000} 00000 n \n");
+        Write($"trailer\n<< /Root 1 0 R /Size 6 >>\nstartxref\n{xrefOffset}\n%%EOF\n");
         stream.Position = 0;
         return stream;
     }

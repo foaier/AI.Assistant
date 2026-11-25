@@ -387,6 +387,11 @@ CREATE TABLE assistant_knowledge_document (
     file_name TEXT NOT NULL,
 
     /*
+     * 保存网页知识来源地址；本地上传文件不设置此值。
+     */
+    source_url TEXT NULL,
+
+    /*
      * 记录上传文件的媒体类型。
      */
     content_type TEXT NOT NULL,

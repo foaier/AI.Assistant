@@ -195,6 +195,7 @@ export interface AssistantKnowledgeDocument {
   lastErrorCode?: string | null;
   indexStatus: string;
   indexGeneration?: number | null;
+  sourceUrl?: string | null;
 }
 
 export interface AssistantKnowledgeDocumentPreview {
@@ -416,6 +417,16 @@ export async function uploadKnowledgeDocument(
   return apiClient.postFormData<AssistantKnowledgeDocument>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents`,
     formData,
+  );
+}
+
+export async function importKnowledgeWebPage(
+  knowledgeBaseId: string,
+  url: string,
+): Promise<AssistantKnowledgeDocument> {
+  return apiClient.post<AssistantKnowledgeDocument>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/web-pages`,
+    { url },
   );
 }
 

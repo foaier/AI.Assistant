@@ -6,4 +6,5 @@ namespace AI.Assistant.Models.Knowledge;
 /// </summary>
 public sealed record AssistantParsedDocument(
     string Text,
-    string ParserVersion);
+    string ParserVersion,
+    string? Title = null);

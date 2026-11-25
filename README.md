@@ -218,6 +218,8 @@ Assistant__Knowledge__Qdrant__Endpoint: http://host.docker.internal:6334
 3. 在“智能助手”创建助手，选择策略，设置欢迎语、外观和功能；需要知识问答时绑定知识库。
 4. 在工作台测试并发布，使用生成的 `/assistants/{assistantKey}` 链接公开访问。草稿与已发布版本隔离；更新公开内容需要重新发布。
 
+知识库文档支持 TXT、Markdown、JSON、DOCX 和可提取文字的 PDF，也可以导入单个公开网页。扫描版 PDF 不包含 OCR。网页导入只访问公网 HTTP(S) 的 80/443 端口，会检查 DNS 目标和每次跳转地址；单页响应最大 5 MB。选择 Embedding 模型并整理成功后，回答会附上实际使用的文档片段；网页来源还会显示原始链接。
+
 模型和基础设施配置集中在 `backend/AI.Assistant.Api/appsettings.json`，运行时无需连接 Apollo。原业务数据库和会话数据独立保留在各自项目中。
 
 后端统一使用 `DateTime.Now` 获取当前时间，按服务器本地时间处理业务日期；接口返回的日期包含本地时区偏移。

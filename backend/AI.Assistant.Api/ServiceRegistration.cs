@@ -8,6 +8,7 @@ using AI.Assistant.Infrastructure.Assets;
 using AI.Assistant.Infrastructure.Events;
 using AI.Assistant.Infrastructure.Security;
 using Qdrant.Client;
+using System.Net.Sockets;
 using AI.Assistant.Persistence;
 using AI.Assistant.Models.AI;
 
@@ -49,6 +50,18 @@ public static class ServiceRegistration
         services.AddScoped<AssistantWebSearchConfigurationService>();
         services.AddScoped<IAssistantKnowledgeRuntimeRetriever, AssistantKnowledgeRuntimeRetriever>();
         services.AddSingleton<IAssistantDocumentParser, AssistantDocumentParser>();
+        services.AddHttpClient("assistant-web-import", client => client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+                AutomaticDecompression = System.Net.DecompressionMethods.All,
+                ConnectCallback = AssistantWebPageImporter.ConnectToPublicAddressAsync,
+                ConnectTimeout = TimeSpan.FromSeconds(8),
+                UseProxy = false
+            });
+        services.AddScoped<IAssistantWebPageImporter>(sp => new AssistantWebPageImporter(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("assistant-web-import"),
+            sp.GetRequiredService<IAssistantDocumentParser>()));
         services.AddScoped<IAssistantEmbeddingProvider, OpenAiCompatibleEmbeddingProvider>();
         services.AddSingleton<IAssistantVectorIndexStore>(sp =>
         {

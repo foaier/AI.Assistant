@@ -35,6 +35,12 @@ public sealed class AssistantKnowledgeDocumentEntity
     public string FileName { get; set; } = string.Empty;
 
     /// <summary>
+    /// 保存网页来源地址；上传的本地文件不设置此值。
+    /// </summary>
+    [SugarColumn(ColumnName = "source_url", IsNullable = true)]
+    public string? SourceUrl { get; set; }
+
+    /// <summary>
     /// 记录上传文件的媒体类型。
     /// </summary>
     [SugarColumn(ColumnName = "content_type")]

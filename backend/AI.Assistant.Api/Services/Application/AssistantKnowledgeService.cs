@@ -482,6 +482,7 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
             KnowledgeBaseId = knowledgeBaseId,
             AssetId = asset.AssetId,
             FileName = asset.FileName,
+            SourceUrl = file.SourceUrl,
             ContentType = asset.ContentType,
             SizeBytes = asset.SizeBytes,
             CurrentVersionNo = 1,
@@ -1121,7 +1122,8 @@ public sealed class AssistantKnowledgeService : IAssistantKnowledgeService
                 : job?.Status == "succeeded"
                     ? profile is not null && MatchesActiveProfile(job, profile) ? "ready" : "pending_rebuild"
                     : job?.Status ?? "queued",
-            job?.Generation);
+            job?.Generation,
+            document.SourceUrl);
 
     /// <summary>
     /// 将领域对象转换为应用层返回的数据传输对象。

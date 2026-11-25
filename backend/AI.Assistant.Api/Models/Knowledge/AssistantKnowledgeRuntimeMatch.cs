@@ -10,4 +10,5 @@ public sealed record AssistantKnowledgeRuntimeMatch(
     string DocumentName,
     int SegmentIndex,
     string Text,
-    double Relevance);
+    double Relevance,
+    string? SourceUrl = null);

@@ -565,7 +565,9 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 documentId = item.DocumentId,
                 documentName = item.DocumentName,
                 segmentIndex = item.SegmentIndex,
-                relevance = item.Relevance
+                relevance = item.Relevance,
+                excerpt = CitationExcerpt(item.Text),
+                sourceUrl = item.SourceUrl
             }).ToArray()
         }), now);
         run.Complete(now);
@@ -587,7 +589,16 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 turnId = turn.Id,
                 text,
                 source = evidence.Count > 0 ? "knowledge" : "model",
-                citations = evidence.Select(item => new { item.SegmentId, item.DocumentId, item.DocumentName, item.SegmentIndex, item.Relevance }).ToArray()
+                citations = evidence.Select(item => new
+                {
+                    segmentId = item.SegmentId,
+                    documentId = item.DocumentId,
+                    documentName = item.DocumentName,
+                    segmentIndex = item.SegmentIndex,
+                    relevance = item.Relevance,
+                    excerpt = CitationExcerpt(item.Text),
+                    sourceUrl = item.SourceUrl
+                }).ToArray()
             }, cancellationToken);
         await PublishEventAsync(scope, run, AssistantRunEventTypes.RunCompleted,
             new
@@ -595,9 +606,31 @@ public sealed class AssistantRunOrchestrator : IAssistantRuntimeOrchestrator
                 runId = run.Id,
                 turnId = turn.Id,
                 source = evidence.Count > 0 ? "knowledge" : "model",
-                citations = evidence.Select(item => new { item.SegmentId, item.DocumentId, item.DocumentName, item.SegmentIndex, item.Relevance }).ToArray(),
+                citations = evidence.Select(item => new
+                {
+                    segmentId = item.SegmentId,
+                    documentId = item.DocumentId,
+                    documentName = item.DocumentName,
+                    segmentIndex = item.SegmentIndex,
+                    relevance = item.Relevance,
+                    excerpt = CitationExcerpt(item.Text),
+                    sourceUrl = item.SourceUrl
+                }).ToArray(),
                 usage = new { run.PromptTokens, run.CompletionTokens, run.TotalTokens }
             }, cancellationToken);
+    }
+
+    /// <summary>
+    /// 截取有限长度的检索正文，作为公开回答下方的来源预览。
+    /// </summary>
+    private static string CitationExcerpt(string text)
+    {
+        var normalized = string.Join(' ', (text ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        const int maximumLength = 420;
+        return normalized.Length <= maximumLength
+            ? normalized
+            : normalized[..maximumLength].TrimEnd() + "…";
     }
 
     /// <summary>

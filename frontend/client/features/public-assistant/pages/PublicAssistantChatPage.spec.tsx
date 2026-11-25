@@ -41,6 +41,9 @@ vi.mock("@/context/i18nContext", () => ({
         "publicAssistant.chat.retry": "重试",
         "publicAssistant.chat.newChat": "新对话",
         "publicAssistant.chat.messages": "对话内容",
+        "publicAssistant.chat.sources": "参考来源",
+        "publicAssistant.chat.segment": "片段",
+        "publicAssistant.chat.openSource": "打开原网页",
         "publicAssistant.chat.answering": "正在回答…",
         "publicAssistant.chat.answerFailed": "回答失败",
         "publicAssistant.chat.answerTimeout": "回复等待超时，请重新发送问题。",
@@ -1002,6 +1005,75 @@ describe("PublicAssistantChatPage", () => {
     expect(
       answer.querySelector('a[href="https://example.test/help"]'),
     ).toHaveTextContent("查看说明");
+  });
+
+  it("renders grounded sources below the answer and only links safe web URLs", async () => {
+    const session = {
+      sessionId: "session-citations",
+      bearerToken: "citations-token",
+      conversationId: "conversation-citations",
+      publishedVersionId: "version-1",
+      expiresAt: "2099-01-01T00:00:00Z",
+    };
+    mockedCreateChat.mockResolvedValue(session);
+    mockedSendChat.mockResolvedValue({
+      turnId: "turn-citations",
+      runId: "run-citations",
+      conversationId: session.conversationId,
+      streamTicket: "ticket-citations",
+      acceptedSequence: 0,
+    });
+    mockedReadChat.mockResolvedValue({ items: [] });
+    mockedStreamChat.mockImplementation(
+      async (_key, _session, _turn, _transport, _sequence, onEvent) => {
+        onEvent({
+          type: "message.completed",
+          sequence: 1,
+          payload: {
+            text: "报名截止日期为 2026 年 12 月 31 日。",
+            source: "knowledge",
+            citations: [
+              {
+                segmentId: "segment-web-1",
+                documentId: "document-web",
+                documentName: "2026 活动报名指南",
+                segmentIndex: 0,
+                relevance: 1,
+                excerpt: "本项目报名截止日期为 2026 年 12 月 31 日。",
+                sourceUrl: "https://docs.example.com/guide",
+              },
+              {
+                segmentId: "segment-file-1",
+                documentId: "document-file",
+                documentName: "线下申请说明.pdf",
+                segmentIndex: 2,
+                relevance: 0.7,
+                excerpt: "纸质材料请于工作时间交到服务台。",
+                sourceUrl: "javascript:alert(1)",
+              },
+            ],
+          },
+        });
+        onEvent({ type: "run.completed", sequence: 2, payload: {} });
+      },
+    );
+
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "输入问题" }), {
+      target: { value: "报名截止日期是什么？" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+    const answer = await screen.findByTestId("assistant-public-answer");
+    expect(answer).toHaveTextContent("报名截止日期为 2026 年 12 月 31 日。");
+    const citations = screen.getByTestId("assistant-knowledge-citations");
+    expect(citations).toHaveTextContent("参考来源");
+    expect(citations).toHaveTextContent("2026 活动报名指南");
+    expect(citations).toHaveTextContent("本项目报名截止日期为 2026 年 12 月 31 日。");
+    expect(citations.querySelector('a[href="https://docs.example.com/guide"]'))
+      .toHaveAttribute("rel", "noopener noreferrer");
+    expect(citations).toHaveTextContent("线下申请说明.pdf");
+    expect(citations.querySelector('a[href^="javascript:"]')).toBeNull();
   });
 
   it("restores a pending same-browser request by client message id and resumes over SSE", async () => {

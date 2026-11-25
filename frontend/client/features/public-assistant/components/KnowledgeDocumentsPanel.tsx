@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/context/i18nContext";
 import {
   getKnowledgeDocumentPreview,
+  importKnowledgeWebPage,
   listKnowledgeDocuments,
   processKnowledgeDocument,
   uploadKnowledgeDocument,
@@ -197,6 +198,8 @@ export function KnowledgeDocumentsPanel({
   const [uploadError, setUploadError] = useState<
     "uploadTooLarge" | "uploadFailed" | null
   >(null);
+  const [pageUrl, setPageUrl] = useState("");
+  const [pageImportError, setPageImportError] = useState(false);
   const [copied, setCopied] = useState("");
   const [excerpt, setExcerpt] = useState("");
   const documents = useQuery({
@@ -230,6 +233,15 @@ export function KnowledgeDocumentsPanel({
     mutationFn: (file: File) => uploadKnowledgeDocument(knowledgeBaseId, file),
     onSuccess: refresh,
   });
+  const importPage = useMutation({
+    mutationFn: (url: string) => importKnowledgeWebPage(knowledgeBaseId, url),
+    onSuccess: () => {
+      setPageUrl("");
+      setPageImportError(false);
+      refresh();
+    },
+    onError: () => setPageImportError(true),
+  });
   const process = useMutation({
     mutationFn: (id: string) => processKnowledgeDocument(knowledgeBaseId, id),
     onSuccess: refresh,
@@ -250,7 +262,7 @@ export function KnowledgeDocumentsPanel({
           ref={fileInput}
           type="file"
           className="hidden"
-          accept=".txt,.md,.markdown,.json,.docx"
+          accept=".txt,.md,.markdown,.json,.docx,.pdf"
           data-testid="knowledge-document-file"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -262,7 +274,7 @@ export function KnowledgeDocumentsPanel({
             }
             if (
               file.size === 0 ||
-              !/\.(txt|md|markdown|json|docx)$/i.test(file.name)
+              !/\.(txt|md|markdown|json|docx|pdf)$/i.test(file.name)
             ) {
               setUploadError("uploadFailed");
               return;
@@ -286,6 +298,43 @@ export function KnowledgeDocumentsPanel({
           {p(uploadError ?? "uploadFailed")}
         </p>
       )}
+      <form
+        className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed p-3"
+        data-testid="knowledge-web-page-import-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const value = pageUrl.trim();
+          if (value && !importPage.isPending) importPage.mutate(value);
+        }}
+      >
+        <label className="min-w-0 flex-1 space-y-2 text-sm">
+          <span>{p("webPageUrl")}</span>
+          <Input
+            type="url"
+            maxLength={2048}
+            value={pageUrl}
+            onChange={(event) => {
+              setPageUrl(event.target.value);
+              setPageImportError(false);
+            }}
+            placeholder="https://example.com/guide"
+            data-testid="knowledge-web-page-url"
+          />
+        </label>
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={!pageUrl.trim() || importPage.isPending}
+          data-testid="knowledge-web-page-import"
+        >
+          {importPage.isPending ? p("webPageImporting") : p("webPageImport")}
+        </Button>
+        {pageImportError && (
+          <p role="alert" className="w-full text-sm text-[var(--text-danger)]">
+            {p("webPageImportFailed")}
+          </p>
+        )}
+      </form>
       {process.isError && <p role="alert">{p("processFailed")}</p>}
       {documents.isLoading ? (
         <p role="status">{p("loading")}</p>
@@ -310,6 +359,17 @@ export function KnowledgeDocumentsPanel({
             >
               <div className="min-w-0 flex-1">
                 <h3 className="break-all font-medium">{item.fileName}</h3>
+                {item.sourceUrl && (
+                  <a
+                    className="mt-1 inline-block max-w-full break-all text-xs text-[var(--text-link)] underline-offset-4 hover:underline"
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid={`knowledge-document-source-${item.id}`}
+                  >
+                    {p("webPageSource")}
+                  </a>
+                )}
                 <p className="mt-1 text-sm text-[var(--text-subtle)]">
                   <span data-testid={`knowledge-document-state-${item.id}`}>
                     {status(item)}

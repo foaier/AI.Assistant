@@ -137,7 +137,7 @@ public sealed class AssistantExecutionSnapshotService
                     var version = job is null ? null : await _documents.GetVersionAsync(doc.Id, job.VersionNo, ct);
                     if (version is null || version.Id != job!.DocumentVersionId || version.Status != "ready" || version.IndexStatus != "ready")
                         throw new BizResultException(BusinessCodes.Conflict, "assistant_knowledge_index_not_ready");
-                    documents.Add(new(doc.Id, version.Id, version.VersionNo, doc.FileName));
+                    documents.Add(new(doc.Id, version.Id, version.VersionNo, doc.FileName, doc.SourceUrl));
                 }
             }
         }
